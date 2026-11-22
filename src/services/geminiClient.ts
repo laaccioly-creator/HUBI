@@ -18,9 +18,8 @@ const modelosIndisponiveis404 = new Set<string>([
 
 // Fallback de contingência caso a rede do cliente oscile ou a listagem falhe temporariamente
 export const MODELOS_FALLBACK_CONTINGENCIA = [
-  'gemini-2.5-flash',
   'gemini-3.8-flash',
-  'gemini-2.5-flash-lite'
+  'gemini-3.8-flash-lite'
 ];
 
 export const isModeloIndisponivel = (modelo: string): boolean => {
@@ -84,12 +83,15 @@ export const calcularScoreModelo = (nome: string): number => {
   if (limpo.includes('flash')) {
     score += 1000;
   }
-  // Modelos primários recomendados para visão multimodal, Radar de Preços e Varejo
-  if (limpo === 'gemini-2.5-flash' || limpo === 'gemini-3.8-flash') {
-    score += 1500;
-  }
-  if (limpo === 'gemini-3.5-flash') {
-    score += 600;
+  // Modelo primário recomendado para visão multimodal, Radar de Preços e Varejo (~2s real)
+  if (limpo === 'gemini-3.8-flash') {
+    score += 2000;
+  } else if (limpo === 'gemini-3.8-flash-lite') {
+    score += 1600;
+  } else if (limpo === 'gemini-3.5-flash') {
+    score += 1200;
+  } else if (limpo === 'gemini-2.5-flash') {
+    score += 1000;
   }
   // Penaliza modelos pesados (pro), que costumam ter latência maior para varejo/chat
   if (limpo.includes('pro')) {

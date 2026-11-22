@@ -100,7 +100,12 @@ import { ModalOnboardingSerpApi } from './ModalOnboardingSerpApi';
 import { SpinnerPesquisandoIA } from './SpinnerPesquisandoIA';
 import { ModalDuvidaProdutoIA } from './ModalDuvidaProdutoIA';
 import { obterSerpApiKey, obterOuBuscarSerpApiKey } from '../services/serpApiService';
-import { comprimirFotoProduto, type CompressResult } from '../utils/imageCompressor';
+import {
+  comprimirFotoProduto,
+  gerarPayloadBase64IA,
+  type CompressResult,
+  type PayloadBase64IA
+} from '../utils/imageCompressor';
 import { formatarMoeda } from '../utils/formatters';
 import { ProdutoService } from '../services/produtoService';
 import { ModalCameraCapturaMobile } from './ui/ModalCameraCapturaMobile';
@@ -680,12 +685,14 @@ export const ProdutosMobile: React.FC<ProdutosMobileProps> = ({
         textoCancelar: 'Continuar Editando',
         onConfirmar: () => {
           revogarPreviewUrls();
+          limparCacheVisaoIA();
           setSnapshotInicialForm('');
           setTelaAtiva('lista');
         }
       });
     } else {
       revogarPreviewUrls();
+      limparCacheVisaoIA();
       setSnapshotInicialForm('');
       setTelaAtiva('lista');
     }
@@ -752,6 +759,40 @@ export const ProdutosMobile: React.FC<ProdutosMobileProps> = ({
   const [modoCameraCaptura, setModoCameraCaptura] = useState<'produto' | 'ia' | null>(null);
   const modoCameraCapturaRef = useRef<'produto' | 'ia' | null>(null);
   const [origemScannerParaIA, setOrigemScannerParaIA] = useState<boolean>(false);
+  const cacheVisaoIARef = useRef<Map<string, PayloadBase64IA>>(new Map());
+  const [fotoPrincipalBase64IA, setFotoPrincipalBase64IA] = useState<{
+    url: string;
+    payload: PayloadBase64IA;
+  } | null>(null);
+
+  const registrarPayloadVisaoIA = (
+    urlPrincipal: string,
+    payload: PayloadBase64IA,
+    urlSecundaria?: string
+  ) => {
+    if (urlPrincipal) {
+      cacheVisaoIARef.current.set(urlPrincipal, payload);
+    }
+    if (urlSecundaria) {
+      cacheVisaoIARef.current.set(urlSecundaria, payload);
+    }
+    setFotoPrincipalBase64IA({ url: urlPrincipal, payload });
+  };
+
+  const obterPayloadVisaoIAParaUrl = (url?: string | null): PayloadBase64IA | null => {
+    if (!url) return null;
+    const cached = cacheVisaoIARef.current.get(url);
+    if (cached) return cached;
+    if (fotoPrincipalBase64IA && fotoPrincipalBase64IA.url === url) {
+      return fotoPrincipalBase64IA.payload;
+    }
+    return null;
+  };
+
+  const limparCacheVisaoIA = () => {
+    cacheVisaoIARef.current.clear();
+    setFotoPrincipalBase64IA(null);
+  };
 
   const abrirCameraCaptura = (modo: 'produto' | 'ia') => {
     modoCameraCapturaRef.current = modo;
@@ -1002,6 +1043,7 @@ export const ProdutosMobile: React.FC<ProdutosMobileProps> = ({
       return;
     }
     setProdutoEditando(null);
+    limparCacheVisaoIA();
     const initialData = {
       nome: '',
       codigoInterno: '',
@@ -1306,6 +1348,7 @@ export const ProdutosMobile: React.FC<ProdutosMobileProps> = ({
 
   const abrirEditarProduto = (p: Produto, aba: 'cadastro' | 'estoque' = 'cadastro') => {
     setProdutoEditando(p);
+    limparCacheVisaoIA();
     setDadosMercado(null);
     setErroMercado(null);
     const corSalva = obterCorProduto(p);
@@ -1873,6 +1916,7 @@ export const ProdutosMobile: React.FC<ProdutosMobileProps> = ({
     // Localizar ou classificar categoria compatível da loja com Jev (System One)
     let categoriaMatchId = formData.categoriaId;
     if (categorias.length > 0) {
+      const tEtapa3 = performance.now();
       try {
         const catClassificada = await catalogJevService.classificarCategoriaLoja(
           { nome: sugestao.nome, descricao: sugestao.descricao },
@@ -1894,6 +1938,7 @@ export const ProdutosMobile: React.FC<ProdutosMobileProps> = ({
           if (achouCat) categoriaMatchId = achouCat.id;
         }
       }
+      console.log(`[IA-Produto] Etapa 3: Jev TypeSafe em ${Math.round(performance.now() - tEtapa3)}ms`);
     }
 
     let atacadoSugerido: string | undefined = undefined;
@@ -1932,14 +1977,19 @@ export const ProdutosMobile: React.FC<ProdutosMobileProps> = ({
   const processarPreenchimentoIA = async (
     tipo: 'foto' | 'texto' | 'codigo',
     valor?: string,
-    fotoGaleriaUrl?: string
+    fotoGaleriaUrl?: string,
+    payloadBase64IA?: PayloadBase64IA | null
   ) => {
     try {
       setProcessandoIA(true);
       let sugestao: any = null;
 
       if (tipo === 'foto' && valor) {
-        sugestao = await identificarProdutoPorFoto(valor, segmentoLoja, loja);
+        const payloadPronto =
+          payloadBase64IA ||
+          obterPayloadVisaoIAParaUrl(valor) ||
+          obterPayloadVisaoIAParaUrl(fotoGaleriaUrl);
+        sugestao = await identificarProdutoPorFoto(valor, segmentoLoja, loja, payloadPronto);
       } else if (tipo === 'texto') {
         const textoAlvo = (valor || promptTextoIA).trim();
         if (textoAlvo) {
@@ -1976,7 +2026,8 @@ export const ProdutosMobile: React.FC<ProdutosMobileProps> = ({
   const handleBotaoPreencherComIA = async () => {
     const fotoExistente = formData.fotos[0];
     if (fotoExistente) {
-      await processarPreenchimentoIA('foto', fotoExistente);
+      const payloadPronto = obterPayloadVisaoIAParaUrl(fotoExistente);
+      await processarPreenchimentoIA('foto', fotoExistente, fotoExistente, payloadPronto);
       return;
     }
 
@@ -2028,7 +2079,9 @@ export const ProdutosMobile: React.FC<ProdutosMobileProps> = ({
 
     try {
       audioService.playBeep();
+      const payloadVisaoIA = await gerarPayloadBase64IA(resultado.blob);
       const urlFinal = await ProdutoService.uploadFotoDataUrl(resultado.dataUrl, loja?.id);
+      registrarPayloadVisaoIA(urlFinal, payloadVisaoIA, resultado.dataUrl);
 
       setFormData(prev => ({
         ...prev,
@@ -2036,7 +2089,7 @@ export const ProdutosMobile: React.FC<ProdutosMobileProps> = ({
       }));
 
       if (modoAtual === 'ia') {
-        await processarPreenchimentoIA('foto', resultado.dataUrl, urlFinal);
+        await processarPreenchimentoIA('foto', urlFinal, urlFinal, payloadVisaoIA);
       } else {
         setMensagemFeedback({ texto: 'Foto capturada e salva com sucesso!', tipo: 'sucesso' });
       }
@@ -2057,9 +2110,11 @@ export const ProdutosMobile: React.FC<ProdutosMobileProps> = ({
       const resultado = await comprimirFotoProduto(file, { maxDimension: 1024, quality: 0.78 });
       previewGerada = resultado.previewUrl;
       registrarPreviewUrl(previewGerada);
+      const payloadVisaoIA = await gerarPayloadBase64IA(resultado.blob);
 
       if (resultado.dataUrl) {
         const urlFinal = await ProdutoService.uploadFotoDataUrl(resultado.dataUrl, loja?.id);
+        registrarPayloadVisaoIA(urlFinal, payloadVisaoIA, resultado.dataUrl);
         setFormData(prev => ({
           ...prev,
           fotos: [urlFinal, ...prev.fotos.filter(f => f !== urlFinal)].slice(0, 7)
@@ -5890,16 +5945,18 @@ export const ProdutosMobile: React.FC<ProdutosMobileProps> = ({
                             });
                             previewGerada = resultado.previewUrl;
                             registrarPreviewUrl(previewGerada);
+                            const payloadVisaoIA = await gerarPayloadBase64IA(resultado.blob);
                             if (resultado.dataUrl) {
                               const urlFinal = await ProdutoService.uploadFotoDataUrl(
                                 resultado.dataUrl,
                                 loja?.id
                               );
+                              registrarPayloadVisaoIA(urlFinal, payloadVisaoIA, resultado.dataUrl);
                               setFormData(prev => ({
                                 ...prev,
                                 fotos: [urlFinal, ...prev.fotos.filter(f => f !== urlFinal)].slice(0, 7)
                               }));
-                              await processarPreenchimentoIA('foto', resultado.dataUrl, urlFinal);
+                              await processarPreenchimentoIA('foto', urlFinal, urlFinal, payloadVisaoIA);
                             }
                           } catch (err: unknown) {
                             const msg =
@@ -6020,6 +6077,7 @@ export const ProdutosMobile: React.FC<ProdutosMobileProps> = ({
           fotosAtuaisCount={formData.fotos.length}
           maxFotos={7}
           fotoReferencia={formData.fotos[0] || undefined}
+          fotoReferenciaBase64={obterPayloadVisaoIAParaUrl(formData.fotos[0])}
           segmentoLoja={segmentoLoja}
           loja={loja}
           onAbrirConfiguracaoChave={() => setModalOnboardingSerpApiAberto(true)}

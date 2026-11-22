@@ -11,12 +11,11 @@ const corsHeaders = {
 };
 
 const MODELOS_RAPIDOS_HOMOLOGADOS = [
-  "gemini-2.5-flash",
   "gemini-3.8-flash",
-  "gemini-2.5-flash-lite",
+  "gemini-3.8-flash-lite",
 ] as const;
 
-const TIMEOUT_CHAMADA_GOOGLE_MS = 9000;
+const TIMEOUT_CHAMADA_GOOGLE_MS = 8000;
 const TIMEOUT_LIST_MODELS_MS = 4000;
 const REGEX_MODELO_FLASH_PADRAO = /^models\/gemini-(\d+(?:\.\d+)?)-flash$/i;
 
@@ -79,7 +78,7 @@ function sanitizarPayloadParaModelo(
       genCfgAtual.temperature = 0.2;
     }
     if (genCfgAtual.maxOutputTokens === undefined) {
-      genCfgAtual.maxOutputTokens = 600;
+      genCfgAtual.maxOutputTokens = 500;
     }
     if (suportaThinking) {
       if (!("thinkingConfig" in genCfgAtual)) {
@@ -395,13 +394,11 @@ serve(async (req: Request) => {
       if (tools) googlePayload.tools = tools;
     }
 
-    // 4. Montagem da lista ordenada de modelos rápidos homologados (sem bloquear no ListModels)
+    // 4. Montagem da lista ordenada: 'gemini-3.8-flash' é sempre o modelo primário absoluto
     const requestedModel = String(model || "").replace(/^models\//i, "").trim();
     const filaModelos: string[] = requestedModel.toLowerCase().includes("-tts")
       ? [requestedModel, ...MODELOS_RAPIDOS_HOMOLOGADOS]
-      : (MODELOS_RAPIDOS_HOMOLOGADOS as readonly string[]).includes(requestedModel)
-        ? [requestedModel, ...MODELOS_RAPIDOS_HOMOLOGADOS.filter((m) => m !== requestedModel)]
-        : [...MODELOS_RAPIDOS_HOMOLOGADOS];
+      : [...MODELOS_RAPIDOS_HOMOLOGADOS];
 
     const actionLimpa = String(action || "generateContent").trim() || "generateContent";
 
@@ -473,7 +470,7 @@ serve(async (req: Request) => {
       {
         ok: false,
         error: traduzidoFinal.error,
-        detalhe: ultimoResultado?.timeout ? "timeout_9s" : detalheFinal,
+        detalhe: ultimoResultado?.timeout ? "timeout_8s" : detalheFinal,
         statusGoogle: statusFinal,
       },
       traduzidoFinal.statusHttp

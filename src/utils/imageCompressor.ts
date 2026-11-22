@@ -20,6 +20,11 @@ export interface CompressResult {
   dataUrl: string;
 }
 
+export interface PayloadBase64IA {
+  base64Limpo: string;
+  mimeType: string;
+}
+
 const MAX_DIMENSION_PADRAO = 1024;
 const QUALITY_PADRAO = 0.78;
 const MIME_TYPE_PADRAO = 'image/jpeg';
@@ -258,4 +263,26 @@ export async function comprimirFrameVideo(
   const origH = video.videoHeight || maxDimension;
 
   return desenharEComprimirFonte(video, origW, origH, options);
+}
+
+/**
+ * Gera uma única vez o payload leve (512px, JPEG 0.68) para envio direto à IA multimodal,
+ * evitando re-leitura de blobs ou Data URLs pesados nos modais.
+ */
+export async function gerarPayloadBase64IA(origem: File | Blob): Promise<PayloadBase64IA> {
+  const resultado = await comprimirFotoProduto(origem, OPCOES_COMPRESSAO_VISAO_IA);
+  try {
+    return {
+      base64Limpo: resultado.base64Limpo,
+      mimeType: resultado.mimeType || 'image/jpeg'
+    };
+  } finally {
+    if (resultado.previewUrl && resultado.previewUrl.startsWith('blob:')) {
+      try {
+        URL.revokeObjectURL(resultado.previewUrl);
+      } catch {
+        // Ignora caso já tenha sido revogada
+      }
+    }
+  }
 }

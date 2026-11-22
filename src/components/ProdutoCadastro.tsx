@@ -91,7 +91,12 @@ import {
   ofertaCorrespondeAoModeloPesquisado
 } from '../services/serpApiService';
 import { catalogJevService } from '../services/catalogJevService';
-import { comprimirFotoProduto, type CompressResult } from '../utils/imageCompressor';
+import {
+  comprimirFotoProduto,
+  gerarPayloadBase64IA,
+  type CompressResult,
+  type PayloadBase64IA
+} from '../utils/imageCompressor';
 import { ModalCameraCapturaMobile } from './ui/ModalCameraCapturaMobile';
 
 export interface PrecoConcorrente {
@@ -144,17 +149,20 @@ const comprimirArquivoImagem = async (
 
 // Cache em memória do Base64 das fotos para análise instantânea pela IA sem precisar baixar da nuvem
 const fotoBase64Cache = new Map<string, string>();
+const fotoVisaoIACache = new Map<string, PayloadBase64IA>();
 
 const uploadResultadoComprimidoParaSupabase = async (
   blob: Blob,
   dataUrl: string,
   lojaId: string
-): Promise<{ publicUrl: string; dataUrl: string }> => {
+): Promise<{ publicUrl: string; dataUrl: string; payloadVisaoIA: PayloadBase64IA }> => {
   const ext = 'jpg';
   const nomeArquivo = `${lojaId || 'geral'}/${Date.now()}_${Math.random().toString(36).substring(2, 8)}.${ext}`;
+  const payloadVisaoIA = await gerarPayloadBase64IA(blob);
 
   // Salvar no cache local imediatamente
   fotoBase64Cache.set(dataUrl, dataUrl);
+  fotoVisaoIACache.set(dataUrl, payloadVisaoIA);
 
   try {
     const { error } = await supabase.storage
@@ -167,7 +175,8 @@ const uploadResultadoComprimidoParaSupabase = async (
     if (error) {
       console.warn('Aviso: Bucket "produtos" no Supabase Storage não disponível ou sem permissão pública. Usando imagem local temporária.', error);
       fotoBase64Cache.set(dataUrl, dataUrl);
-      return { publicUrl: dataUrl, dataUrl };
+      fotoVisaoIACache.set(dataUrl, payloadVisaoIA);
+      return { publicUrl: dataUrl, dataUrl, payloadVisaoIA };
     }
 
     const { data: publicData } = supabase.storage
@@ -176,21 +185,23 @@ const uploadResultadoComprimidoParaSupabase = async (
 
     const finalUrl = publicData?.publicUrl || dataUrl;
     fotoBase64Cache.set(finalUrl, dataUrl);
+    fotoVisaoIACache.set(finalUrl, payloadVisaoIA);
 
     return {
       publicUrl: finalUrl,
-      dataUrl
+      dataUrl,
+      payloadVisaoIA
     };
   } catch (err) {
     console.warn('Erro ao salvar no Storage:', err);
-    return { publicUrl: dataUrl, dataUrl };
+    return { publicUrl: dataUrl, dataUrl, payloadVisaoIA };
   }
 };
 
 const uploadFotoParaSupabase = async (
   file: File,
   lojaId: string
-): Promise<{ publicUrl: string; dataUrl: string }> => {
+): Promise<{ publicUrl: string; dataUrl: string; payloadVisaoIA: PayloadBase64IA }> => {
   const { blob, dataUrl, previewUrl } = await comprimirArquivoImagem(file);
   try {
     return await uploadResultadoComprimidoParaSupabase(blob, dataUrl, lojaId);
@@ -684,6 +695,20 @@ export const ProdutoCadastro: React.FC = () => {
   // Estados do Produto (Fotos - até 7)
   const [fotosUrls, setFotosUrls] = useState<string[]>(() => rascunhoSalvo?.fotosUrls || []);
   const [fotoPrincipal, setFotoPrincipal] = useState<string>(() => rascunhoSalvo?.fotoPrincipal || '');
+  const [fotoPrincipalBase64IA, setFotoPrincipalBase64IA] = useState<{
+    url: string;
+    payload: PayloadBase64IA;
+  } | null>(null);
+
+  const obterPayloadVisaoIAParaUrl = (url?: string | null): PayloadBase64IA | null => {
+    if (!url) return null;
+    const cached = fotoVisaoIACache.get(url);
+    if (cached) return cached;
+    if (fotoPrincipalBase64IA && fotoPrincipalBase64IA.url === url) {
+      return fotoPrincipalBase64IA.payload;
+    }
+    return null;
+  };
   const [novaFotoUrl, setNovaFotoUrl] = useState<string>('');
   const [mostrarUrlInput, setMostrarUrlInput] = useState<boolean>(false);
   const [fazendoUploadFoto, setFazendoUploadFoto] = useState<boolean>(false);
@@ -1617,14 +1642,18 @@ export const ProdutoCadastro: React.FC = () => {
     try {
       setFazendoUploadFoto(true);
       const novasUrls: string[] = [];
+      let primeiroPayloadVisaoIA: PayloadBase64IA | null = null;
 
       for (let i = 0; i < filesParaProcessar.length; i++) {
         setUploadStatusMsg(`Enviando foto ${i + 1} de ${filesParaProcessar.length}...`);
         const file = filesParaProcessar[i];
-        const { publicUrl, dataUrl } = await uploadFotoParaSupabase(file, loja?.id || 'geral');
+        const { publicUrl, dataUrl, payloadVisaoIA } = await uploadFotoParaSupabase(file, loja?.id || 'geral');
         const urlFinal = publicUrl || dataUrl;
         if (urlFinal && !fotosUrls.includes(urlFinal) && !novasUrls.includes(urlFinal)) {
           novasUrls.push(urlFinal);
+          if (!primeiroPayloadVisaoIA) {
+            primeiroPayloadVisaoIA = payloadVisaoIA;
+          }
         }
       }
 
@@ -1635,6 +1664,9 @@ export const ProdutoCadastro: React.FC = () => {
         });
         if (!fotoPrincipal) {
           setFotoPrincipal(novasUrls[0]);
+          if (primeiroPayloadVisaoIA) {
+            setFotoPrincipalBase64IA({ url: novasUrls[0], payload: primeiroPayloadVisaoIA });
+          }
         }
       }
     } catch (err: any) {
@@ -1662,7 +1694,7 @@ export const ProdutoCadastro: React.FC = () => {
       setFazendoUploadFoto(true);
       setUploadStatusMsg('Enviando foto capturada...');
 
-      const { publicUrl, dataUrl } = await uploadResultadoComprimidoParaSupabase(
+      const { publicUrl, dataUrl, payloadVisaoIA } = await uploadResultadoComprimidoParaSupabase(
         resultado.blob,
         resultado.dataUrl,
         loja?.id || 'geral'
@@ -1676,11 +1708,12 @@ export const ProdutoCadastro: React.FC = () => {
         });
         if (!fotoPrincipal) {
           setFotoPrincipal(urlFinal);
+          setFotoPrincipalBase64IA({ url: urlFinal, payload: payloadVisaoIA });
         }
       }
 
       if (dispararAnaliseIA) {
-        await analisarFotoParaPreenchimentoIA(resultado.dataUrl);
+        await analisarFotoParaPreenchimentoIA(urlFinal || resultado.dataUrl, payloadVisaoIA);
       }
     } catch (err: unknown) {
       const msg = err instanceof Error ? err.message : 'Falha ao enviar a foto capturada.';
@@ -1774,6 +1807,7 @@ export const ProdutoCadastro: React.FC = () => {
 
       // 2. Se não encontrou direta, solicita classificação ao Jev usando o nome exato do usuário
       if (!catPrincipalEncontrada) {
+        const tEtapa3 = performance.now();
         try {
           const catClassificada = await catalogJevService.classificarCategoriaLoja(
             { nome: nomeReferenciaPrincipal, descricao: dadosSugeridos.descricao },
@@ -1783,6 +1817,7 @@ export const ProdutoCadastro: React.FC = () => {
             catPrincipalEncontrada = categorias.find(c => c.id === catClassificada.id);
           }
         } catch {}
+        console.log(`[IA-Produto] Etapa 3: Jev TypeSafe em ${Math.round(performance.now() - tEtapa3)}ms`);
       }
 
       if (catPrincipalEncontrada) {
@@ -1810,7 +1845,10 @@ export const ProdutoCadastro: React.FC = () => {
   };
 
   // Analisa uma foto específica com IA multimodal (reaproveitada tanto na foto já existente quanto após captura)
-  const analisarFotoParaPreenchimentoIA = async (fotoAlvoParaAnalise: string) => {
+  const analisarFotoParaPreenchimentoIA = async (
+    fotoAlvoParaAnalise: string,
+    payloadPronto?: PayloadBase64IA | null
+  ) => {
     try {
       setAnalisandoIA(true);
       setRedigindoDescricaoIA(false);
@@ -1818,7 +1856,8 @@ export const ProdutoCadastro: React.FC = () => {
       setSucessoIAMsg(null);
 
       const fotoParaIA = fotoBase64Cache.get(fotoAlvoParaAnalise) || fotoAlvoParaAnalise;
-      const dadosSugeridos = await identificarProdutoPorFoto(fotoParaIA, segmentoLoja, loja);
+      const payloadIA = payloadPronto || obterPayloadVisaoIAParaUrl(fotoAlvoParaAnalise);
+      const dadosSugeridos = await identificarProdutoPorFoto(fotoParaIA, segmentoLoja, loja, payloadIA);
 
       if (dadosSugeridos) {
         if (dadosSugeridos.duvida && dadosSugeridos.opcoes_sugeridas && dadosSugeridos.opcoes_sugeridas.length > 1) {
@@ -4259,6 +4298,7 @@ export const ProdutoCadastro: React.FC = () => {
         fotosAtuaisCount={fotosUrls.length}
         maxFotos={7}
         fotoReferencia={fotoPrincipal || fotosUrls[0] || undefined}
+        fotoReferenciaBase64={obterPayloadVisaoIAParaUrl(fotoPrincipal || fotosUrls[0])}
         segmentoLoja={segmentoLoja}
         loja={loja}
         onAbrirConfiguracaoChave={() => setModalOnboardingSerpApiAberto(true)}
@@ -4277,11 +4317,15 @@ export const ProdutoCadastro: React.FC = () => {
             setFotoPrincipal(novas[0]);
           }
           // Pré-carrega no cache para que 'Preencher Ficha a partir da Foto' seja instantâneo (< 2s)
-          if (primeira && !fotoBase64Cache.has(primeira)) {
+          if (primeira && !fotoVisaoIACache.has(primeira)) {
             comprimirImagemParaIA(primeira)
               .then(res => {
                 if (res.base64) {
                   fotoBase64Cache.set(primeira, `data:${res.mimeType};base64,${res.base64}`);
+                  fotoVisaoIACache.set(primeira, {
+                    base64Limpo: res.base64,
+                    mimeType: res.mimeType || 'image/jpeg'
+                  });
                 }
               })
               .catch(() => {});

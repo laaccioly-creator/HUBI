@@ -37,7 +37,11 @@ import {
   registrarModeloIndisponivel,
   testarChaveGemini
 } from './geminiClient';
-import { comprimirFotoProduto, OPCOES_COMPRESSAO_VISAO_IA } from '../utils/imageCompressor';
+import {
+  comprimirFotoProduto,
+  OPCOES_COMPRESSAO_VISAO_IA,
+  type PayloadBase64IA
+} from '../utils/imageCompressor';
 
 export {
   SerpApiQuotaError,
@@ -861,7 +865,7 @@ export const executarRequisicaoGemini = async (
     safetySettings: restRequestBody.safetySettings || SAFETY_SETTINGS_VAREJO
   };
 
-  const modeloDesejado = modelInBody || 'gemini-2.5-flash';
+  const modeloDesejado = modelInBody || 'gemini-3.8-flash';
 
   // 1. Resolver chave local/loja para chamada direta de baixa latência (1 salto direto à Google API)
   let chaveParaContingencia = (apiKey || '').trim() || getGeminiApiKey();
@@ -893,7 +897,7 @@ export const executarRequisicaoGemini = async (
   }
 
   if (modelos.length === 0) {
-    modelos = ['gemini-2.5-flash'];
+    modelos = ['gemini-3.8-flash'];
   }
 
   let primeiroErro: string | null = null;
@@ -1025,10 +1029,25 @@ export const executarRequisicaoGemini = async (
 export const identificarProdutoPorFoto = async (
   imageBase64OrUrl: string,
   segmentoLoja?: string,
-  loja?: any
+  loja?: any,
+  payloadPronto?: PayloadBase64IA | null
 ): Promise<ProdutoSugeridoIA> => {
   try {
-    const { base64: cleanBase64, mimeType: detectedMime } = await comprimirImagemParaIA(imageBase64OrUrl);
+    const tEtapa1 = performance.now();
+    let cleanBase64 = payloadPronto?.base64Limpo || '';
+    let detectedMime = payloadPronto?.mimeType || 'image/jpeg';
+
+    if (!cleanBase64) {
+      if (imageBase64OrUrl.startsWith('blob:')) {
+        throw new Error(
+          'A foto temporária expirou. Por favor, capture ou selecione a foto novamente.'
+        );
+      }
+      const comprimida = await comprimirImagemParaIA(imageBase64OrUrl);
+      cleanBase64 = comprimida.base64;
+      detectedMime = comprimida.mimeType || 'image/jpeg';
+    }
+    console.log(`[IA-Produto] Etapa 1: Base64 pronto em ${Math.round(performance.now() - tEtapa1)}ms`);
 
     const promptInstrucao = `
 Você é um especialista em catálogo de e-commerce e varejo no Brasil${segmentoLoja ? ` (segmento da loja: "${segmentoLoja}")` : ''}.
@@ -1073,13 +1092,15 @@ Se a foto gerar dúvida entre 2 a 3 versões/modelos possíveis, defina "duvida"
       safetySettings: SAFETY_SETTINGS_VAREJO,
       generationConfig: {
         temperature: 0.2,
-        maxOutputTokens: 4096,
+        maxOutputTokens: 500,
         thinkingConfig: { thinkingBudget: 0 },
         responseMimeType: 'application/json'
       }
     };
 
+    const tEtapa2 = performance.now();
     const resData = await invocarGeminiPreencherViaEdgeProxy(requestBody, loja?.id);
+    console.log(`[IA-Produto] Etapa 2: Gemini 3.8 Flash em ${Math.round(performance.now() - tEtapa2)}ms`);
 
     if (resData) {
       const rawText = resData?.candidates?.[0]?.content?.parts?.[0]?.text;
@@ -1120,6 +1141,7 @@ Se a foto gerar dúvida entre 2 a 3 versões/modelos possíveis, defina "duvida"
         let compFinal = Number(parsed.comprimento_cm) > 0 ? Number(parsed.comprimento_cm) : extraidos.comprimento_cm;
 
         if (!pesoKgFinal || !alturaFinal || !larguraFinal || !compFinal) {
+          const tEtapa3 = performance.now();
           try {
             const dimsJev = await catalogJevService.estimarDimensoesComJev(
               parsed.nome || '',
@@ -1131,6 +1153,7 @@ Se a foto gerar dúvida entre 2 a 3 versões/modelos possíveis, defina "duvida"
             larguraFinal = larguraFinal || dimsJev.largura_cm;
             compFinal = compFinal || dimsJev.comprimento_cm;
           } catch {}
+          console.log(`[IA-Produto] Etapa 3: Jev TypeSafe em ${Math.round(performance.now() - tEtapa3)}ms`);
         }
 
         return {
@@ -1420,10 +1443,26 @@ export const identificarTermoBuscaPorFotoIA = async (
   fotoUrlOuBase64: string,
   segmentoLoja?: string,
   loja?: (Partial<Loja> & { id?: string; segmento?: string }) | null,
-  nomeAtual?: string
+  nomeAtual?: string,
+  payloadPronto?: PayloadBase64IA | null
 ): Promise<ResultadoIdentificacaoVisualBusca | null> => {
   try {
-    const { base64: cleanBase64, mimeType: detectedMime } = await comprimirImagemParaIA(fotoUrlOuBase64);
+    const tEtapa1 = performance.now();
+    let cleanBase64 = payloadPronto?.base64Limpo || '';
+    let detectedMime = payloadPronto?.mimeType || 'image/jpeg';
+
+    if (!cleanBase64) {
+      if (fotoUrlOuBase64.startsWith('blob:')) {
+        throw new Error(
+          'Não foi possível ler a foto temporária; digite o nome do produto acima para buscar.'
+        );
+      }
+      const comprimida = await comprimirImagemParaIA(fotoUrlOuBase64);
+      cleanBase64 = comprimida.base64;
+      detectedMime = comprimida.mimeType || 'image/jpeg';
+    }
+    console.log(`[IA-Produto] Etapa 1: Base64 pronto em ${Math.round(performance.now() - tEtapa1)}ms`);
+
     const ramoEfetivo = (segmentoLoja || obterNomeSegmentoLoja(loja) || '').trim();
     const contextoSistema = montarContextoSegmentoSistema(ramoEfetivo, loja);
 
@@ -1456,13 +1495,15 @@ Retorne EXCLUSIVAMENTE um objeto JSON válido neste formato:
       safetySettings: SAFETY_SETTINGS_VAREJO,
       generationConfig: {
         temperature: 0.2,
-        maxOutputTokens: 512,
+        maxOutputTokens: 500,
         thinkingConfig: { thinkingBudget: 0 },
         responseMimeType: 'application/json'
       }
     };
 
+    const tEtapa2 = performance.now();
     const resData = await invocarGeminiPreencherViaEdgeProxy(requestBody, loja?.id);
+    console.log(`[IA-Produto] Etapa 2: Gemini 3.8 Flash em ${Math.round(performance.now() - tEtapa2)}ms`);
     const rawText = resData?.candidates?.[0]?.content?.parts?.[0]?.text;
     if (!rawText) return null;
 
@@ -1502,7 +1543,8 @@ Retorne EXCLUSIVAMENTE um objeto JSON válido neste formato:
         msgLower.includes('configurada') ||
         msgLower.includes('inválida') ||
         msgLower.includes('recusou') ||
-        msgLower.includes('demorou')
+        msgLower.includes('demorou') ||
+        msgLower.includes('temporária')
       ) {
         throw err;
       }
@@ -1836,7 +1878,7 @@ async function invocarGeminiPreencherViaEdgeProxy(
   lojaId?: string
 ): Promise<GeminiProxyResponse> {
   return await invocarGeminiProxyDireto<GeminiProxyResponse>({
-    model: 'gemini-2.5-flash',
+    model: 'gemini-3.8-flash',
     action: 'generateContent',
     requestBody,
     loja_id: lojaId,

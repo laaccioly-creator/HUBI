@@ -11,6 +11,7 @@ import {
 import { limparTermoParaBuscaGoogle, extrairRamoCurtoLoja, montarQueryEnriquecidaComRamo } from '../services/serpApiService';
 import { SpinnerPesquisandoIA } from './SpinnerPesquisandoIA';
 import { ModalQuotaExcedidaSerpApi } from './ModalQuotaExcedidaSerpApi';
+import type { PayloadBase64IA } from '../utils/imageCompressor';
 
 const NOMES_TERMO_GENERICO = new Set([
   '',
@@ -46,6 +47,7 @@ interface ModalPesquisaFotosInternetProps {
   fotosAtuaisCount: number;
   maxFotos?: number;
   fotoReferencia?: string;
+  fotoReferenciaBase64?: PayloadBase64IA | null;
   segmentoLoja?: string;
   loja?: any;
   onAbrirConfiguracaoChave?: () => void;
@@ -60,10 +62,13 @@ export const ModalPesquisaFotosInternet: React.FC<ModalPesquisaFotosInternetProp
   fotosAtuaisCount,
   maxFotos = 7,
   fotoReferencia,
+  fotoReferenciaBase64,
   segmentoLoja,
   loja,
   onAbrirConfiguracaoChave
 }) => {
+  const fotoReferenciaBase64Ref = useRef<PayloadBase64IA | null>(fotoReferenciaBase64 ?? null);
+  fotoReferenciaBase64Ref.current = fotoReferenciaBase64 ?? null;
   const [termoBusca, setTermoBusca] = useState<string>('');
   const [urlManual, setUrlManual] = useState<string>('');
   const [carregando, setCarregando] = useState<boolean>(false);
@@ -244,68 +249,86 @@ export const ModalPesquisaFotosInternet: React.FC<ModalPesquisaFotosInternetProp
     termoSimplificadoIARef.current = '';
     usuarioEditouBuscaRef.current = false;
 
-    if (fotoReferencia && ehTermoBuscaGenerico(termoTratado)) {
-      const identificarEBuscarPorFoto = async () => {
-        setCarregando(true);
-        setIdentificandoFotoIA(true);
-        let timerTimeoutId: number | undefined;
-        try {
-          const ident = await Promise.race([
-            identificarTermoBuscaPorFotoIA(fotoReferencia, segmentoEfetivo, loja),
-            new Promise<never>((_, reject) => {
-              timerTimeoutId = window.setTimeout(() => {
-                reject(new Error('TIMEOUT_VISAO_IA'));
-              }, TIMEOUT_IDENTIFICACAO_FOTO_IA_MS);
-            })
-          ]);
-          if (cancelado) return;
-          setIdentificandoFotoIA(false);
+    const payloadPronto = fotoReferenciaBase64Ref.current;
 
-          if (ident?.termoCompleto) {
-            setTermoBusca(ident.termoCompleto);
-            termoSimplificadoIARef.current = ident.termoSimplificado || '';
-            await realizarBusca(ident.termoCompleto, ident.termoSimplificado);
-          } else {
+    if (fotoReferencia && ehTermoBuscaGenerico(termoTratado)) {
+      if (!payloadPronto && fotoReferencia.startsWith('blob:')) {
+        setIdentificandoFotoIA(false);
+        setCarregando(false);
+        setFotosEncontradas([]);
+        setErro(
+          'Não foi possível ler a imagem temporária; digite o nome do produto acima para buscar.'
+        );
+      } else {
+        const identificarEBuscarPorFoto = async () => {
+          setCarregando(true);
+          setIdentificandoFotoIA(true);
+          let timerTimeoutId: number | undefined;
+          try {
+            const ident = await Promise.race([
+              identificarTermoBuscaPorFotoIA(
+                fotoReferencia,
+                segmentoEfetivo,
+                loja,
+                undefined,
+                payloadPronto
+              ),
+              new Promise<never>((_, reject) => {
+                timerTimeoutId = window.setTimeout(() => {
+                  reject(new Error('TIMEOUT_VISAO_IA'));
+                }, TIMEOUT_IDENTIFICACAO_FOTO_IA_MS);
+              })
+            ]);
+            if (cancelado) return;
+            setIdentificandoFotoIA(false);
+
+            if (ident?.termoCompleto) {
+              setTermoBusca(ident.termoCompleto);
+              termoSimplificadoIARef.current = ident.termoSimplificado || '';
+              await realizarBusca(ident.termoCompleto, ident.termoSimplificado);
+            } else {
+              setCarregando(false);
+              setFotosEncontradas([]);
+              setErro(
+                'Não foi possível ler o rótulo pela IA; digite o nome do produto acima para buscar.'
+              );
+            }
+          } catch (err: unknown) {
+            if (cancelado) return;
+            setIdentificandoFotoIA(false);
             setCarregando(false);
             setFotosEncontradas([]);
-            setErro(
-              'Não foi possível ler o rótulo pela IA; digite o nome do produto acima para buscar.'
-            );
+            if (err instanceof Error && err.message === 'TIMEOUT_VISAO_IA') {
+              setErro(
+                'A leitura da foto pela IA demorou mais que o esperado. Digite o nome do produto acima para buscar.'
+              );
+            } else if (err instanceof Error && err.message.trim()) {
+              setErro(err.message.trim());
+            } else {
+              setErro(
+                'Não foi possível ler o rótulo pela IA; digite o nome do produto acima para buscar.'
+              );
+            }
+          } finally {
+            if (timerTimeoutId !== undefined) {
+              window.clearTimeout(timerTimeoutId);
+            }
           }
-        } catch (err: unknown) {
-          if (cancelado) return;
-          setIdentificandoFotoIA(false);
-          setCarregando(false);
-          setFotosEncontradas([]);
-          if (err instanceof Error && err.message === 'TIMEOUT_VISAO_IA') {
-            setErro(
-              'A leitura da foto pela IA demorou mais que o esperado. Digite o nome do produto acima para buscar.'
-            );
-          } else if (err instanceof Error && err.message.trim()) {
-            setErro(err.message.trim());
-          } else {
-            setErro(
-              'Não foi possível ler o rótulo pela IA; digite o nome do produto acima para buscar.'
-            );
-          }
-        } finally {
-          if (timerTimeoutId !== undefined) {
-            window.clearTimeout(timerTimeoutId);
-          }
-        }
-      };
+        };
 
-      void identificarEBuscarPorFoto();
+        void identificarEBuscarPorFoto();
+      }
     } else if (termoTratado) {
       // Caso o nome já esteja preenchido, busca imediatamente em paralelo com eventual leitura da foto
       const buscaInicialPromise = realizarBusca(termoTratado);
 
-      if (fotoReferencia) {
+      if (fotoReferencia && (payloadPronto || !fotoReferencia.startsWith('blob:'))) {
         const identParalelaPromise = identificarTermoBuscaPorFotoIA(
           fotoReferencia,
           segmentoEfetivo,
           loja,
-          termoTratado
+          termoTratado,
+          payloadPronto
         ).catch(() => null);
 
         void Promise.all([buscaInicialPromise, identParalelaPromise]).then(

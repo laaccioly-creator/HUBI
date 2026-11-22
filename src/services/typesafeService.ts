@@ -1,4 +1,4 @@
-import { supabase } from '../lib/supabase';
+import { supabase, supabaseFunctionsBaseUrl, supabaseAnonKey } from '../lib/supabase';
 
 export type TipoPerguntaTypeSafe = 'choice' | 'score' | 'noul';
 
@@ -51,35 +51,64 @@ export const typesafeService = {
     estado: string | Record<string, unknown> | Array<unknown>,
     perguntas: T,
     modelo: string = 'jev-latest',
-    timeoutMs: number = 2000
+    timeoutMs: number = 5000
   ): Promise<ResultadoTypeSafe<T>> {
+    const efetivoTimeoutMs = Math.min(Math.max(timeoutMs || 5000, 500), 5000);
+    let token = supabaseAnonKey;
+
     try {
-      const requisicaoPromise = supabase.functions.invoke('typesafe-eval', {
-        body: {
+      const sessaoRes = await Promise.race([
+        supabase.auth.getSession(),
+        new Promise<null>((resolve) => window.setTimeout(() => resolve(null), 300))
+      ]);
+      const accessToken =
+        sessaoRes && typeof sessaoRes === 'object' && 'data' in sessaoRes
+          ? sessaoRes.data?.session?.access_token
+          : null;
+      if (accessToken && accessToken.trim()) {
+        token = accessToken.trim();
+      }
+    } catch {
+      // Operador sem sessão auth.users segue imediatamente com supabaseAnonKey
+    }
+
+    const controller = new AbortController();
+    const timeoutId = window.setTimeout(() => controller.abort(), efetivoTimeoutMs);
+
+    try {
+      const response = await fetch(`${supabaseFunctionsBaseUrl}/typesafe-eval`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          apikey: supabaseAnonKey,
+          Authorization: `Bearer ${token || supabaseAnonKey}`
+        },
+        body: JSON.stringify({
           state: estado,
           questions: perguntas,
-          model: modelo,
-        },
+          model: modelo
+        }),
+        signal: controller.signal
       });
 
-      const timeoutPromise = new Promise<never>((_, reject) =>
-        setTimeout(() => reject(new Error(`Timeout de latência ao consultar Jev (${timeoutMs}ms)`)), timeoutMs)
-      );
+      const data = await response.json().catch(() => null);
 
-      const { data, error } = await Promise.race([requisicaoPromise, timeoutPromise]);
-
-      if (error) {
-        throw new Error(error.message || 'Falha ao comunicar com a Edge Function typesafe-eval.');
-      }
-
-      if (data?.erro) {
-        throw new Error(data.erro);
+      if (!response.ok || data?.erro) {
+        throw new Error(
+          (typeof data?.erro === 'string' && data.erro.trim()) ||
+            `Falha ao comunicar com a Edge Function typesafe-eval (HTTP ${response.status}).`
+        );
       }
 
       return data as ResultadoTypeSafe<T>;
     } catch (err: unknown) {
+      if (err instanceof Error && err.name === 'AbortError') {
+        throw new Error(`Tempo limite ao consultar Jev (${efetivoTimeoutMs}ms).`);
+      }
       const mensagem = err instanceof Error ? err.message : 'Erro inesperado ao consultar Jev.';
       throw new Error(mensagem);
+    } finally {
+      window.clearTimeout(timeoutId);
     }
   },
 

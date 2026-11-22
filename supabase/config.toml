@@ -15,3 +15,6 @@ verify_jwt = false
 
 [functions.buscar-fotos-serpapi]
 verify_jwt = false
+
+[functions.typesafe-eval]
+verify_jwt = false
