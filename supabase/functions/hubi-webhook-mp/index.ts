@@ -233,109 +233,199 @@ serve(async (req: Request) => {
       );
     }
 
-    // 2. Se o pagamento foi aprovado, renova ou ativa a anuidade da loja com trava de idempotência
+    // 2. Se o pagamento foi aprovado, renova ou ativa a anuidade da loja com trava estrita de idempotência
     if (statusPagamento === "approved") {
-      // Trava de Idempotência: verifica se este mp_payment_id já foi processado e aprovado anteriormente
+      const mpPaymentIdStr = String(payment.id);
+
+      // 2.1. Verificação prévia por mp_payment_id já aprovado
       const { data: pagamentoJaProcessado } = await supabaseAdmin
         .from("hubi_assinaturas_pagamentos")
         .select("id, status_pagamento")
-        .eq("mp_payment_id", String(payment.id))
+        .eq("mp_payment_id", mpPaymentIdStr)
         .eq("status_pagamento", "approved")
         .limit(1)
         .maybeSingle();
 
       if (pagamentoJaProcessado) {
-        console.log(`[hubi-webhook-mp] Idempotência: Pagamento ${payment.id} já processado anteriormente para a loja ${lojaId}. Ignorando duplicata.`);
+        console.log(
+          `[hubi-webhook-mp] Idempotência: Pagamento ${mpPaymentIdStr} já processado anteriormente para a loja ${lojaId}. Ignorando duplicata.`
+        );
         return new Response(
-          JSON.stringify({ received: true, idempotent_skip: true, status: statusPagamento }),
+          JSON.stringify({ status: "already_processed", received: true, idempotent_skip: true }),
           { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } }
         );
       }
 
-      // Busca dados atuais da loja para somar 365 dias (preservando dias restantes se renovação antecipada)
-      const { data: lojaAtual } = await supabaseAdmin
+      // 2.2. Consulta estado atual da loja e calcula nova data de vigência em memória (sem persistir em lojas ainda)
+      const { data: lojaAtual, error: erroBuscaLoja } = await supabaseAdmin
         .from("lojas")
         .select("id, organizacao_id, status_assinatura, assinatura_fim_em")
         .eq("id", lojaId)
         .maybeSingle();
 
-      if (lojaAtual) {
-        const agora = new Date();
-        let novaDataFim: Date;
+      if (erroBuscaLoja || !lojaAtual) {
+        console.error(`[hubi-webhook-mp] Loja ${lojaId} não localizada para pagamento ${mpPaymentIdStr}.`);
+        return new Response(
+          JSON.stringify({ received: true, warning: "loja_not_found" }),
+          { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+        );
+      }
 
-        if (lojaAtual.assinatura_fim_em) {
-          const fimAtual = new Date(lojaAtual.assinatura_fim_em);
-          if (fimAtual.getTime() > agora.getTime()) {
-            // Renovação antecipada: soma 365 dias a partir da data de vencimento atual
-            novaDataFim = new Date(fimAtual.getTime() + 365 * 24 * 60 * 60 * 1000);
-          } else {
-            // Vencida: soma 365 dias a partir de hoje
-            novaDataFim = new Date(agora.getTime() + 365 * 24 * 60 * 60 * 1000);
-          }
+      const agora = new Date();
+      let novaDataFim: Date;
+
+      if (lojaAtual.assinatura_fim_em) {
+        const fimAtual = new Date(lojaAtual.assinatura_fim_em);
+        if (fimAtual.getTime() > agora.getTime()) {
+          // Renovação antecipada: soma 365 dias a partir da data de vencimento atual
+          novaDataFim = new Date(fimAtual.getTime() + 365 * 24 * 60 * 60 * 1000);
         } else {
-          // Primeira assinatura (saindo do trial): 365 dias a partir de hoje
+          // Vencida: soma 365 dias a partir de hoje
           novaDataFim = new Date(agora.getTime() + 365 * 24 * 60 * 60 * 1000);
         }
+      } else {
+        // Primeira assinatura (saindo do trial): 365 dias a partir de hoje
+        novaDataFim = new Date(agora.getTime() + 365 * 24 * 60 * 60 * 1000);
+      }
 
-        // Atualização atômica da loja para status ativo e nova vigência
-        const { error: erroLoja } = await supabaseAdmin
-          .from("lojas")
-          .update({
-            status_assinatura: "ativo",
-            assinatura_fim_em: novaDataFim.toISOString(),
-          })
-          .eq("id", lojaId);
+      const dadosAtualizacao = {
+        status_pagamento: "approved",
+        mp_payment_id: mpPaymentIdStr,
+        mp_collection_id: mpPaymentIdStr,
+        meio_pagamento: payment.payment_method_id || null,
+        bandeira_metodo: payment.payment_type_id || null,
+        periodo_inicio_em: agora.toISOString(),
+        periodo_fim_em: novaDataFim.toISOString(),
+        aprovado_em: payment.date_approved || agora.toISOString(),
+        valor_total: Number(payment.transaction_amount || configMp.valorAnualTotal),
+      };
 
-        if (erroLoja) {
-          console.error(`[hubi-webhook-mp] Erro ao atualizar status da loja ${lojaId}:`, erroLoja.message);
-        } else {
-          console.log(`[hubi-webhook-mp] Loja ${lojaId} ativada com sucesso até ${novaDataFim.toISOString()}`);
-        }
+      const ehErroDuplicidade = (err: { code?: string; message?: string } | null | undefined): boolean => {
+        if (!err) return false;
+        const msgLower = String(err.message || "").toLowerCase();
+        return (
+          err.code === "23505" ||
+          msgLower.includes("duplicate key") ||
+          msgLower.includes("uq_hubi_assinaturas_mp_payment_id")
+        );
+      };
 
-        // Atualiza ou insere o registro na tabela de auditoria de pagamentos
-        const organizacaoAlvoId = lojaAtual.organizacao_id || orgId;
-        if (organizacaoAlvoId) {
-          // Tenta atualizar registro pendente recente dessa loja
-          const { data: faturaPendente } = await supabaseAdmin
-            .from("hubi_assinaturas_pagamentos")
-            .select("id")
-            .eq("loja_id", lojaId)
-            .eq("status_pagamento", "pendente")
-            .order("criado_em", { ascending: false })
-            .limit(1)
-            .maybeSingle();
+      // 2.3. Claim atômico em hubi_assinaturas_pagamentos ANTES de atualizar public.lojas
+      const { data: faturaPendente } = await supabaseAdmin
+        .from("hubi_assinaturas_pagamentos")
+        .select("id")
+        .eq("loja_id", lojaId)
+        .eq("status_pagamento", "pendente")
+        .order("criado_em", { ascending: false })
+        .limit(1)
+        .maybeSingle();
 
-          const dadosAtualizacao = {
-            status_pagamento: "approved",
-            mp_payment_id: String(payment.id),
-            mp_collection_id: String(payment.id),
-            meio_pagamento: payment.payment_method_id || null,
-            bandeira_metodo: payment.payment_type_id || null,
-            periodo_inicio_em: agora.toISOString(),
-            periodo_fim_em: novaDataFim.toISOString(),
-            aprovado_em: payment.date_approved || agora.toISOString(),
-            valor_total: Number(payment.transaction_amount || configMp.valorAnualTotal),
-          };
+      let linhasConfirmadasCount = 0;
 
-          if (faturaPendente) {
-            await supabaseAdmin
-              .from("hubi_assinaturas_pagamentos")
-              .update(dadosAtualizacao)
-              .eq("id", faturaPendente.id);
-          } else {
-            await supabaseAdmin
-              .from("hubi_assinaturas_pagamentos")
-              .insert({
-                loja_id: lojaId,
-                organizacao_id: organizacaoAlvoId,
-                mp_preference_id: String(payment.order?.id || payment.id),
-                valor_mensal_referencia: configMp.valorMensalAnual,
-                parcelas: payment.installments || configMp.maxParcelasCartao,
-                ciclo_meses: 12,
-                ...dadosAtualizacao,
-              });
+      if (faturaPendente) {
+        const { data: linhasAtualizadas, error: erroUpdateFatura } = await supabaseAdmin
+          .from("hubi_assinaturas_pagamentos")
+          .update(dadosAtualizacao)
+          .eq("id", faturaPendente.id)
+          .eq("loja_id", lojaId)
+          .neq("status_pagamento", "approved")
+          .select("id");
+
+        if (erroUpdateFatura) {
+          if (ehErroDuplicidade(erroUpdateFatura)) {
+            console.log(
+              `[hubi-webhook-mp] Idempotência (concorrência): Pagamento ${mpPaymentIdStr} já aprovado em outra requisição.`
+            );
+            return new Response(
+              JSON.stringify({ status: "already_processed", received: true, idempotent_skip: true }),
+              { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+            );
           }
+
+          console.error(
+            `[hubi-webhook-mp] Erro ao confirmar pagamento ${mpPaymentIdStr} em hubi_assinaturas_pagamentos:`,
+            erroUpdateFatura.message
+          );
+          return new Response(
+            JSON.stringify({ error: "Falha ao registrar confirmação do pagamento da assinatura." }),
+            { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+          );
         }
+
+        linhasConfirmadasCount = Array.isArray(linhasAtualizadas) ? linhasAtualizadas.length : 0;
+      } else {
+        const organizacaoAlvoId = lojaAtual.organizacao_id || orgId;
+        if (!organizacaoAlvoId) {
+          console.error(
+            `[hubi-webhook-mp] Organização não encontrada para loja ${lojaId} no pagamento ${mpPaymentIdStr}.`
+          );
+          return new Response(
+            JSON.stringify({ error: "Organização da loja não identificada para registrar pagamento." }),
+            { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+          );
+        }
+
+        const { data: linhasInseridas, error: erroInsertFatura } = await supabaseAdmin
+          .from("hubi_assinaturas_pagamentos")
+          .insert({
+            loja_id: lojaId,
+            organizacao_id: organizacaoAlvoId,
+            mp_preference_id: String(payment.order?.id || mpPaymentIdStr),
+            valor_mensal_referencia: configMp.valorMensalAnual,
+            parcelas: payment.installments || configMp.maxParcelasCartao,
+            ciclo_meses: 12,
+            ...dadosAtualizacao,
+          })
+          .select("id");
+
+        if (erroInsertFatura) {
+          if (ehErroDuplicidade(erroInsertFatura)) {
+            console.log(
+              `[hubi-webhook-mp] Idempotência (UNIQUE mp_payment_id): Pagamento ${mpPaymentIdStr} já processado.`
+            );
+            return new Response(
+              JSON.stringify({ status: "already_processed", received: true, idempotent_skip: true }),
+              { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+            );
+          }
+
+          console.error(
+            `[hubi-webhook-mp] Erro ao inserir pagamento ${mpPaymentIdStr} em hubi_assinaturas_pagamentos:`,
+            erroInsertFatura.message
+          );
+          return new Response(
+            JSON.stringify({ error: "Falha ao gravar pagamento aprovado da assinatura." }),
+            { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+          );
+        }
+
+        linhasConfirmadasCount = Array.isArray(linhasInseridas) ? linhasInseridas.length : 0;
+      }
+
+      // Garante que apenas a requisição vencedora (exatamente 1 linha confirmada) estenda lojas.assinatura_fim_em
+      if (linhasConfirmadasCount !== 1) {
+        console.log(
+          `[hubi-webhook-mp] Idempotência: Nenhuma linha pendente elegível para pagamento ${mpPaymentIdStr} (count=${linhasConfirmadasCount}).`
+        );
+        return new Response(
+          JSON.stringify({ status: "already_processed", received: true, idempotent_skip: true }),
+          { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+        );
+      }
+
+      // 2.4. Somente após confirmar exatamente 1 aprovação na tabela financeira, ativa/estende a vigência da loja
+      const { error: erroLoja } = await supabaseAdmin
+        .from("lojas")
+        .update({
+          status_assinatura: "ativo",
+          assinatura_fim_em: novaDataFim.toISOString(),
+        })
+        .eq("id", lojaId);
+
+      if (erroLoja) {
+        console.error(`[hubi-webhook-mp] Erro ao atualizar status da loja ${lojaId}:`, erroLoja.message);
+      } else {
+        console.log(`[hubi-webhook-mp] Loja ${lojaId} ativada com sucesso até ${novaDataFim.toISOString()}`);
       }
     } else if (statusPagamento === "rejected" || statusPagamento === "cancelled") {
       // Registra status de cancelamento se houver fatura pendente
