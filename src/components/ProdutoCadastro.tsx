@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef, useMemo, useCallback } from 'react';
-import { useNavigate, useParams } from 'react-router-dom';
+import { useNavigate, useParams, useLocation } from 'react-router-dom';
 import {
   ArrowLeft,
   Sparkles,
@@ -51,7 +51,15 @@ import { useFeedbackModal } from '../contexts/FeedbackContext';
 import { ProdutoService } from '../services/produtoService';
 import { agendamentoService } from '../services/agendamentoService';
 import { logger } from '../services/loggerService';
-import { Categoria, Fornecedor, UnidadeMedida, UsuarioLoja, LocalPrestacaoServico, ModoTaxaDomicilio } from '../types';
+import {
+  Categoria,
+  Fornecedor,
+  UnidadeMedida,
+  UsuarioLoja,
+  LocalPrestacaoServico,
+  ModoTaxaDomicilio,
+  Produto
+} from '../types';
 import {
   obterArvoreCategorias,
   obterSubcategoriasDe,
@@ -67,6 +75,12 @@ import { ModalPesquisaFotosInternet } from './ModalPesquisaFotosInternet';
 import { ModalOnboardingSerpApi } from './ModalOnboardingSerpApi';
 import { SpinnerPesquisandoIA } from './SpinnerPesquisandoIA';
 import { ModalDuvidaProdutoIA } from './ModalDuvidaProdutoIA';
+import { ModalProdutoDuplicado } from './ModalProdutoDuplicado';
+import {
+  buscarProdutoDuplicado,
+  normalizarTextoProduto,
+  type MotivoDuplicidade
+} from '../utils/produtoDuplicado';
 import {
   atualizarProdutoExistenteComIA,
   obterNomeSegmentoLoja,
@@ -573,12 +587,22 @@ Retorne EXCLUSIVAMENTE JSON válido contendo "preco_medio" e "concorrentes".
 
 export const ProdutoCadastro: React.FC = () => {
   const navigate = useNavigate();
+  const location = useLocation();
   const { id } = useParams<{ id?: string }>();
   const ehEdicao = Boolean(id);
   const { loja, setLoja } = useAuth();
   const permissions = usePermissions();
   const { mostrarSucesso, mostrarAviso, mostrarErro } = useFeedbackModal();
   const segmentoLoja = useMemo(() => obterNomeSegmentoLoja(loja), [loja]);
+
+  const [produtosDaLoja, setProdutosDaLoja] = useState<Produto[]>([]);
+  const [duplicadoModal, setDuplicadoModal] = useState<{
+    produto: Produto;
+    motivo: MotivoDuplicidade;
+    origem: 'ia' | 'salvar';
+    fotoCapturada?: string;
+  } | null>(null);
+  const duplicidadeConfirmadaChaveRef = useRef<string | null>(null);
 
   useEffect(() => {
     if (!permissions.podeCadastrarAlterarProdutos) {
@@ -1374,6 +1398,20 @@ export const ProdutoCadastro: React.FC = () => {
       });
   }, [loja?.id]);
 
+  // Carregar produtos ativos da loja para detecção instantânea de duplicidade na criação
+  useEffect(() => {
+    if (ehEdicao || !loja?.id) return;
+    supabase
+      .from('produtos')
+      .select('id, loja_id, nome, codigo_barras, fotos_urls, preco_venda_varejo, quantidade_estoque, tipo_unidade, categoria_id, ativo')
+      .eq('loja_id', loja.id)
+      .then(({ data }) => {
+        if (Array.isArray(data)) {
+          setProdutosDaLoja(data as Produto[]);
+        }
+      });
+  }, [ehEdicao, loja?.id]);
+
   // Carregar dados do produto para edição se houver ID na rota
   useEffect(() => {
     const carregarProdutoEdicao = async () => {
@@ -1479,7 +1517,12 @@ export const ProdutoCadastro: React.FC = () => {
           setLarguraCm((prod as any).largura_cm !== null && (prod as any).largura_cm !== undefined ? String((prod as any).largura_cm) : '');
           setComprimentoCm((prod as any).comprimento_cm !== null && (prod as any).comprimento_cm !== undefined ? String((prod as any).comprimento_cm) : '');
 
-          const fotos = Array.isArray(prod.fotos_urls) ? prod.fotos_urls : [];
+          const fotosDb = Array.isArray(prod.fotos_urls) ? prod.fotos_urls : [];
+          const fotoReaproveitada = (
+            location.state as { fotoParaReaproveitar?: string } | null
+          )?.fotoParaReaproveitar;
+          const fotos =
+            fotosDb.length === 0 && fotoReaproveitada ? [fotoReaproveitada] : fotosDb;
           setFotosUrls(fotos);
           setFotoPrincipal(fotos[0] || '');
 
@@ -1866,6 +1909,21 @@ export const ProdutoCadastro: React.FC = () => {
         } else {
           await aplicarDadosSugeridosIA(dadosSugeridos, { preservarNome: false });
           setSucessoIAMsg('✨ Informações e preços de mercado do produto identificados com sucesso a partir da foto!');
+
+          if (!ehEdicao) {
+            const resDup = buscarProdutoDuplicado(produtosDaLoja, {
+              nome: dadosSugeridos.nome || '',
+              codigoBarras: dadosSugeridos.codigo_barras
+            });
+            if (resDup.encontrado && resDup.produto && resDup.motivo) {
+              setDuplicadoModal({
+                produto: resDup.produto,
+                motivo: resDup.motivo,
+                origem: 'ia',
+                fotoCapturada: fotoPrincipal || fotosUrls[0] || fotoAlvoParaAnalise
+              });
+            }
+          }
         }
       }
     } catch (err: unknown) {
@@ -2101,11 +2159,29 @@ export const ProdutoCadastro: React.FC = () => {
     setQuantidadeEstoque(somaTotal.toString());
   };
 
-  const salvarProduto = async (e: React.FormEvent) => {
-    e.preventDefault();
+  const executarSalvamentoProduto = async (ignorarDuplicidade = false) => {
     if (!loja?.id || !nome.trim() || !precoVendaVarejo) {
       mostrarAviso('Preencha o nome do produto e o preço de venda de varejo.');
       return;
+    }
+
+    if (!ehEdicao && !ignorarDuplicidade) {
+      const chaveAtual = `${normalizarTextoProduto(nome)}::${codigoBarras.trim()}`;
+      if (duplicidadeConfirmadaChaveRef.current !== chaveAtual) {
+        const resDup = buscarProdutoDuplicado(produtosDaLoja, {
+          nome,
+          codigoBarras
+        });
+        if (resDup.encontrado && resDup.produto && resDup.motivo) {
+          setDuplicadoModal({
+            produto: resDup.produto,
+            motivo: resDup.motivo,
+            origem: 'salvar',
+            fotoCapturada: fotoPrincipal || fotosUrls[0]
+          });
+          return;
+        }
+      }
     }
 
     // Validação de estoque com variações
@@ -2318,6 +2394,11 @@ export const ProdutoCadastro: React.FC = () => {
     } finally {
       setSalvando(false);
     }
+  };
+
+  const salvarProduto = (e: React.FormEvent) => {
+    e.preventDefault();
+    void executarSalvamentoProduto(false);
   };
 
   if (carregandoProduto) {
@@ -4360,6 +4441,40 @@ export const ProdutoCadastro: React.FC = () => {
           aplicarDadosSugeridosIA(opcaoEscolhida);
           setSucessoIAMsg(`✨ Produto preenchido com base na opção selecionada: "${opcaoEscolhida.nome}"!`);
         }}
+      />
+
+      {/* Modal Anti-Duplicidade de Produto */}
+      <ModalProdutoDuplicado
+        isOpen={Boolean(duplicadoModal)}
+        produtoExistente={duplicadoModal?.produto || null}
+        motivo={duplicadoModal?.motivo || 'nome_similar'}
+        categoriaNome={
+          duplicadoModal?.produto?.categoria_id
+            ? categorias.find(c => c.id === duplicadoModal.produto.categoria_id)?.nome
+            : undefined
+        }
+        onAtualizarExistente={(prodExistente) => {
+          const fotoNova = fotoPrincipal || fotosUrls[0] || duplicadoModal?.fotoCapturada;
+          setDuplicadoModal(null);
+          duplicidadeConfirmadaChaveRef.current = null;
+          setTemAlteracoesNaoSalvas(false);
+          try {
+            sessionStorage.removeItem(CHAVE_RASCUNHO);
+            sessionStorage.removeItem('hubi_origem_cadastro_produto');
+          } catch {}
+          navigate(`/products/edit/${prodExistente.id}`, {
+            state: fotoNova ? { fotoParaReaproveitar: fotoNova } : undefined
+          });
+        }}
+        onCadastrarNovo={() => {
+          duplicidadeConfirmadaChaveRef.current = `${normalizarTextoProduto(nome)}::${codigoBarras.trim()}`;
+          const origem = duplicadoModal?.origem;
+          setDuplicadoModal(null);
+          if (origem === 'salvar') {
+            void executarSalvamentoProduto(true);
+          }
+        }}
+        onCancelar={() => setDuplicadoModal(null)}
       />
 
       {/* Modal Câmera Ao Vivo In-App Unificado (WebRTC Stream - Anti-OOM no Mobile) */}

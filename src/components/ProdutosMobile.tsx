@@ -109,6 +109,12 @@ import {
 import { formatarMoeda } from '../utils/formatters';
 import { ProdutoService } from '../services/produtoService';
 import { ModalCameraCapturaMobile } from './ui/ModalCameraCapturaMobile';
+import { ModalProdutoDuplicado } from './ModalProdutoDuplicado';
+import {
+  buscarProdutoDuplicado,
+  normalizarTextoProduto,
+  type MotivoDuplicidade
+} from '../utils/produtoDuplicado';
 
 interface ProdutosMobileProps {
   produtos: Produto[];
@@ -764,6 +770,13 @@ export const ProdutosMobile: React.FC<ProdutosMobileProps> = ({
     url: string;
     payload: PayloadBase64IA;
   } | null>(null);
+  const [duplicadoModal, setDuplicadoModal] = useState<{
+    produto: Produto;
+    motivo: MotivoDuplicidade;
+    origem: 'ia' | 'salvar';
+    fotoCapturada?: string;
+  } | null>(null);
+  const duplicidadeConfirmadaChaveRef = useRef<string | null>(null);
 
   const registrarPayloadVisaoIA = (
     urlPrincipal: string,
@@ -792,6 +805,8 @@ export const ProdutosMobile: React.FC<ProdutosMobileProps> = ({
   const limparCacheVisaoIA = () => {
     cacheVisaoIARef.current.clear();
     setFotoPrincipalBase64IA(null);
+    setDuplicadoModal(null);
+    duplicidadeConfirmadaChaveRef.current = null;
   };
 
   const abrirCameraCaptura = (modo: 'produto' | 'ia') => {
@@ -1424,7 +1439,7 @@ export const ProdutosMobile: React.FC<ProdutosMobileProps> = ({
   // =========================================================================
   // SALVAMENTO / PERSISTÊNCIA NO SUPABASE
   // =========================================================================
-  const salvarProduto = async () => {
+  const salvarProduto = async (ignorarDuplicidade = false) => {
     if (!loja?.id) return;
     if (!permissions.podeCadastrarAlterarProdutos) {
       setMensagemFeedback({ texto: 'Você não tem permissão para salvar alterações em produtos.', tipo: 'erro' });
@@ -1433,6 +1448,25 @@ export const ProdutosMobile: React.FC<ProdutosMobileProps> = ({
     if (!formData.nome.trim()) {
       setMensagemFeedback({ texto: 'Informe o nome do produto.', tipo: 'erro' });
       return;
+    }
+
+    if (!produtoEditando?.id && !ignorarDuplicidade) {
+      const chaveAtual = `${normalizarTextoProduto(formData.nome)}::${(formData.codigoBarras || '').trim()}`;
+      if (duplicidadeConfirmadaChaveRef.current !== chaveAtual) {
+        const resDup = buscarProdutoDuplicado(produtos, {
+          nome: formData.nome,
+          codigoBarras: formData.codigoBarras
+        });
+        if (resDup.encontrado && resDup.produto && resDup.motivo) {
+          setDuplicadoModal({
+            produto: resDup.produto,
+            motivo: resDup.motivo,
+            origem: 'salvar',
+            fotoCapturada: formData.fotos[0]
+          });
+          return;
+        }
+      }
     }
 
     try {
@@ -2013,6 +2047,22 @@ export const ProdutosMobile: React.FC<ProdutosMobileProps> = ({
         await aplicarSugestaoMobile(sugestao, tipo === 'foto' && fotoReferenciaFinal ? fotoReferenciaFinal : undefined);
         setModalCriarComIAAberto(false);
         setMensagemFeedback({ texto: 'Dados e descrição preenchidos com sucesso pela IA!', tipo: 'sucesso' });
+
+        if (tipo === 'foto' && !produtoEditando?.id) {
+          const nomeIdentificado = (sugestao as any).nome_identificado || sugestao.nome || '';
+          const resDup = buscarProdutoDuplicado(produtos, {
+            nome: nomeIdentificado,
+            codigoBarras: sugestao.codigo_barras
+          });
+          if (resDup.encontrado && resDup.produto && resDup.motivo) {
+            setDuplicadoModal({
+              produto: resDup.produto,
+              motivo: resDup.motivo,
+              origem: 'ia',
+              fotoCapturada: fotoReferenciaFinal
+            });
+          }
+        }
       }
     } catch (err: any) {
       console.warn('Erro ao processar IA:', err);
@@ -5377,7 +5427,9 @@ export const ProdutosMobile: React.FC<ProdutosMobileProps> = ({
             <button
               type="button"
               disabled={salvandoProduto}
-              onClick={salvarProduto}
+              onClick={() => {
+                void salvarProduto(false);
+              }}
               className="hubi-btn-cta w-full py-3.5 bg-emerald-600 hover:bg-emerald-700 text-white font-bold rounded-xl shadow-md transition-colors flex items-center justify-center gap-2 cursor-pointer disabled:opacity-50 text-sm sm:text-base"
             >
               {salvandoProduto ? (
@@ -6144,6 +6196,40 @@ export const ProdutosMobile: React.FC<ProdutosMobileProps> = ({
               tipo: 'sucesso'
             });
           }}
+        />
+
+        {/* MODAL ANTI-DUPLICIDADE DE PRODUTO */}
+        <ModalProdutoDuplicado
+          isOpen={Boolean(duplicadoModal)}
+          produtoExistente={duplicadoModal?.produto || null}
+          motivo={duplicadoModal?.motivo || 'nome_similar'}
+          categoriaNome={
+            duplicadoModal?.produto?.categoria_id
+              ? mapaCategorias.get(duplicadoModal.produto.categoria_id)
+              : undefined
+          }
+          onAtualizarExistente={(prodExistente) => {
+            const fotoNova = formData.fotos[0] || duplicadoModal?.fotoCapturada;
+            setDuplicadoModal(null);
+            abrirEditarProduto(prodExistente, 'cadastro');
+            if ((!prodExistente.fotos_urls || prodExistente.fotos_urls.length === 0) && fotoNova) {
+              setFormData(prev => ({
+                ...prev,
+                fotos: prev.fotos.length > 0 ? prev.fotos : [fotoNova]
+              }));
+            }
+          }}
+          onCadastrarNovo={() => {
+            const nomeAlvo = (formData.nome || '').trim();
+            const eanAlvo = (formData.codigoBarras || '').trim();
+            duplicidadeConfirmadaChaveRef.current = `${normalizarTextoProduto(nomeAlvo)}::${eanAlvo}`;
+            const origem = duplicadoModal?.origem;
+            setDuplicadoModal(null);
+            if (origem === 'salvar') {
+              void salvarProduto(true);
+            }
+          }}
+          onCancelar={() => setDuplicadoModal(null)}
         />
 
         {/* SPINNER PESQUISANDO CENTRALIZADO DURANTE AÇÕES DE IA */}
