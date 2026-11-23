@@ -31,6 +31,7 @@ import {
   Ruler,
   Sliders,
   Info,
+  Users,
 } from 'lucide-react';
 import { useAuth } from '../../contexts/AuthContext';
 import { useTheme } from '../../contexts/ThemeContext';
@@ -503,6 +504,28 @@ export const ModalQuestionarioOnboarding: React.FC<ModalQuestionarioOnboardingPr
     }
   };
 
+  const handleOperarSozinho = async () => {
+    if (!loja?.id) return;
+    const proximoValor = !Boolean(statusCompleto?.setup.opera_sozinho);
+    try {
+      setSalvandoChaveInline('opera_sozinho');
+      setErroMensagem(null);
+      await salvarRespostasOnboarding(loja.id, { opera_sozinho: proximoValor });
+      await carregarProgresso();
+      setAvisoSucesso(
+        proximoValor
+          ? 'Etapa marcada como concluída: operação individual ("Opero esta loja sozinho").'
+          : 'Preferência de operação individual desmarcada.'
+      );
+    } catch (err) {
+      setErroMensagem(
+        err instanceof Error ? err.message : 'Não foi possível salvar a preferência de equipe.'
+      );
+    } finally {
+      setSalvandoChaveInline(null);
+    }
+  };
+
   const handleConcluirQuestionario = async () => {
     if (!loja?.id) {
       onClose();
@@ -565,7 +588,7 @@ export const ModalQuestionarioOnboarding: React.FC<ModalQuestionarioOnboardingPr
     }`;
   };
 
-  const totalAtivas = statusCompleto?.totalAtivas ?? 8;
+  const totalAtivas = statusCompleto?.totalAtivas ?? 9;
   const totalConcluidas = statusCompleto?.totalConcluidas ?? 0;
   const percentual = statusCompleto?.percentual ?? 0;
   const tudoPronto = Boolean(statusCompleto?.tudoPronto);
@@ -578,6 +601,7 @@ export const ModalQuestionarioOnboarding: React.FC<ModalQuestionarioOnboardingPr
   const etapaStatusPedidos = obterEtapaPorId('status_pedidos');
   const etapaCategorias = obterEtapaPorId('categorias_unidades');
   const etapaMetas = obterEtapaPorId('metas_loja');
+  const etapaColaboradores = obterEtapaPorId('colaboradores');
   const qtdStatusOpcionaisAtivos = ITENS_STATUS_OPCIONAIS.filter((item) =>
     Boolean(statusCompleto?.lojaSnapshot[item.campo])
   ).length;
@@ -818,6 +842,39 @@ export const ModalQuestionarioOnboarding: React.FC<ModalQuestionarioOnboardingPr
             },
           ],
         };
+      case 'colaboradores':
+        return {
+          icone: Users,
+          configurado: Boolean(etapaColaboradores?.concluido),
+          acoes: [
+            {
+              id: 'opero-sozinho',
+              rotulo: 'Opero esta loja sozinho',
+              variante: 'secundaria_neutra',
+              icone: 'check',
+              ativo: Boolean(statusCompleto?.setup.opera_sozinho),
+              disabled: salvandoChaveInline === 'opera_sozinho',
+              onClick: () => {
+                setEtapaPorQueUsarId(null);
+                void handleOperarSozinho();
+              },
+            },
+            {
+              id: 'cadastrar-colaboradores',
+              rotulo: 'Cadastrar Colaboradores',
+              variante: 'primaria_neutra',
+              icone: 'arrow',
+              onClick: () => {
+                setEtapaPorQueUsarId(null);
+                navegarParaConfigurarEtapa(
+                  'colaboradores',
+                  'Cadastro de Colaboradores',
+                  '/users'
+                );
+              },
+            },
+          ],
+        };
       default: {
         const modulo = MODULOS_OPCIONAIS_DEFINICAO.find((m) => m.id === etapaId);
         if (!modulo) {
@@ -939,7 +996,7 @@ export const ModalQuestionarioOnboarding: React.FC<ModalQuestionarioOnboardingPr
             <div className="mt-4 space-y-2">
               <div className="flex items-center justify-between text-xs sm:text-sm font-bold">
                 <span className={isDark ? 'text-slate-200' : 'text-black'}>
-                  Termômetro de Prontidão ({statusCompleto?.etapasEssenciais.length ?? 8} Essenciais + {statusCompleto?.etapasOpcionaisAtivas.length ?? 0} Módulos Ativos)
+                  Termômetro de Prontidão ({statusCompleto?.etapasEssenciais.length ?? 9} Essenciais + {statusCompleto?.etapasOpcionaisAtivas.length ?? 0} Módulos Ativos)
                 </span>
                 <span className="text-emerald-600 dark:text-emerald-400 font-black">
                   {totalConcluidas} de {totalAtivas} etapas configuradas ({percentual}%)
@@ -1016,7 +1073,7 @@ export const ModalQuestionarioOnboarding: React.FC<ModalQuestionarioOnboardingPr
                       </h3>
                     </div>
                     <span className={`text-sm font-bold ${isDark ? 'text-slate-200' : 'text-black'}`}>
-                      {statusCompleto?.etapasEssenciais.filter((e) => e.concluido).length ?? 0}/{statusCompleto?.etapasEssenciais.length ?? 8} concluídas
+                      {statusCompleto?.etapasEssenciais.filter((e) => e.concluido).length ?? 0}/{statusCompleto?.etapasEssenciais.length ?? 9} concluídas
                     </span>
                   </div>
 
@@ -1582,6 +1639,92 @@ export const ModalQuestionarioOnboarding: React.FC<ModalQuestionarioOnboardingPr
                       <button
                         type="button"
                         onClick={() => setEtapaPorQueUsarId('metas_loja')}
+                        className={`px-3 py-2 rounded-xl text-xs font-semibold inline-flex items-center gap-1.5 transition cursor-pointer ${classeBotaoPorQueUsar}`}
+                      >
+                        <Info className="w-3.5 h-3.5" />
+                        <span>Por que usar?</span>
+                      </button>
+                    </div>
+                  </div>
+
+                  {/* Card 9: Cadastro de Colaboradores */}
+                  <div
+                    ref={(el) => {
+                      cardRefs.current.colaboradores = el;
+                    }}
+                    className={classeCardBase('colaboradores', Boolean(etapaColaboradores?.concluido))}
+                  >
+                    <div className="flex flex-col sm:flex-row sm:items-start justify-between gap-3">
+                      <div className="flex items-start gap-3">
+                        <div className="w-10 h-10 rounded-xl bg-emerald-500/15 text-emerald-600 dark:text-emerald-400 flex items-center justify-center shrink-0">
+                          <Users className="w-5 h-5" />
+                        </div>
+                        <div className="space-y-1">
+                          <div className="flex flex-wrap items-center gap-2">
+                            <h4 className={`text-base font-bold ${isDark ? 'text-white' : 'text-black'}`}>
+                              9. Cadastro de Colaboradores
+                            </h4>
+                            {statusCompleto?.setup.opera_sozinho ? (
+                              <span className="inline-flex items-center gap-1 text-xs font-bold px-2.5 py-0.5 rounded-full bg-emerald-500/10 text-emerald-700 dark:text-emerald-400 border border-emerald-500/20">
+                                <Check className="w-3 h-3" />
+                                Operação individual
+                              </span>
+                            ) : ((statusCompleto?.lojaSnapshot.colaboradores_equipe_count ?? 0) >= 1 ||
+                                (statusCompleto?.lojaSnapshot.colaboradores_ativos_count ?? 0) >= 2) && (
+                              <span className="inline-flex items-center gap-1 text-xs font-bold px-2.5 py-0.5 rounded-full bg-emerald-500/10 text-emerald-700 dark:text-emerald-400 border border-emerald-500/20">
+                                <Check className="w-3 h-3" />
+                                {statusCompleto?.lojaSnapshot.colaboradores_ativos_count} colaboradores ativos
+                              </span>
+                            )}
+                          </div>
+                          <p className={`text-sm sm:text-[15px] leading-relaxed font-normal ${isDark ? 'text-slate-200' : 'text-black'}`}>
+                            Adicione vendedores, operadores de caixa, técnicos ou prestadores de serviço
+                          </p>
+                        </div>
+                      </div>
+                      {renderBadgeStatus(Boolean(etapaColaboradores?.concluido))}
+                    </div>
+
+                    <div className="mt-4 flex flex-wrap items-center gap-2.5">
+                      <button
+                        type="button"
+                        onClick={() =>
+                          navegarParaConfigurarEtapa(
+                            'colaboradores',
+                            'Cadastro de Colaboradores',
+                            '/users'
+                          )
+                        }
+                        className="px-3.5 py-2 rounded-xl bg-emerald-300 hover:bg-emerald-400 border border-emerald-400 text-black font-black text-xs inline-flex items-center gap-1.5 transition cursor-pointer shadow-xs"
+                      >
+                        <Users className="w-3.5 h-3.5" />
+                        <span>Cadastrar Colaboradores</span>
+                        <ArrowRight className="w-3.5 h-3.5" />
+                      </button>
+
+                      <button
+                        type="button"
+                        disabled={salvandoChaveInline === 'opera_sozinho'}
+                        onClick={() => void handleOperarSozinho()}
+                        className={`px-3.5 py-2 rounded-xl text-xs font-bold inline-flex items-center gap-1.5 transition cursor-pointer disabled:opacity-60 ${
+                          statusCompleto?.setup.opera_sozinho
+                            ? isDark
+                              ? 'bg-emerald-950/40 border border-emerald-600/60 text-emerald-300'
+                              : 'bg-emerald-50 border border-emerald-400 text-emerald-900'
+                            : classeBotaoSecundarioNeutro
+                        }`}
+                      >
+                        {salvandoChaveInline === 'opera_sozinho' ? (
+                          <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                        ) : (
+                          <Check className="w-3.5 h-3.5" />
+                        )}
+                        <span>Opero esta loja sozinho</span>
+                      </button>
+
+                      <button
+                        type="button"
+                        onClick={() => setEtapaPorQueUsarId('colaboradores')}
                         className={`px-3 py-2 rounded-xl text-xs font-semibold inline-flex items-center gap-1.5 transition cursor-pointer ${classeBotaoPorQueUsar}`}
                       >
                         <Info className="w-3.5 h-3.5" />

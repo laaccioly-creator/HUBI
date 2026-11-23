@@ -29,6 +29,7 @@ import { useRegisterOverlay } from '../hooks/useRegisterOverlay';
 import { usuarioService } from '../services/usuarioService';
 import { formatarMoeda, formatarTelefoneInput } from '../utils/formatters';
 import { useTheme } from '../contexts/ThemeContext';
+import { notificarConfiguracaoSalvaParaOnboarding } from '../services/onboardingSetupService';
 
 interface ModalUsuarioDrawerProps {
   isOpen: boolean;
@@ -380,6 +381,7 @@ export const ModalUsuarioDrawer: React.FC<ModalUsuarioDrawerProps> = ({
         telaInicial: (ehOwner || ehAdmin || perfilFinal === 'gerente') ? telaInicial : (telaInicial === 'dashboard' ? 'pos' : telaInicial)
       });
 
+      notificarConfiguracaoSalvaParaOnboarding('colaboradores');
       onSalvo();
       onClose();
     } catch (err: unknown) {

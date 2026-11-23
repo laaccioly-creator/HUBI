@@ -207,6 +207,26 @@ export const CONTEUDO_POR_QUE_USAR_ETAPAS: Record<EtapaOnboardingId, ConteudoPor
     exemploPratico:
       'Com meta mensal de R$ 30.000, no dia 15 o Cockpit mostra exatamente se os R$ 15.000 esperados até a metade do mês já foram alcançados.',
   },
+  colaboradores: {
+    id: 'colaboradores',
+    grupo: 'essencial',
+    titulo: 'Cadastro de Colaboradores',
+    subtitulo: 'Controle de acessos individuais, permissões por função e vendas por membro da equipe',
+    resumoPratico:
+      'Cadastrar seus vendedores, caixas, técnicos ou prestadores de serviço garante acesso individual por login e senha, com controle granular do que cada pessoa pode ver ou alterar no PDV, estoque e financeiro. Se você trabalha por conta própria, basta marcar "Opero esta loja sozinho".',
+    problemasResolvidos: [
+      'Compartilhar a senha principal de proprietário com funcionários no caixa ou celular.',
+      'Falta de visibilidade sobre quanto cada vendedor ou técnico faturou no mês.',
+      'Risco de alterações acidentais de preço de custo ou exclusões sem controle de permissão.',
+    ],
+    ganhosReais: [
+      'Cada colaborador acessa apenas os módulos autorizados para sua função.',
+      'Gráfico de faturamento por colaborador atualizado automaticamente a cada venda.',
+      'Habilitação de profissionais e horários para atendimento agendado, quando ativo.',
+    ],
+    exemploPratico:
+      'Você cria um acesso de Vendedor para o atendente do balcão com permissão apenas para vender no PDV, preservando seus relatórios financeiros e configurações sensíveis.',
+  },
   catalogo_online: {
     id: 'catalogo_online',
     grupo: 'opcional',

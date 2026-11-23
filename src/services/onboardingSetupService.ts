@@ -11,6 +11,7 @@ export type EtapaOnboardingId =
   | 'status_pedidos'
   | 'categorias_unidades'
   | 'metas_loja'
+  | 'colaboradores'
   | 'catalogo_online'
   | 'gateway_pagamento'
   | 'melhor_envio'
@@ -57,6 +58,7 @@ export interface OnboardingSetupRecord {
   interesse_venda_por_peso: boolean;
   interesse_caderneta_fiado: boolean;
   unidades_conferidas: boolean;
+  opera_sozinho: boolean;
   criado_em: string;
   atualizado_em: string;
 }
@@ -111,6 +113,8 @@ export interface SnapshotLojaOnboarding {
   whatsapp_auto_ativo: boolean;
   gemini_configurado: boolean;
   serper_configurado: boolean;
+  colaboradores_ativos_count: number;
+  colaboradores_equipe_count: number;
 }
 
 export interface StatusOnboardingCompleto {
@@ -224,6 +228,7 @@ const criarRegistroPadraoSetup = (lojaId: string): OnboardingSetupRecord => {
     interesse_venda_por_peso: false,
     interesse_caderneta_fiado: false,
     unidades_conferidas: false,
+    opera_sozinho: false,
     criado_em: agora,
     atualizado_em: agora,
   };
@@ -238,6 +243,12 @@ const isErroTabelaAusente = (err: { code?: string; message?: string } | null): b
     msg.includes('does not exist') ||
     msg.includes('could not find the table')
   );
+};
+
+const isErroColunaAusente = (err: { code?: string; message?: string } | null): boolean => {
+  if (!err) return false;
+  const msg = (err.message || '').toLowerCase();
+  return err.code === '42703' || err.code === 'PGRST204' || msg.includes('column');
 };
 
 const isErroRlsOuPermissao = (
@@ -386,6 +397,10 @@ const normalizarRegistroSetup = (
     interesse_venda_por_peso: Boolean(row.interesse_venda_por_peso),
     interesse_caderneta_fiado: Boolean(row.interesse_caderneta_fiado),
     unidades_conferidas: Boolean(row.unidades_conferidas),
+    opera_sozinho:
+      typeof row.opera_sozinho === 'boolean'
+        ? row.opera_sozinho
+        : Boolean(lerSetupFallbackLocal(lojaId).opera_sozinho),
     criado_em: row.criado_em || padrao.criado_em,
     atualizado_em: row.atualizado_em || padrao.atualizado_em,
   };
@@ -632,8 +647,8 @@ export async function salvarRespostasOnboarding(
     .single();
 
   if (error) {
-    if (isErroTabelaAusente(error) || isErroRlsOuPermissao(error)) {
-      if (!isErroTabelaAusente(error)) {
+    if (isErroTabelaAusente(error) || isErroColunaAusente(error) || isErroRlsOuPermissao(error)) {
+      if (!isErroTabelaAusente(error) && !isErroColunaAusente(error)) {
         logger.warn(
           'onboardingSetupService',
           'salvarRespostasOnboarding:upsert',
@@ -658,6 +673,7 @@ export async function salvarRespostasOnboarding(
     throw new Error('Não foi possível salvar as preferências do questionário inicial.');
   }
 
+  salvarSetupFallbackLocal(lojaId, dados);
   const normalizado = normalizarRegistroSetup(lojaId, data as Partial<OnboardingSetupRecord>);
   dispararEventoJanela(EVENTO_ONBOARDING_ATUALIZADO, { lojaId });
   return normalizado;
@@ -852,6 +868,8 @@ export async function avaliarProgressoCompletoOnboarding(
     countProdutosAgendamento,
     countProdutosPeso,
     countClientesFiadoCaderneta,
+    countColaboradoresAtivos,
+    countColaboradoresEquipe,
   ] = await Promise.all([
     consultarOuInicializarSetupLojaInterno(lojaId, sessaoAtiva),
     consultarLojaSegura(),
@@ -913,6 +931,21 @@ export async function avaliarProgressoCompletoOnboarding(
         .select('id', { count: 'exact', head: true })
         .eq('loja_id', lojaId)
         .or('permite_fiado.eq.true,permite_caderneta.eq.true')
+    ),
+    consultarContagemSegura(
+      supabase
+        .from('usuarios_loja')
+        .select('id', { count: 'exact', head: true })
+        .eq('loja_id', lojaId)
+        .eq('ativo', true)
+    ),
+    consultarContagemSegura(
+      supabase
+        .from('usuarios_loja')
+        .select('id', { count: 'exact', head: true })
+        .eq('loja_id', lojaId)
+        .eq('ativo', true)
+        .neq('perfil', 'owner')
     ),
   ]);
 
@@ -981,6 +1014,8 @@ export async function avaliarProgressoCompletoOnboarding(
     serper_configurado: Boolean(
       (lojaEfetiva?.serper_api_key || extras.ia?.serper_api_key || '').trim()
     ),
+    colaboradores_ativos_count: countColaboradoresAtivos,
+    colaboradores_equipe_count: countColaboradoresEquipe,
   };
 
   const catalogoOnlineConfigurado = lojaEfetiva?.aceita_pedidos_online === true;
@@ -1085,6 +1120,11 @@ export async function avaliarProgressoCompletoOnboarding(
     }
   }
 
+  const colaboradoresConfigurado =
+    countColaboradoresEquipe >= 1 ||
+    countColaboradoresAtivos >= 2 ||
+    Boolean(setupEfetivo.opera_sozinho);
+
   // Grupo 1 — Essenciais (sempre exibidas)
   const etapasEssenciais: EtapaOnboardingItem[] = [
     {
@@ -1184,6 +1224,17 @@ export async function avaliarProgressoCompletoOnboarding(
         'Defina sua meta mensal de faturamento para alimentar os velocímetros de desempenho no Dashboard.',
       concluido: Number(lojaMetas?.meta_faturamento || 0) > 0,
       rotaDestino: '/config?tab=metas',
+      interesseAtivo: true,
+    },
+    {
+      id: 'colaboradores',
+      grupo: 'essencial',
+      ordem: 9,
+      titulo: 'Cadastro de Colaboradores',
+      descricao:
+        'Adicione vendedores, operadores de caixa, técnicos ou prestadores de serviço',
+      concluido: colaboradoresConfigurado,
+      rotaDestino: '/users',
       interesseAtivo: true,
     },
   ];
