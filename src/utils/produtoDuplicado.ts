@@ -63,27 +63,40 @@ const MAPA_CORES_CANONICAS: Record<string, string> = {
 
 const VOLTAGENS_CONHECIDAS = new Set(['110v', '127v', '220v', 'bivolt']);
 
+const TAMANHOS_VESTUARIO = new Set(['pp', 'p', 'm', 'g', 'gg', 'xg', 'xgg', 'eg', 'egg']);
+
 const REGEX_MEDIDA_GLOBAL =
-  /\b(\d+(?:\.\d+)?)\s*(g|gr|kg|ml|l|lt|un|und|cx|pct|cm|mm|m|w|v|gb|tb)\b/g;
+  /\b(\d+(?:\.\d+)?)\s*(gramas|grama|grs|gr|g|quilos|quilo|kgs|kg|mls|ml|litros|litro|lts|lt|l|unidades|unidade|unid|und|un|cx|pct|cm|mm|m|w|v|gb|tb)\b/g;
 
 function normalizarUnidadeMedida(valorNum: number, unidadeBruta: string): string {
   const u = unidadeBruta.toLowerCase();
-  if (u === 'kg') {
+  if (u === 'kg' || u === 'kgs' || u === 'quilo' || u === 'quilos') {
     return `${Math.round(valorNum * 1000)}g`;
   }
-  if (u === 'gr' || u === 'g') {
+  if (u === 'g' || u === 'gr' || u === 'grs' || u === 'grama' || u === 'gramas') {
     return `${Number(valorNum.toFixed(3))}g`;
   }
-  if (u === 'l' || u === 'lt') {
+  if (u === 'l' || u === 'lt' || u === 'lts' || u === 'litro' || u === 'litros') {
     return `${Math.round(valorNum * 1000)}ml`;
   }
-  if (u === 'ml') {
+  if (u === 'ml' || u === 'mls') {
     return `${Number(valorNum.toFixed(3))}ml`;
   }
-  if (u === 'und' || u === 'un') {
+  if (u === 'un' || u === 'und' || u === 'unid' || u === 'unidade' || u === 'unidades') {
     return `${Number(valorNum.toFixed(3))}un`;
   }
   return `${Number(valorNum.toFixed(3))}${u}`;
+}
+
+function unificarMedidasNoTexto(textoNorm: string): string {
+  return textoNorm.replace(
+    new RegExp(REGEX_MEDIDA_GLOBAL.source, 'g'),
+    (_full, numStr: string, unidade: string) => {
+      const num = parseFloat(numStr);
+      if (Number.isNaN(num) || num <= 0) return _full;
+      return ` ${normalizarUnidadeMedida(num, unidade)} `;
+    }
+  );
 }
 
 export function normalizarTextoProduto(texto: string): string {
@@ -112,14 +125,18 @@ export function extrairMedidas(textoNorm: string): Set<string> {
   return medidas;
 }
 
-function extrairCoresEVoltagens(textoNorm: string): {
+function extrairEspecificacoesTexto(textoNorm: string): {
   cores: Set<string>;
   voltagens: Set<string>;
+  tamanhos: Set<string>;
 } {
   const cores = new Set<string>();
   const voltagens = new Set<string>();
+  const tamanhos = new Set<string>();
 
-  for (const palavra of textoNorm.split(/\s+/)) {
+  const textoUnificado = unificarMedidasNoTexto(textoNorm);
+
+  for (const palavra of textoUnificado.split(/\s+/)) {
     if (!palavra) continue;
     if (MAPA_CORES_CANONICAS[palavra]) {
       cores.add(MAPA_CORES_CANONICAS[palavra]);
@@ -127,25 +144,21 @@ function extrairCoresEVoltagens(textoNorm: string): {
     if (VOLTAGENS_CONHECIDAS.has(palavra)) {
       voltagens.add(palavra);
     }
+    if (TAMANHOS_VESTUARIO.has(palavra)) {
+      tamanhos.add(palavra);
+    }
   }
 
-  return { cores, voltagens };
+  return { cores, voltagens, tamanhos };
 }
 
 export function extrairTokensPrincipais(textoNorm: string): Set<string> {
-  const textoComMedidasUnificadas = textoNorm.replace(
-    new RegExp(REGEX_MEDIDA_GLOBAL.source, 'g'),
-    (_full, numStr: string, unidade: string) => {
-      const num = parseFloat(numStr);
-      if (Number.isNaN(num) || num <= 0) return _full;
-      return ` ${normalizarUnidadeMedida(num, unidade)} `;
-    }
-  );
+  const textoComMedidasUnificadas = unificarMedidasNoTexto(textoNorm);
 
   const tokens = new Set<string>();
   for (const bruto of textoComMedidasUnificadas.split(/\s+/)) {
     const token = bruto.trim();
-    if (!token || token.length < 2) continue;
+    if (!token || (token.length < 2 && !TAMANHOS_VESTUARIO.has(token))) continue;
     if (STOPWORDS_PRODUTO.has(token)) continue;
     tokens.add(MAPA_CORES_CANONICAS[token] || token);
   }
@@ -171,8 +184,11 @@ export function buscarProdutoDuplicado(
   const eanCandidato = String(candidato.codigoBarras || '').replace(/\s+/g, '').trim();
   const nomeCandidatoNorm = normalizarTextoProduto(candidato.nome || '');
   const medidasCandidato = extrairMedidas(nomeCandidatoNorm);
-  const { cores: coresCandidato, voltagens: voltagensCandidato } =
-    extrairCoresEVoltagens(nomeCandidatoNorm);
+  const {
+    cores: coresCandidato,
+    voltagens: voltagensCandidato,
+    tamanhos: tamanhosCandidato
+  } = extrairEspecificacoesTexto(nomeCandidatoNorm);
   const tokensCandidato = extrairTokensPrincipais(nomeCandidatoNorm);
 
   let melhorMatch: { produto: Produto; score: number } | null = null;
@@ -217,8 +233,11 @@ export function buscarProdutoDuplicado(
       continue;
     }
 
-    const { cores: coresExistente, voltagens: voltagensExistente } =
-      extrairCoresEVoltagens(nomeExistenteNorm);
+    const {
+      cores: coresExistente,
+      voltagens: voltagensExistente,
+      tamanhos: tamanhosExistente
+    } = extrairEspecificacoesTexto(nomeExistenteNorm);
     if (
       coresCandidato.size > 0 &&
       coresExistente.size > 0 &&
@@ -231,6 +250,14 @@ export function buscarProdutoDuplicado(
       voltagensCandidato.size > 0 &&
       voltagensExistente.size > 0 &&
       !conjuntosSaoIguais(voltagensCandidato, voltagensExistente)
+    ) {
+      continue;
+    }
+
+    if (
+      tamanhosCandidato.size > 0 &&
+      tamanhosExistente.size > 0 &&
+      !conjuntosSaoIguais(tamanhosCandidato, tamanhosExistente)
     ) {
       continue;
     }

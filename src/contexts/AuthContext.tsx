@@ -49,6 +49,55 @@ const STORAGE_KEY_LOJA_ID = 'hubi_active_loja_id';
 const STORAGE_KEY_USUARIO_ID = 'hubi_active_usuario_id';
 const UUID_LOJA_REGEX = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
+const limparCachesPdvsSalvos = () => {
+  if (typeof window === 'undefined') return;
+  try {
+    localStorage.removeItem(STORAGE_KEY_LOJA_ID);
+    localStorage.removeItem(STORAGE_KEY_USUARIO_ID);
+    localStorage.removeItem('hubi_user_real_name');
+    Object.keys(localStorage).forEach(key => {
+      const keyLower = key.toLowerCase();
+      if (
+        keyLower.includes('pdv_salvo') ||
+        keyLower.includes('pdvs_salvos') ||
+        keyLower.includes('conta_salva') ||
+        keyLower.includes('contas_salvas')
+      ) {
+        localStorage.removeItem(key);
+      }
+    });
+  } catch {
+    // Silencioso caso storage esteja indisponível
+  }
+};
+
+const limparCachesSessaoLocal = () => {
+  if (typeof window === 'undefined') return;
+  try {
+    sessionStorage.clear();
+    const chavesParaPreservar = ['hubi_catalogo_slug', 'theme', 'vite-ui-theme'];
+    Object.keys(localStorage).forEach(key => {
+      if (chavesParaPreservar.includes(key)) return;
+      const keyLower = key.toLowerCase();
+      if (
+        key.startsWith('sb-') ||
+        key.startsWith('hubi_') ||
+        key === STORAGE_KEY_LOJA_ID ||
+        key === STORAGE_KEY_USUARIO_ID ||
+        keyLower.includes('pdv_salvo') ||
+        keyLower.includes('pdvs_salvos') ||
+        keyLower.includes('conta_salva') ||
+        keyLower.includes('contas_salvas')
+      ) {
+        localStorage.removeItem(key);
+      }
+    });
+  } catch {
+    // Silencioso caso storage esteja indisponível
+  }
+  limparCachesPdvsSalvos();
+};
+
 const extrairLojaIdRetornoUrl = (): string | null => {
   if (typeof window === 'undefined') return null;
   try {
@@ -182,14 +231,43 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       if (!silencioso && !lojaRef.current) {
         setCarregando(true);
       }
-      const lojaIdRetorno = extrairLojaIdRetornoUrl();
-      const activeLojaId = lojaIdRetorno || localStorage.getItem(STORAGE_KEY_LOJA_ID);
-      const activeUsuarioId = localStorage.getItem(STORAGE_KEY_USUARIO_ID);
 
-      // Autocura inicial se houver sessão ativa no Supabase Auth
+      // Verificar primeiro se há sessão oficial no Supabase Auth ou operador autenticado local
       const { data: { session: sessaoAtual } } = await supabase.auth.getSession();
       setSession(sessaoAtual);
       const authUser = sessaoAtual?.user || null;
+      const activeUsuarioId = localStorage.getItem(STORAGE_KEY_USUARIO_ID);
+
+      if (!authUser && !activeUsuarioId) {
+        limparCachesPdvsSalvos();
+        setLojasDisponiveis([]);
+        setLoja(null);
+        setUsuario(null);
+        setOrganizacao(null);
+        return;
+      }
+
+      let operadorLocalValidado: UsuarioLoja | null = null;
+      if (!authUser && activeUsuarioId) {
+        const { data: userLocalDb } = await supabase
+          .from('usuarios_loja')
+          .select('*')
+          .eq('id', activeUsuarioId)
+          .maybeSingle();
+
+        if (!userLocalDb || userLocalDb.ativo === false) {
+          limparCachesPdvsSalvos();
+          setLojasDisponiveis([]);
+          setLoja(null);
+          setUsuario(null);
+          setOrganizacao(null);
+          return;
+        }
+        operadorLocalValidado = userLocalDb as UsuarioLoja;
+      }
+
+      const lojaIdRetorno = extrairLojaIdRetornoUrl();
+      const activeLojaId = lojaIdRetorno || localStorage.getItem(STORAGE_KEY_LOJA_ID);
 
       if (authUser) {
         try {
@@ -209,18 +287,47 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       }
 
       if (todasLojas && todasLojas.length > 0) {
-        setLojasDisponiveis(todasLojas);
+        let lojasPermitidas = todasLojas;
+        if (!authUser && operadorLocalValidado) {
+          const emailOperador = (operadorLocalValidado.email || '').toLowerCase().trim();
+          const ehSuperAdminLocal = emailOperador === '5585997374372@hubi.app';
+          const podeTrocarLocal =
+            ehSuperAdminLocal ||
+            operadorLocalValidado.perfil === 'owner' ||
+            Boolean(operadorLocalValidado.pode_trocar_loja);
+          const lojaDoOperador = todasLojas.find(l => l.id === operadorLocalValidado!.loja_id);
+          const orgIdOperador = lojaDoOperador?.organizacao_id;
+
+          if (!ehSuperAdminLocal) {
+            lojasPermitidas = podeTrocarLocal
+              ? todasLojas.filter(
+                  l =>
+                    l.id === operadorLocalValidado!.loja_id ||
+                    (orgIdOperador && l.organizacao_id === orgIdOperador) ||
+                    (emailOperador && (l.email || '').toLowerCase().trim() === emailOperador)
+                )
+              : todasLojas.filter(l => l.id === operadorLocalValidado!.loja_id);
+          }
+        }
+
+        setLojasDisponiveis(lojasPermitidas);
 
         const savedLojaId = localStorage.getItem(STORAGE_KEY_LOJA_ID) || activeLojaId;
         let lojaParaAtivar: Loja | null = null;
         if (savedLojaId) {
-          lojaParaAtivar = todasLojas.find(l => l.id === savedLojaId) || null;
+          lojaParaAtivar = lojasPermitidas.find(l => l.id === savedLojaId) || null;
         }
 
         // Se a loja salva for válida e pertencer à lista carregada, OBRIGATORIAMENTE usamos ela.
-        // NUNCA force o fallback para lojas[0] se a loja salva no localStorage for válida.
-        if (!lojaParaAtivar && todasLojas.length > 0) {
-          lojaParaAtivar = todasLojas[0];
+        // Quando operador local não-GoTrue estiver ativo, priorizar sempre a loja vinculada a ele.
+        if (!lojaParaAtivar && operadorLocalValidado) {
+          lojaParaAtivar =
+            lojasPermitidas.find(l => l.id === operadorLocalValidado!.loja_id) ||
+            lojasPermitidas[0] ||
+            null;
+        }
+        if (!lojaParaAtivar && authUser && lojasPermitidas.length > 0) {
+          lojaParaAtivar = lojasPermitidas[0];
         }
 
         if (lojaParaAtivar) {
@@ -381,16 +488,9 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   // Selecionar uma loja existente
   const selecionarLoja = async (lojaId: string): Promise<boolean> => {
     try {
-      // 1. Atualiza e persiste a chave no localStorage imediatamente
-      localStorage.setItem(STORAGE_KEY_LOJA_ID, lojaId);
-
-      // 2. Atualiza o estado da loja imediatamente se ela já estiver disponível em memória
-      const lojaPrevia = lojasDisponiveisRef.current.find(l => l.id === lojaId) || lojasDisponiveis.find(l => l.id === lojaId);
-      if (lojaPrevia) {
-        setLoja(lojaPrevia);
+      if (!session?.user && !usuario) {
+        return false;
       }
-
-      setCarregando(true);
 
       const emailAtual = (session?.user?.email || usuario?.email || '').toLowerCase().trim();
       const ehSuperAdmin = emailAtual === '5585997374372@hubi.app';
@@ -400,6 +500,17 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         alert('Você não tem permissão para trocar de unidade.');
         return false;
       }
+
+      // 1. Atualiza e persiste a chave no localStorage imediatamente após validar sessão e permissão
+      localStorage.setItem(STORAGE_KEY_LOJA_ID, lojaId);
+
+      // 2. Atualiza o estado da loja imediatamente se ela já estiver disponível em memória
+      const lojaPrevia = lojasDisponiveisRef.current.find(l => l.id === lojaId) || lojasDisponiveis.find(l => l.id === lojaId);
+      if (lojaPrevia) {
+        setLoja(lojaPrevia);
+      }
+
+      setCarregando(true);
 
       const { data: lojaBuscada, error } = await supabase
         .from('lojas')
@@ -1071,30 +1182,13 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       await supabase.auth.signOut().catch(() => {});
     } catch {}
 
-    try {
-      sessionStorage.clear();
-      const chavesParaPreservar = ['hubi_catalogo_slug', 'theme', 'vite-ui-theme'];
-      Object.keys(localStorage).forEach(key => {
-        if (!chavesParaPreservar.includes(key)) {
-          if (
-            key.startsWith('sb-') ||
-            key.startsWith('hubi_') ||
-            key === STORAGE_KEY_LOJA_ID ||
-            key === STORAGE_KEY_USUARIO_ID
-          ) {
-            localStorage.removeItem(key);
-          }
-        }
-      });
-    } catch {}
+    limparCachesSessaoLocal();
 
+    setLojasDisponiveis([]);
     setLoja(null);
     setUsuario(null);
     setSession(null);
     setOrganizacao(null);
-    localStorage.removeItem('hubi_user_real_name');
-    localStorage.removeItem(STORAGE_KEY_USUARIO_ID);
-    localStorage.removeItem(STORAGE_KEY_LOJA_ID);
 
     // Notificar formulários e componentes da tela de login para limpeza imediata de credenciais
     try {
@@ -1119,6 +1213,8 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       if (event === 'SIGNED_OUT') {
         const activeUserLocal = localStorage.getItem(STORAGE_KEY_USUARIO_ID);
         if (!activeUserLocal) {
+          setSession(null);
+          setLojasDisponiveis([]);
           setLoja(null);
           setUsuario(null);
           setOrganizacao(null);
@@ -1278,7 +1374,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     // Garante que, ao retornar de outra aba ou janela, a loja salva seja mantida sem perda de contexto
     const handleRevalidarFoco = () => {
       const savedLojaId = localStorage.getItem(STORAGE_KEY_LOJA_ID);
-      if (!savedLojaId) return;
+      if (!savedLojaId || !localStorage.getItem(STORAGE_KEY_USUARIO_ID)) return;
 
       const lojaSalva = lojasDisponiveisRef.current.find(l => l.id === savedLojaId);
       if (lojaSalva) {

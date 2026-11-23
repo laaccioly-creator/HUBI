@@ -27,7 +27,7 @@ import { formatarTelefoneInput } from '../utils/formatters';
 type AuthScreen = 'welcome' | 'signup_email' | 'signin_email';
 
 export const CadastroPdv: React.FC = () => {
-  const { cadastrarMinimalista, entrarComEmail, selecionarLoja, lojasDisponiveis } = useAuth();
+  const { cadastrarMinimalista, entrarComEmail } = useAuth();
 
   const [screen, setScreen] = useState<AuthScreen>('signin_email');
   const [nome, setNome] = useState('');
@@ -376,28 +376,6 @@ export const CadastroPdv: React.FC = () => {
                     Não tem uma conta? Criar conta com WhatsApp
                   </button>
                 </div>
-
-                {/* Se houver lojas disponíveis cadastradas */}
-                {lojasDisponiveis.length > 0 && (
-                  <div className="pt-2 border-t border-slate-800">
-                    <span className="text-[11px] text-slate-400 block mb-2 font-medium text-center">
-                      Ou acesse direto seu PDV salvo:
-                    </span>
-                    <div className="space-y-1.5 max-h-36 overflow-y-auto pr-1">
-                      {lojasDisponiveis.slice(0, 3).map((l) => (
-                        <button
-                          key={l.id}
-                          type="button"
-                          onClick={() => selecionarLoja(l.id)}
-                          className="w-full p-2.5 rounded-xl bg-slate-800/80 hover:bg-slate-800 border border-slate-700/80 text-left flex items-center justify-between text-xs text-slate-200 transition"
-                        >
-                          <span className="font-bold truncate">{l.nome_fantasia}</span>
-                          <span className="text-[10px] text-emerald-400 font-bold shrink-0">Acessar →</span>
-                        </button>
-                      ))}
-                    </div>
-                  </div>
-                )}
               </form>
             )}
           </div>

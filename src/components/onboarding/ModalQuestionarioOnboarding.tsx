@@ -1608,12 +1608,24 @@ export const ModalQuestionarioOnboarding: React.FC<ModalQuestionarioOnboardingPr
                       </p>
                     </div>
                     <span className={`text-sm font-bold shrink-0 ${isDark ? 'text-slate-200' : 'text-black'}`}>
-                      {statusCompleto?.etapasOpcionaisAtivas.length ?? 0} de {MODULOS_OPCIONAIS_DEFINICAO.length} ativos
+                      {statusCompleto?.etapasOpcionaisAtivas.length ?? 0} de{' '}
+                      {
+                        MODULOS_OPCIONAIS_DEFINICAO.filter(
+                          (modulo) =>
+                            modulo.id !== 'agendamento_servicos' ||
+                            loja?.trabalha_com_agenda === true
+                        ).length
+                      }{' '}
+                      ativos
                     </span>
                   </div>
 
                   <div className="space-y-3.5">
-                    {MODULOS_OPCIONAIS_DEFINICAO.map((modulo, idx) => {
+                    {MODULOS_OPCIONAIS_DEFINICAO.filter(
+                      (modulo) =>
+                        modulo.id !== 'agendamento_servicos' ||
+                        loja?.trabalha_com_agenda === true
+                    ).map((modulo, idx) => {
                       const etapaStatus = obterEtapaPorId(modulo.id);
                       const configurado = Boolean(etapaStatus?.concluido);
                       const Icone = modulo.icone;

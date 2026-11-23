@@ -426,6 +426,8 @@ export interface Loja {
   whatsapp_bonus_expira_em?: string | null;
   whatsapp_alerta_saldo_baixo?: number;
   exigir_pesagem_previa_pagamento?: boolean;
+  trabalha_com_agenda?: boolean;
+  atendimento_domicilio_ativo?: boolean;
   taxa_padrao_domicilio?: number;
   abater_taxa_domicilio_ao_fechar?: boolean;
   tipos_venda?: {

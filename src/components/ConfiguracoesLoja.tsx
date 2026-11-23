@@ -310,6 +310,8 @@ const gerarSnapshotConfig = (dados: any) => {
     descricaoRetirada: (dados.descricaoRetirada || '').trim(),
     freteGratisAtivo: Boolean(dados.freteGratisAtivo),
     freteGratisValorMinimo: Number(dados.freteGratisValorMinimo ?? 0),
+    trabalhaComAgenda: Boolean(dados.trabalhaComAgenda),
+    atendimentoDomicilioAtivo: Boolean(dados.trabalhaComAgenda && dados.atendimentoDomicilioAtivo),
     taxaPadraoDomicilio: Number(dados.taxaPadraoDomicilio ?? 0),
     abaterTaxaDomicilioAoFechar: Boolean(dados.abaterTaxaDomicilioAoFechar),
     facebookPixelId: (dados.facebookPixelId || '').trim(),
@@ -913,7 +915,9 @@ export const ConfiguracoesLoja: React.FC<ConfiguracoesLojaProps> = ({ subTelaIni
   const [freteGratisValorMinimo, setFreteGratisValorMinimo] = useState<number | string>(0);
   const [listaFormasEntrega, setListaFormasEntrega] = useState<FormaEntrega[]>([]);
 
-  // Atendimento a Domicílio & Visita Técnica
+  // Agenda & Atendimento a Domicílio / Visita Técnica
+  const [trabalhaComAgenda, setTrabalhaComAgenda] = useState<boolean>(false);
+  const [atendimentoDomicilioAtivo, setAtendimentoDomicilioAtivo] = useState<boolean>(false);
   const [taxaPadraoDomicilio, setTaxaPadraoDomicilio] = useState<number | string>(0);
   const [abaterTaxaDomicilioAoFechar, setAbaterTaxaDomicilioAoFechar] = useState<boolean>(false);
 
@@ -1118,9 +1122,15 @@ export const ConfiguracoesLoja: React.FC<ConfiguracoesLojaProps> = ({ subTelaIni
       setFreteGratisAtivo(freteGratisAtivoIni);
       setFreteGratisValorMinimo(freteGratisValorMinIni);
 
-      // Atendimento a Domicílio & Visita Técnica
+      // Agenda & Atendimento a Domicílio / Visita Técnica
+      const trabalhaComAgendaIni = Boolean(loja.trabalha_com_agenda);
+      const atendimentoDomicilioIni = Boolean(
+        loja.trabalha_com_agenda && loja.atendimento_domicilio_ativo
+      );
       const taxaDomicilioIni = Number(loja.taxa_padrao_domicilio ?? 0);
       const abaterTaxaIni = Boolean(loja.abater_taxa_domicilio_ao_fechar);
+      setTrabalhaComAgenda(trabalhaComAgendaIni);
+      setAtendimentoDomicilioAtivo(atendimentoDomicilioIni);
       setTaxaPadraoDomicilio(taxaDomicilioIni);
       setAbaterTaxaDomicilioAoFechar(abaterTaxaIni);
 
@@ -1287,6 +1297,8 @@ export const ConfiguracoesLoja: React.FC<ConfiguracoesLojaProps> = ({ subTelaIni
           descricaoRetirada: entregaRet.descricao_retirada || '',
           freteGratisAtivo: freteGratisFinal,
           freteGratisValorMinimo: freteMinimoFinal,
+          trabalhaComAgenda: trabalhaComAgendaIni,
+          atendimentoDomicilioAtivo: atendimentoDomicilioIni,
           taxaPadraoDomicilio: taxaDomicilioIni,
           abaterTaxaDomicilioAoFechar: abaterTaxaIni,
           facebookPixelId: parceiros.facebook_pixel_id || '',
@@ -1527,6 +1539,8 @@ export const ConfiguracoesLoja: React.FC<ConfiguracoesLojaProps> = ({ subTelaIni
           frete_gratis_valor_minimo: typeof freteGratisValorMinimo === 'number'
             ? freteGratisValorMinimo
             : (parseFloat(String(freteGratisValorMinimo).replace(',', '.')) || 0.00),
+          trabalha_com_agenda: Boolean(trabalhaComAgenda),
+          atendimento_domicilio_ativo: Boolean(trabalhaComAgenda && atendimentoDomicilioAtivo),
           taxa_padrao_domicilio: typeof taxaPadraoDomicilio === 'number'
             ? taxaPadraoDomicilio
             : (parseFloat(String(taxaPadraoDomicilio).replace(',', '.')) || 0.00),
@@ -1578,6 +1592,8 @@ export const ConfiguracoesLoja: React.FC<ConfiguracoesLojaProps> = ({ subTelaIni
               frete_gratis_valor_minimo: typeof freteGratisValorMinimo === 'number'
                 ? freteGratisValorMinimo
                 : (parseFloat(String(freteGratisValorMinimo).replace(',', '.')) || 0.00),
+              trabalha_com_agenda: Boolean(trabalhaComAgenda),
+              atendimento_domicilio_ativo: Boolean(trabalhaComAgenda && atendimentoDomicilioAtivo),
               taxa_padrao_domicilio: typeof taxaPadraoDomicilio === 'number'
                 ? taxaPadraoDomicilio
                 : (parseFloat(String(taxaPadraoDomicilio).replace(',', '.')) || 0.00),
@@ -1679,6 +1695,9 @@ export const ConfiguracoesLoja: React.FC<ConfiguracoesLojaProps> = ({ subTelaIni
         true
       );
       setGoogleSearchConfig(googleSearchApiKey.trim(), googleSearchCx.trim());
+      const taxaDomicilioFinal = typeof taxaPadraoDomicilio === 'number'
+        ? taxaPadraoDomicilio
+        : (parseFloat(String(taxaPadraoDomicilio).replace(',', '.')) || 0.00);
       setLoja({
         ...loja,
         nome_fantasia: nomeLoja,
@@ -1689,6 +1708,10 @@ export const ConfiguracoesLoja: React.FC<ConfiguracoesLojaProps> = ({ subTelaIni
         serper_api_key: serpApiKey.trim() || null,
         caderneta_ativa: Boolean(cadernetaAtiva),
         dia_vencimento_padrao_caderneta: Number(diaVencimentoPadraoCaderneta || 10),
+        trabalha_com_agenda: Boolean(trabalhaComAgenda),
+        atendimento_domicilio_ativo: Boolean(trabalhaComAgenda && atendimentoDomicilioAtivo),
+        taxa_padrao_domicilio: taxaDomicilioFinal,
+        abater_taxa_domicilio_ao_fechar: Boolean(abaterTaxaDomicilioAoFechar),
         configuracoes_extras: novasExtras
       });
       salvouRecenteRef.current = true;
@@ -1899,6 +1922,8 @@ export const ConfiguracoesLoja: React.FC<ConfiguracoesLojaProps> = ({ subTelaIni
       descricaoRetirada,
       freteGratisAtivo,
       freteGratisValorMinimo,
+      trabalhaComAgenda,
+      atendimentoDomicilioAtivo,
       taxaPadraoDomicilio,
       abaterTaxaDomicilioAoFechar,
       facebookPixelId,
@@ -2003,6 +2028,8 @@ export const ConfiguracoesLoja: React.FC<ConfiguracoesLojaProps> = ({ subTelaIni
     descricaoRetirada,
     freteGratisAtivo,
     freteGratisValorMinimo,
+    trabalhaComAgenda,
+    atendimentoDomicilioAtivo,
     taxaPadraoDomicilio,
     abaterTaxaDomicilioAoFechar,
     facebookPixelId,
@@ -2013,13 +2040,20 @@ export const ConfiguracoesLoja: React.FC<ConfiguracoesLojaProps> = ({ subTelaIni
   ]);
 
   const isTaxaDomicilioAlterada = useMemo(() => {
+    const agendaOriginal = Boolean(loja?.trabalha_com_agenda);
+    const domicilioOriginal = Boolean(loja?.trabalha_com_agenda && loja?.atendimento_domicilio_ativo);
     const taxaOriginal = Number(loja?.taxa_padrao_domicilio ?? 0);
     const abaterOriginal = Boolean(loja?.abater_taxa_domicilio_ao_fechar);
     const taxaAtual = typeof taxaPadraoDomicilio === 'number'
       ? taxaPadraoDomicilio
       : (parseFloat(String(taxaPadraoDomicilio).replace(',', '.')) || 0);
-    return Math.abs(taxaAtual - taxaOriginal) > 0.001 || Boolean(abaterTaxaDomicilioAoFechar) !== abaterOriginal;
-  }, [taxaPadraoDomicilio, abaterTaxaDomicilioAoFechar, loja]);
+    return (
+      Boolean(trabalhaComAgenda) !== agendaOriginal ||
+      Boolean(trabalhaComAgenda && atendimentoDomicilioAtivo) !== domicilioOriginal ||
+      Math.abs(taxaAtual - taxaOriginal) > 0.001 ||
+      Boolean(abaterTaxaDomicilioAoFechar) !== abaterOriginal
+    );
+  }, [trabalhaComAgenda, atendimentoDomicilioAtivo, taxaPadraoDomicilio, abaterTaxaDomicilioAoFechar, loja]);
 
   const isSegmentoAlterado = useMemo(() => {
     const segOriginal =
@@ -2269,52 +2303,32 @@ export const ConfiguracoesLoja: React.FC<ConfiguracoesLojaProps> = ({ subTelaIni
                 </label>
               </div>
 
-              {/* Atendimento a Domicílio & Visita Técnica */}
+              {/* Chaves Progressivas: Agenda & Atendimento a Domicílio / Visita Técnica */}
               <div className="bg-white border border-slate-200 rounded-2xl p-4 shadow-xs space-y-3">
-                <div className="flex items-center gap-2.5 pb-2 border-b border-slate-100">
-                  <div className="p-2 rounded-xl bg-emerald-50 text-emerald-600">
-                    <Home className="w-4 h-4" />
-                  </div>
-                  <div>
-                    <span className="font-bold text-sm text-black block">Atendimento a Domicílio & Visita Técnica</span>
-                    <span className="text-sm text-black font-medium block leading-relaxed">
-                      Taxa padrão de deslocamento cobrada para atendimentos externos.
-                    </span>
-                  </div>
-                </div>
-
-                <div>
-                  <label className="block text-sm font-bold text-black mb-1">
-                    Taxa Padrão de Atendimento a Domicílio (R$)
-                  </label>
-                  <MoneyInput
-                    value={taxaPadraoDomicilio}
-                    onChange={(val) => {
-                      setTaxaPadraoDomicilio(val);
-                      marcarInteracaoFisica();
-                    }}
-                    className="w-full px-3 py-2 rounded-xl text-sm font-bold border border-slate-300 bg-white text-black focus:ring-2 focus:ring-emerald-500 outline-none"
-                  />
-                  <span className="text-sm text-black font-medium mt-1.5 block leading-relaxed">
-                    Valor único cobrado por visita quando o cliente solicitar serviço em seu endereço (aplicado a todos os serviços, salvo exceções).
-                  </span>
-                </div>
-
-                <div className="pt-2 border-t border-slate-100 flex items-center justify-between">
-                  <div className="space-y-1 max-w-[75%]">
-                    <span className="font-bold text-sm text-black block">
-                      Isentar / abater esta taxa quando o serviço principal for fechado
-                    </span>
-                    <span className="text-sm text-black font-medium block leading-relaxed">
-                      Ideal para visitas de orçamento: cobra apenas se o cliente não aprovar o serviço.
-                    </span>
+                <div className="flex items-center justify-between gap-3">
+                  <div className="flex items-start gap-2.5 max-w-[78%]">
+                    <div className="p-2 rounded-xl bg-emerald-50 text-emerald-600 shrink-0">
+                      <Calendar className="w-4 h-4" />
+                    </div>
+                    <div className="space-y-0.5">
+                      <span className="font-bold text-sm text-black block">
+                        Trabalha com Agenda / Atendimento Agendado
+                      </span>
+                      <span className="text-xs text-slate-700 font-medium block leading-relaxed">
+                        Exibe o menu Agenda e habilita agendamentos com hora marcada.
+                      </span>
+                    </div>
                   </div>
                   <label className="relative inline-flex items-center cursor-pointer shrink-0">
                     <input
                       type="checkbox"
-                      checked={abaterTaxaDomicilioAoFechar}
+                      checked={trabalhaComAgenda}
                       onChange={(e) => {
-                        setAbaterTaxaDomicilioAoFechar(e.target.checked);
+                        const ligado = e.target.checked;
+                        setTrabalhaComAgenda(ligado);
+                        if (!ligado) {
+                          setAtendimentoDomicilioAtivo(false);
+                        }
                         marcarInteracaoFisica();
                       }}
                       className="sr-only peer"
@@ -2322,6 +2336,82 @@ export const ConfiguracoesLoja: React.FC<ConfiguracoesLojaProps> = ({ subTelaIni
                     <div className="w-11 h-6 bg-slate-300 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-slate-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-emerald-500"></div>
                   </label>
                 </div>
+
+                {trabalhaComAgenda && (
+                  <div className="pt-3 border-t border-slate-100 space-y-3 animate-in fade-in duration-150">
+                    <div className="flex items-center justify-between gap-3">
+                      <div className="flex items-start gap-2.5 max-w-[78%]">
+                        <div className="p-2 rounded-xl bg-emerald-50 text-emerald-600 shrink-0">
+                          <Home className="w-4 h-4" />
+                        </div>
+                        <div className="space-y-0.5">
+                          <span className="font-bold text-sm text-black block">
+                            Realiza Atendimento a Domicílio / Visita Técnica
+                          </span>
+                          <span className="text-xs text-slate-700 font-medium block leading-relaxed">
+                            Permite cobrar taxa de deslocamento padrão para visitas externas.
+                          </span>
+                        </div>
+                      </div>
+                      <label className="relative inline-flex items-center cursor-pointer shrink-0">
+                        <input
+                          type="checkbox"
+                          checked={atendimentoDomicilioAtivo}
+                          onChange={(e) => {
+                            setAtendimentoDomicilioAtivo(e.target.checked);
+                            marcarInteracaoFisica();
+                          }}
+                          className="sr-only peer"
+                        />
+                        <div className="w-11 h-6 bg-slate-300 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-slate-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-emerald-500"></div>
+                      </label>
+                    </div>
+
+                    {atendimentoDomicilioAtivo && (
+                      <div className="pt-3 border-t border-slate-100 space-y-3 animate-in fade-in duration-150">
+                        <div>
+                          <label className="block text-sm font-bold text-black mb-1">
+                            Taxa Padrão de Visita (R$)
+                          </label>
+                          <MoneyInput
+                            value={taxaPadraoDomicilio}
+                            onChange={(val) => {
+                              setTaxaPadraoDomicilio(val);
+                              marcarInteracaoFisica();
+                            }}
+                            className="w-full px-3 py-2 rounded-xl text-sm font-bold border border-slate-300 bg-white text-black focus:ring-2 focus:ring-emerald-500 outline-none"
+                          />
+                          <span className="text-xs text-slate-700 font-medium mt-1.5 block leading-relaxed">
+                            Valor único cobrado por visita quando o cliente solicitar serviço em seu endereço (aplicado a todos os serviços, salvo exceções).
+                          </span>
+                        </div>
+
+                        <div className="pt-2 border-t border-slate-100 flex items-center justify-between">
+                          <div className="space-y-1 max-w-[75%]">
+                            <span className="font-bold text-sm text-black block">
+                              Isentar / abater esta taxa ao fechar o serviço principal
+                            </span>
+                            <span className="text-xs text-slate-700 font-medium block leading-relaxed">
+                              Ideal para visitas de orçamento: cobra apenas se o cliente não aprovar o serviço.
+                            </span>
+                          </div>
+                          <label className="relative inline-flex items-center cursor-pointer shrink-0">
+                            <input
+                              type="checkbox"
+                              checked={abaterTaxaDomicilioAoFechar}
+                              onChange={(e) => {
+                                setAbaterTaxaDomicilioAoFechar(e.target.checked);
+                                marcarInteracaoFisica();
+                              }}
+                              className="sr-only peer"
+                            />
+                            <div className="w-11 h-6 bg-slate-300 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-slate-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-emerald-500"></div>
+                          </label>
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                )}
               </div>
 
               {/* Transações Canceladas */}
@@ -4122,58 +4212,34 @@ export const ConfiguracoesLoja: React.FC<ConfiguracoesLojaProps> = ({ subTelaIni
               </label>
             </div>
 
-            {/* Atendimento a Domicílio & Visita Técnica */}
+            {/* Chaves Progressivas: Agenda & Atendimento a Domicílio / Visita Técnica */}
             <div className={`p-4 rounded-2xl space-y-4 ${
               isDark ? 'bg-[#000000] border border-slate-800' : 'bg-slate-50 border border-slate-200'
             }`}>
-              <div className="flex items-center gap-3 pb-3 border-b border-slate-200 dark:border-slate-800">
-                <div className="p-2 rounded-xl bg-emerald-500/10 text-emerald-500">
-                  <Home className="w-5 h-5" />
-                </div>
-                <div>
-                  <h3 className={`font-black text-sm block ${isDark ? 'text-white' : 'text-black'}`}>
-                    Atendimento a Domicílio & Visita Técnica
-                  </h3>
-                  <p className={`text-sm block leading-relaxed font-medium ${isDark ? 'text-slate-300' : 'text-black'}`}>
-                    Taxa padrão de deslocamento cobrada para atendimentos externos.
-                  </p>
-                </div>
-              </div>
-
-              <div className="max-w-md">
-                <label className={`block text-sm font-bold mb-1 ${isDark ? 'text-slate-200' : 'text-black'}`}>
-                  Taxa Padrão de Atendimento a Domicílio (R$)
-                </label>
-                <MoneyInput
-                  value={taxaPadraoDomicilio}
-                  onChange={(val) => {
-                    setTaxaPadraoDomicilio(val);
-                    marcarInteracaoFisica();
-                  }}
-                  className={`w-full px-3.5 py-2.5 rounded-xl text-sm font-bold border outline-none focus:ring-2 focus:ring-emerald-500 ${
-                    isDark ? 'bg-slate-900 border-slate-700 text-white' : 'bg-white border-slate-300 text-black'
-                  }`}
-                />
-                <span className={`text-sm mt-1.5 block leading-relaxed font-medium ${isDark ? 'text-slate-300' : 'text-black'}`}>
-                  Valor único cobrado por visita quando o cliente solicitar serviço em seu endereço (aplicado a todos os serviços, salvo exceções).
-                </span>
-              </div>
-
-              <div className="flex items-center justify-between pt-2 border-t border-slate-200 dark:border-slate-800">
-                <div className="space-y-0.5 max-w-[80%]">
-                  <span className={`font-black text-sm block ${isDark ? 'text-white' : 'text-black'}`}>
-                    Isentar / abater esta taxa quando o serviço principal for fechado
-                  </span>
-                  <span className={`text-sm block leading-relaxed font-medium ${isDark ? 'text-slate-300' : 'text-black'}`}>
-                    Ideal para visitas de orçamento: cobra apenas se o cliente não aprovar o serviço.
-                  </span>
+              <div className="flex items-center justify-between gap-4">
+                <div className="flex items-center gap-3 max-w-[82%]">
+                  <div className="p-2 rounded-xl bg-emerald-500/10 text-emerald-500 shrink-0">
+                    <Calendar className="w-5 h-5" />
+                  </div>
+                  <div>
+                    <h3 className={`font-black text-sm block ${isDark ? 'text-white' : 'text-black'}`}>
+                      Trabalha com Agenda / Atendimento Agendado
+                    </h3>
+                    <p className={`text-sm block leading-relaxed font-medium ${isDark ? 'text-slate-300' : 'text-black'}`}>
+                      Ativa o módulo de Agenda no menu e libera agendamentos com hora marcada.
+                    </p>
+                  </div>
                 </div>
                 <label className="relative inline-flex items-center cursor-pointer shrink-0">
                   <input
                     type="checkbox"
-                    checked={abaterTaxaDomicilioAoFechar}
+                    checked={trabalhaComAgenda}
                     onChange={(e) => {
-                      setAbaterTaxaDomicilioAoFechar(e.target.checked);
+                      const ligado = e.target.checked;
+                      setTrabalhaComAgenda(ligado);
+                      if (!ligado) {
+                        setAtendimentoDomicilioAtivo(false);
+                      }
                       marcarInteracaoFisica();
                     }}
                     className="sr-only peer"
@@ -4181,6 +4247,84 @@ export const ConfiguracoesLoja: React.FC<ConfiguracoesLojaProps> = ({ subTelaIni
                   <div className="w-11 h-6 bg-slate-300 dark:bg-slate-700 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-slate-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-emerald-500"></div>
                 </label>
               </div>
+
+              {trabalhaComAgenda && (
+                <div className="pt-4 border-t border-slate-200 dark:border-slate-800 space-y-4 animate-in fade-in duration-150">
+                  <div className="flex items-center justify-between gap-4">
+                    <div className="flex items-center gap-3 max-w-[82%]">
+                      <div className="p-2 rounded-xl bg-emerald-500/10 text-emerald-500 shrink-0">
+                        <Home className="w-5 h-5" />
+                      </div>
+                      <div>
+                        <h4 className={`font-black text-sm block ${isDark ? 'text-white' : 'text-black'}`}>
+                          Realiza Atendimento a Domicílio / Visita Técnica
+                        </h4>
+                        <p className={`text-sm block leading-relaxed font-medium ${isDark ? 'text-slate-300' : 'text-black'}`}>
+                          Habilita taxa padrão de deslocamento cobrada para atendimentos externos.
+                        </p>
+                      </div>
+                    </div>
+                    <label className="relative inline-flex items-center cursor-pointer shrink-0">
+                      <input
+                        type="checkbox"
+                        checked={atendimentoDomicilioAtivo}
+                        onChange={(e) => {
+                          setAtendimentoDomicilioAtivo(e.target.checked);
+                          marcarInteracaoFisica();
+                        }}
+                        className="sr-only peer"
+                      />
+                      <div className="w-11 h-6 bg-slate-300 dark:bg-slate-700 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-slate-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-emerald-500"></div>
+                    </label>
+                  </div>
+
+                  {atendimentoDomicilioAtivo && (
+                    <div className="pt-4 border-t border-slate-200 dark:border-slate-800 space-y-4 animate-in fade-in duration-150">
+                      <div className="max-w-md">
+                        <label className={`block text-sm font-bold mb-1 ${isDark ? 'text-slate-200' : 'text-black'}`}>
+                          Taxa Padrão de Visita (R$)
+                        </label>
+                        <MoneyInput
+                          value={taxaPadraoDomicilio}
+                          onChange={(val) => {
+                            setTaxaPadraoDomicilio(val);
+                            marcarInteracaoFisica();
+                          }}
+                          className={`w-full px-3.5 py-2.5 rounded-xl text-sm font-bold border outline-none focus:ring-2 focus:ring-emerald-500 ${
+                            isDark ? 'bg-slate-900 border-slate-700 text-white' : 'bg-white border-slate-300 text-black'
+                          }`}
+                        />
+                        <span className={`text-sm mt-1.5 block leading-relaxed font-medium ${isDark ? 'text-slate-300' : 'text-black'}`}>
+                          Valor único cobrado por visita quando o cliente solicitar serviço em seu endereço (aplicado a todos os serviços, salvo exceções).
+                        </span>
+                      </div>
+
+                      <div className="flex items-center justify-between pt-2 border-t border-slate-200 dark:border-slate-800">
+                        <div className="space-y-0.5 max-w-[80%]">
+                          <span className={`font-black text-sm block ${isDark ? 'text-white' : 'text-black'}`}>
+                            Isentar / abater esta taxa ao fechar o serviço principal
+                          </span>
+                          <span className={`text-sm block leading-relaxed font-medium ${isDark ? 'text-slate-300' : 'text-black'}`}>
+                            Ideal para visitas de orçamento: cobra apenas se o cliente não aprovar o serviço.
+                          </span>
+                        </div>
+                        <label className="relative inline-flex items-center cursor-pointer shrink-0">
+                          <input
+                            type="checkbox"
+                            checked={abaterTaxaDomicilioAoFechar}
+                            onChange={(e) => {
+                              setAbaterTaxaDomicilioAoFechar(e.target.checked);
+                              marcarInteracaoFisica();
+                            }}
+                            className="sr-only peer"
+                          />
+                          <div className="w-11 h-6 bg-slate-300 dark:bg-slate-700 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-slate-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-emerald-500"></div>
+                        </label>
+                      </div>
+                    </div>
+                  )}
+                </div>
+              )}
             </div>
 
             {/* Transações Canceladas */}

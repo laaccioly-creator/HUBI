@@ -6190,11 +6190,28 @@ export const ProdutosMobile: React.FC<ProdutosMobileProps> = ({
           fotoUrl={fotoTemporariaDuvida || formData.fotos[0]}
           loja={loja}
           onSelecionarOpcao={(opcaoEscolhida) => {
-            aplicarSugestaoMobile(opcaoEscolhida, fotoTemporariaDuvida || undefined);
-            setMensagemFeedback({
-              texto: `Produto "${opcaoEscolhida.nome}" preenchido com sucesso!`,
-              tipo: 'sucesso'
-            });
+            void (async () => {
+              await aplicarSugestaoMobile(opcaoEscolhida, fotoTemporariaDuvida || undefined);
+              setMensagemFeedback({
+                texto: `Produto "${opcaoEscolhida.nome}" preenchido com sucesso!`,
+                tipo: 'sucesso'
+              });
+              if (!produtoEditando?.id) {
+                const nomeIdentificado = (opcaoEscolhida as { nome_identificado?: string }).nome_identificado || opcaoEscolhida.nome || '';
+                const resDup = buscarProdutoDuplicado(produtos, {
+                  nome: nomeIdentificado,
+                  codigoBarras: opcaoEscolhida.codigo_barras
+                });
+                if (resDup.encontrado && resDup.produto && resDup.motivo) {
+                  setDuplicadoModal({
+                    produto: resDup.produto,
+                    motivo: resDup.motivo,
+                    origem: 'ia',
+                    fotoCapturada: fotoTemporariaDuvida || formData.fotos[0]
+                  });
+                }
+              }
+            })();
           }}
         />
 

@@ -158,10 +158,10 @@ export const MobileMenuDrawer: React.FC<MobileMenuDrawerProps> = ({
       badge: undefined
     },
     {
-      nome: 'Agenda de Serviços',
+      nome: 'Agenda',
       caminho: '/agenda',
       icone: Calendar,
-      visivel: true,
+      visivel: loja?.trabalha_com_agenda === true,
       badge: undefined
     },
     {
@@ -221,7 +221,7 @@ export const MobileMenuDrawer: React.FC<MobileMenuDrawerProps> = ({
       badge: undefined
     },
     {
-      nome: 'Gestão de Usuários',
+      nome: 'Colaboradores',
       caminho: '/users',
       icone: UserCheck,
       visivel: permissions.podeAcessarUsuarios,

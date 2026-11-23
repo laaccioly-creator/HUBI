@@ -106,6 +106,7 @@ export interface SnapshotLojaOnboarding {
   status_pronto_para_retirar: boolean;
   exigir_pesagem_previa_pagamento: boolean;
   caderneta_ativa: boolean;
+  trabalha_com_agenda: boolean;
   aceita_pedidos_online: boolean;
   whatsapp_auto_ativo: boolean;
   gemini_configurado: boolean;
@@ -155,6 +156,8 @@ export interface LojaOnboardingQueryRow {
   meta_access_token?: string | null;
   exigir_pesagem_previa_pagamento?: boolean | null;
   caderneta_ativa?: boolean | null;
+  trabalha_com_agenda?: boolean | null;
+  atendimento_domicilio_ativo?: boolean | null;
   status_em_separacao?: boolean | null;
   status_em_expedicao?: boolean | null;
   status_aguardando_envio?: boolean | null;
@@ -969,6 +972,7 @@ export async function avaliarProgressoCompletoOnboarding(
     ),
     exigir_pesagem_previa_pagamento: Boolean(lojaEfetiva?.exigir_pesagem_previa_pagamento),
     caderneta_ativa: Boolean(lojaEfetiva?.caderneta_ativa),
+    trabalha_com_agenda: lojaEfetiva?.trabalha_com_agenda === true,
     aceita_pedidos_online: Boolean(lojaEfetiva?.aceita_pedidos_online),
     whatsapp_auto_ativo: whatsappAutoConfigurado,
     gemini_configurado: Boolean(
@@ -995,8 +999,9 @@ export async function avaliarProgressoCompletoOnboarding(
   const transportadorasManuaisConfigurado =
     shippingConfig?.frete_proprio_ativo === true || countTransportadoras >= 1;
   const mercadoLivreConfigurado = countMarketplaceConectadas >= 1;
+  const trabalhaComAgenda = lojaEfetiva?.trabalha_com_agenda === true;
   const agendamentoServicosConfigurado =
-    countProfissionais >= 1 || countProdutosAgendamento >= 1;
+    trabalhaComAgenda && (countProfissionais >= 1 || countProdutosAgendamento >= 1);
   const vendaPorPesoConfigurado =
     lojaSnapshot.exigir_pesagem_previa_pagamento || countProdutosPeso >= 1;
   const cadernetaFiadoConfigurado =
@@ -1281,18 +1286,22 @@ export async function avaliarProgressoCompletoOnboarding(
       chaveInteresse: 'interesse_mercado_livre',
       interesseAtivo: mercadoLivreConfigurado,
     },
-    {
-      id: 'agendamento_servicos',
-      grupo: 'opcional',
-      ordem: 17,
-      titulo: 'Agendamento de Serviços com Hora Marcada',
-      descricao:
-        'Agenda online 24h por profissional, sem conflito de horário e confirmação rápida via link no WhatsApp.',
-      concluido: agendamentoServicosConfigurado,
-      rotaDestino: '/users',
-      chaveInteresse: 'interesse_agendamento_servicos',
-      interesseAtivo: agendamentoServicosConfigurado,
-    },
+    ...(trabalhaComAgenda
+      ? [
+          {
+            id: 'agendamento_servicos' as const,
+            grupo: 'opcional' as const,
+            ordem: 17,
+            titulo: 'Agendamento de Serviços com Hora Marcada',
+            descricao:
+              'Agenda online 24h por profissional, sem conflito de horário e confirmação rápida via link no WhatsApp.',
+            concluido: agendamentoServicosConfigurado,
+            rotaDestino: '/users',
+            chaveInteresse: 'interesse_agendamento_servicos' as const,
+            interesseAtivo: agendamentoServicosConfigurado,
+          },
+        ]
+      : []),
     {
       id: 'venda_por_peso',
       grupo: 'opcional',

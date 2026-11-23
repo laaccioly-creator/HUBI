@@ -13,7 +13,6 @@ import {
   ExternalLink,
   Store,
   Bell,
-  Menu,
   X,
   LogOut,
   Loader2,
@@ -82,7 +81,7 @@ export const AppLayout: React.FC = () => {
   const navigate = useNavigate();
   const searchParams = new URLSearchParams(location.search);
   const origemVendas = searchParams.get('origem') === 'sales';
-  const { loja, usuario, usuarioLogado, session, carregando, desconectarPdv, selecionarUsuario, lojasDisponiveis, selecionarLoja, recarregarDadosLoja } = useAuth();
+  const { loja, usuario, usuarioLogado, session, carregando, desconectarPdv, selecionarUsuario, lojasDisponiveis, selecionarLoja, recarregarDadosLoja, setLoja } = useAuth();
   const { status: statusAssinatura, diasRestantesTrial, confirmandoRetornoPagamento } = useAssinaturaStatus();
   const {
     valorMensalAnual,
@@ -102,6 +101,7 @@ export const AppLayout: React.FC = () => {
   const [maisMenuOpen, setMaisMenuOpen] = useState<boolean>(false);
   const [userMenuOpen, setUserMenuOpen] = useState<boolean>(false);
   const [storeDropdownOpen, setStoreDropdownOpen] = useState<boolean>(false);
+  const [mobileStoreDropdownOpen, setMobileStoreDropdownOpen] = useState<boolean>(false);
   const [modalAdicionarLojaAberto, setModalAdicionarLojaAberto] = useState<boolean>(false);
   const [listaUsuariosLoja, setListaUsuariosLoja] = useState<UsuarioLoja[]>([]);
   const [modalQuestionarioOnboardingAberto, setModalQuestionarioOnboardingAberto] = useState<boolean>(false);
@@ -138,6 +138,7 @@ export const AppLayout: React.FC = () => {
   const maisMenuRef = useRef<HTMLDivElement>(null);
   const userMenuRef = useRef<HTMLDivElement>(null);
   const storeDropdownRef = useRef<HTMLDivElement>(null);
+  const mobileStoreDropdownRef = useRef<HTMLDivElement>(null);
 
   const handleNavegacaoMenu = (path: string, e?: React.MouseEvent) => {
     if (e) e.preventDefault();
@@ -168,6 +169,10 @@ export const AppLayout: React.FC = () => {
         }
         if (storeDropdownOpen) {
           setStoreDropdownOpen(false);
+          return;
+        }
+        if (mobileStoreDropdownOpen) {
+          setMobileStoreDropdownOpen(false);
           return;
         }
 
@@ -209,7 +214,7 @@ export const AppLayout: React.FC = () => {
       window.removeEventListener('keydown', handleGlobalKeyDown);
       window.removeEventListener('popstate', handlePopState);
     };
-  }, [mobileMenuOpen, maisMenuOpen, userMenuOpen, storeDropdownOpen, location.pathname, navigate, verificarSaidaComConfirmacao]);
+  }, [mobileMenuOpen, maisMenuOpen, userMenuOpen, storeDropdownOpen, mobileStoreDropdownOpen, location.pathname, navigate, verificarSaidaComConfirmacao]);
 
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
@@ -221,6 +226,9 @@ export const AppLayout: React.FC = () => {
       }
       if (storeDropdownRef.current && !storeDropdownRef.current.contains(event.target as Node)) {
         setStoreDropdownOpen(false);
+      }
+      if (mobileStoreDropdownRef.current && !mobileStoreDropdownRef.current.contains(event.target as Node)) {
+        setMobileStoreDropdownOpen(false);
       }
     };
 
@@ -554,7 +562,7 @@ export const AppLayout: React.FC = () => {
       path: '/agenda',
       icon: Calendar,
       badge: undefined,
-      visivel: true
+      visivel: loja?.trabalha_com_agenda === true
     },
     {
       name: 'Produtos & Serviços',
@@ -609,7 +617,7 @@ export const AppLayout: React.FC = () => {
       visivel: permissions.podeAcessarAuxiliares
     },
     {
-      name: 'Gestão de Usuários',
+      name: 'Colaboradores',
       path: '/users',
       icon: UserCheck,
       badge: undefined,
@@ -626,7 +634,6 @@ export const AppLayout: React.FC = () => {
 
   const todosOsBotoes = [...row1Buttons, ...row2Buttons];
   const isPosRoute = location.pathname === '/pos' || location.pathname === '/';
-  const isCustomMobileRoute = true;
   const isDashboardRoute = location.pathname === '/dashboard';
 
   return (
@@ -637,48 +644,117 @@ export const AppLayout: React.FC = () => {
       {/* BANNER / BOTÃO DE INSTALAÇÃO DO APP DESKTOP */}
       <DesktopAppPrompt />
 
-      {/* TOP HEADER MOBILE (PADRÃO PEDIDOS: LIMPO, MODERNO E BRANCO) */}
-      {!isCustomMobileRoute && (
-        <div className="md:hidden h-14 bg-white border-b border-slate-200 px-4 flex items-center justify-between text-slate-800 shrink-0 select-none">
-          <div className="flex items-center gap-3">
+      {/* PRIMEIRA LINHA GLOBAL MOBILE: LOJA ATIVA (COM TROCA RÁPIDA) + ALTERNADOR DE TEMA */}
+      <div
+        className={`md:hidden h-11 px-3 border-b flex items-center justify-between gap-2 shrink-0 relative z-40 select-none ${
+          isDark
+            ? 'bg-slate-950 border-slate-800 text-slate-100'
+            : 'bg-white border-slate-200 text-slate-900'
+        }`}
+      >
+        <div className="relative min-w-0 flex-1" ref={mobileStoreDropdownRef}>
+          {podeTrocarLoja && lojasDisponiveis.length > 1 ? (
             <button
               type="button"
-              onClick={() => setMobileMenuOpen(true)}
-              className="p-1.5 rounded-xl hover:bg-slate-100 text-slate-900 dark:text-white transition cursor-pointer"
-              title="Menu Principal"
-              aria-label="Menu Principal"
+              onClick={() => setMobileStoreDropdownOpen(prev => !prev)}
+              className={`inline-flex items-center gap-1.5 max-w-full py-1 px-1.5 -ml-1.5 rounded-xl transition cursor-pointer ${
+                isDark ? 'hover:bg-slate-800/80' : 'hover:bg-slate-100'
+              }`}
+              title="Trocar de loja"
             >
-              <Menu className="w-5 h-5 text-slate-900 dark:text-white stroke-[2.25]" />
-            </button>
-            <div className="flex items-center gap-2">
-              <div className="w-8 h-8 rounded-xl bg-gradient-to-tr from-emerald-600 to-emerald-400 flex items-center justify-center font-black text-slate-950 text-xs shadow-sm">
-                {loja?.nome_fantasia ? loja.nome_fantasia.slice(0, 2).toUpperCase() : 'HB'}
-              </div>
-              <h1 className="font-bold text-sm text-slate-800 truncate max-w-[170px]">
+              <span className="w-2 h-2 rounded-full bg-emerald-500 shrink-0" />
+              <span className="font-black text-xs tracking-tight truncate">
                 {loja?.nome_fantasia || 'HUBI PDV'}
-              </h1>
+              </span>
+              <ChevronDown
+                className={`w-3.5 h-3.5 shrink-0 transition-transform ${
+                  isDark ? 'text-slate-400' : 'text-slate-600'
+                } ${mobileStoreDropdownOpen ? 'rotate-180' : ''}`}
+              />
+            </button>
+          ) : (
+            <div className="inline-flex items-center gap-1.5 max-w-full py-1">
+              <span className="w-2 h-2 rounded-full bg-emerald-500 shrink-0" />
+              <span className="font-black text-xs tracking-tight truncate">
+                {loja?.nome_fantasia || 'HUBI PDV'}
+              </span>
             </div>
-          </div>
+          )}
 
-          <div className="flex items-center gap-2">
-            <Link
-              to="/orders"
-              className="p-2 rounded-xl text-slate-600 hover:text-slate-900 hover:bg-slate-100 transition"
-              title="Pedidos"
+          {podeTrocarLoja && lojasDisponiveis.length > 1 && mobileStoreDropdownOpen && (
+            <div
+              className={`absolute top-full left-0 mt-1.5 w-64 rounded-2xl p-1.5 z-50 space-y-0.5 border shadow-2xl animate-in fade-in zoom-in-95 duration-150 ${
+                isDark
+                  ? 'bg-slate-900 border-slate-700 text-white'
+                  : 'bg-white border-slate-300 text-black'
+              }`}
             >
-              <ShoppingBag className="w-5 h-5" />
-            </Link>
-
-            <Link
-              to="/pos"
-              className="w-8 h-8 rounded-xl bg-emerald-500 hover:bg-emerald-400 text-white flex items-center justify-center font-bold shadow-sm transition active:scale-95 cursor-pointer"
-              title="Vender PDV"
-            >
-              <ShoppingCart className="w-4 h-4" />
-            </Link>
-          </div>
+              <div
+                className={`px-2.5 py-1.5 text-[10px] font-bold uppercase tracking-wider border-b ${
+                  isDark ? 'text-slate-400 border-slate-800' : 'text-slate-600 border-slate-200'
+                }`}
+              >
+                Lojas da Organização
+              </div>
+              <div className="max-h-56 overflow-y-auto space-y-0.5 py-1">
+                {lojasDisponiveis.map((l) => {
+                  const ativa = l.id === loja?.id;
+                  return (
+                    <button
+                      key={l.id}
+                      type="button"
+                      onClick={async () => {
+                        setMobileStoreDropdownOpen(false);
+                        if (!ativa) {
+                          await selecionarLoja(l.id);
+                          await recarregarDadosLoja();
+                        }
+                      }}
+                      className={`w-full flex items-center justify-between px-2.5 py-2 rounded-xl text-xs transition text-left cursor-pointer ${
+                        ativa
+                          ? isDark
+                            ? 'bg-emerald-500/15 text-emerald-400 font-bold border border-emerald-500/30'
+                            : 'bg-emerald-50 text-emerald-900 font-bold border border-emerald-300'
+                          : isDark
+                          ? 'text-slate-200 hover:bg-slate-800'
+                          : 'text-slate-800 hover:bg-slate-100'
+                      }`}
+                    >
+                      <div className="flex items-center gap-2 truncate">
+                        <Building2
+                          className={`w-3.5 h-3.5 shrink-0 ${
+                            ativa ? 'text-emerald-500' : 'text-slate-400'
+                          }`}
+                        />
+                        <span className="truncate">{l.nome_fantasia}</span>
+                      </div>
+                      {ativa && <Check className="w-3.5 h-3.5 text-emerald-500 shrink-0 ml-1" />}
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
+          )}
         </div>
-      )}
+
+        <button
+          type="button"
+          onClick={() => setTema(isDark ? 'light' : 'dark')}
+          className={`p-1.5 rounded-xl border transition flex items-center justify-center cursor-pointer shrink-0 ${
+            isDark
+              ? 'bg-slate-900 hover:bg-slate-800 border-slate-700 text-amber-400'
+              : 'bg-slate-100 hover:bg-slate-200 border-slate-300 text-indigo-600'
+          }`}
+          title={isDark ? 'Alternar para Modo Claro' : 'Alternar para Modo Escuro'}
+          aria-label={isDark ? 'Alternar para Modo Claro' : 'Alternar para Modo Escuro'}
+        >
+          {isDark ? (
+            <Sun className="w-4 h-4 text-amber-400" />
+          ) : (
+            <Moon className="w-4 h-4 text-indigo-600" />
+          )}
+        </button>
+      </div>
 
       {/* TOP HEADER DESKTOP (BARRA SUPERIOR EM 2 FILEIRAS DE 6 BOTÕES) */}
       <header className={`hidden md:block border-b z-40 relative shrink-0 shadow-xs ${isDark ? 'bg-slate-950 border-slate-800' : 'bg-white border-[#E2E8F0]'}`}>
@@ -803,10 +879,10 @@ export const AppLayout: React.FC = () => {
             )}
           </div>
 
-          {/* GRID CENTRAL EM EXATAMENTE 2 FILEIRAS BALANCEADAS (LINHA 1: 7 BOTÕES | LINHA 2: 7 BOTÕES) */}
+          {/* GRID CENTRAL EM EXATAMENTE 2 FILEIRAS BALANCEADAS */}
           <nav className="flex flex-col gap-1.5 flex-1 max-w-5xl min-w-0 justify-center">
-            {/* FILEIRA 1 (7 BOTÕES) */}
-            <div className="grid grid-cols-7 gap-1 lg:gap-1.5 w-full">
+            {/* FILEIRA 1 */}
+            <div className={`grid gap-1 lg:gap-1.5 w-full ${row1Buttons.length <= 6 ? 'grid-cols-6' : 'grid-cols-7'}`}>
               {row1Buttons.map((item) => {
                 const Icon = item.icon;
                 const isActive = (() => {
@@ -1101,54 +1177,103 @@ export const AppLayout: React.FC = () => {
 
       {/* BANNER DISCRETO DE ALERTA DE SALDO BAIXO DA CARTEIRA WHATSAPP */}
       {!bannerSaldoWhatsappDispensado &&
-        Boolean(loja?.whatsapp_auto_ativo) &&
+        loja?.whatsapp_auto_ativo === true &&
         Number(loja?.whatsapp_saldo ?? 2.0) <= Number(loja?.whatsapp_alerta_saldo_baixo ?? 5.0) && (
-          <div
-            className={`px-4 py-2 border-b flex items-center justify-between gap-3 z-30 transition-all ${
-              isDark
-                ? 'bg-slate-900 border-slate-800 text-slate-100'
-                : 'bg-slate-100 border-slate-200 text-slate-900'
-            }`}
-          >
-            <div className="flex flex-wrap items-center gap-2 text-xs font-medium">
-              <span className="inline-flex items-center gap-1.5 text-amber-500 dark:text-amber-400 font-bold">
-                <AlertTriangle className="w-4 h-4 shrink-0" />
-                <span>Aviso de Saldo:</span>
-              </span>
-              <span>
-                Seu saldo para envio automático do WhatsApp está baixo (
-                <strong className="font-bold text-amber-600 dark:text-amber-300">
-                  {formatCurrency(Number(loja?.whatsapp_saldo ?? 0))}
-                </strong>
-                ).
-              </span>
-              <button
-                type="button"
-                onClick={() => setModalRecargaWhatsappAberto(true)}
-                className={`ml-1 px-3 py-1 rounded-full text-xs font-semibold flex items-center gap-1.5 transition shadow-2xs cursor-pointer ${
-                  isDark
-                    ? 'bg-slate-800 hover:bg-slate-700 text-slate-100 border border-slate-700'
-                    : 'bg-white hover:bg-slate-50 text-slate-800 border border-slate-300'
-                }`}
-              >
-                <Wallet className="w-3.5 h-3.5 text-emerald-500" />
-                <span>Recarregar Saldo</span>
-              </button>
+          <>
+            {/* Mobile: estritamente 1 única linha compacta */}
+            <div
+              className={`md:hidden px-3 py-1.5 border-b flex flex-nowrap items-center justify-between gap-2 z-30 transition-all ${
+                isDark
+                  ? 'bg-slate-900 border-slate-800 text-slate-100'
+                  : 'bg-slate-100 border-slate-200 text-slate-900'
+              }`}
+            >
+              <div className="flex items-center gap-1.5 min-w-0 flex-1 text-[11px] font-bold">
+                <AlertTriangle className="w-3.5 h-3.5 text-amber-500 shrink-0" />
+                <span className="truncate whitespace-nowrap">
+                  Saldo WhatsApp baixo (
+                  <strong className="font-extrabold text-amber-600 dark:text-amber-300">
+                    {formatCurrency(Number(loja?.whatsapp_saldo ?? 0))}
+                  </strong>
+                  )
+                </span>
+              </div>
+              <div className="flex items-center gap-1.5 shrink-0">
+                <button
+                  type="button"
+                  onClick={() => setModalRecargaWhatsappAberto(true)}
+                  className={`px-2.5 py-1 rounded-full text-[11px] font-bold whitespace-nowrap shrink-0 flex items-center gap-1 transition shadow-2xs cursor-pointer ${
+                    isDark
+                      ? 'bg-slate-800 hover:bg-slate-700 text-slate-100 border border-slate-700'
+                      : 'bg-white hover:bg-slate-50 text-slate-900 border border-slate-300'
+                  }`}
+                >
+                  <Wallet className="w-3 h-3 text-emerald-500 shrink-0" />
+                  <span>Recarregar saldo</span>
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setBannerSaldoWhatsappDispensado(true)}
+                  className={`hubi-btn-close-x p-1 rounded-lg transition cursor-pointer shrink-0 ${
+                    isDark
+                      ? 'bg-slate-800 hover:bg-slate-700 text-slate-300 hover:text-white border border-slate-700'
+                      : 'bg-white hover:bg-slate-100 text-slate-700 border border-slate-200'
+                  }`}
+                  title="Dispensar aviso por agora"
+                >
+                  <X className="w-3.5 h-3.5" />
+                </button>
+              </div>
             </div>
 
-            <button
-              type="button"
-              onClick={() => setBannerSaldoWhatsappDispensado(true)}
-              className={`hubi-btn-close-x p-1.5 rounded-xl transition cursor-pointer shrink-0 ${
+            {/* Desktop */}
+            <div
+              className={`hidden md:flex px-4 py-2 border-b items-center justify-between gap-3 z-30 transition-all ${
                 isDark
-                  ? 'bg-slate-800 hover:bg-slate-700 text-slate-300 hover:text-white border border-slate-700'
-                  : 'bg-white hover:bg-slate-100 text-slate-700 border border-slate-200'
+                  ? 'bg-slate-900 border-slate-800 text-slate-100'
+                  : 'bg-slate-100 border-slate-200 text-slate-900'
               }`}
-              title="Dispensar aviso por agora"
             >
-              <X className="w-4 h-4" />
-            </button>
-          </div>
+              <div className="flex flex-wrap items-center gap-2 text-xs font-medium">
+                <span className="inline-flex items-center gap-1.5 text-amber-500 dark:text-amber-400 font-bold">
+                  <AlertTriangle className="w-4 h-4 shrink-0" />
+                  <span>Aviso de Saldo:</span>
+                </span>
+                <span>
+                  Saldo WhatsApp baixo (
+                  <strong className="font-bold text-amber-600 dark:text-amber-300">
+                    {formatCurrency(Number(loja?.whatsapp_saldo ?? 0))}
+                  </strong>
+                  ).
+                </span>
+                <button
+                  type="button"
+                  onClick={() => setModalRecargaWhatsappAberto(true)}
+                  className={`ml-1 px-3 py-1 rounded-full text-xs font-semibold flex items-center gap-1.5 transition shadow-2xs cursor-pointer ${
+                    isDark
+                      ? 'bg-slate-800 hover:bg-slate-700 text-slate-100 border border-slate-700'
+                      : 'bg-white hover:bg-slate-50 text-slate-800 border border-slate-300'
+                  }`}
+                >
+                  <Wallet className="w-3.5 h-3.5 text-emerald-500" />
+                  <span>Recarregar saldo</span>
+                </button>
+              </div>
+
+              <button
+                type="button"
+                onClick={() => setBannerSaldoWhatsappDispensado(true)}
+                className={`hubi-btn-close-x p-1.5 rounded-xl transition cursor-pointer shrink-0 ${
+                  isDark
+                    ? 'bg-slate-800 hover:bg-slate-700 text-slate-300 hover:text-white border border-slate-700'
+                    : 'bg-white hover:bg-slate-100 text-slate-700 border border-slate-200'
+                }`}
+                title="Dispensar aviso por agora"
+              >
+                <X className="w-4 h-4" />
+              </button>
+            </div>
+          </>
         )}
 
       {/* BARRA SUPERIOR DE RETORNO AO QUESTIONÁRIO DE IMPLANTAÇÃO ("IDA E VOLTA") */}

@@ -397,7 +397,7 @@ export const UsuariosGestao: React.FC = () => {
       <div className={`block md:hidden h-full flex flex-col overflow-y-auto font-sans ${isDark ? 'bg-[#08131A] text-white' : 'bg-slate-100 text-black'}`}>
         {/* Header Superior Mobile Unificado */}
         <MobileHeader
-          titulo={`Usuários (${usuarios.length})`}
+          titulo={`Colaboradores (${usuarios.length})`}
           acoesDireita={
             <button
               type="button"
@@ -525,10 +525,10 @@ export const UsuariosGestao: React.FC = () => {
           </button>
           <div>
             <h1 className={`text-2xl sm:text-3xl font-black flex items-center gap-3 ${isDark ? 'text-white' : 'text-black'}`}>
-              <span>Usuários</span>
+              <span>Gestão de Colaboradores</span>
             </h1>
             <p className={`text-sm leading-relaxed font-medium mt-1 ${isDark ? 'text-slate-300' : 'text-black'}`}>
-              Gerencie sua equipe, permissões de acesso e acompanhe o faturamento por colaborador.
+              Gerencie funcionários, vendedores, caixas, técnicos e prestadores de serviço
             </p>
           </div>
         </div>
@@ -540,7 +540,7 @@ export const UsuariosGestao: React.FC = () => {
             className="hubi-btn-cta inline-flex items-center gap-2 px-5 py-2.5 rounded-2xl bg-emerald-600 hover:bg-emerald-700 text-white text-xs sm:text-sm font-black shadow-md border border-emerald-500 transition cursor-pointer active:scale-95"
           >
             <Plus className="w-4 h-4 stroke-[3]" />
-            <span>+ Usuários</span>
+            <span>+ Colaborador</span>
           </button>
         </div>
       </div>

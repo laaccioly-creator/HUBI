@@ -38,7 +38,7 @@ export const ConfiguracoesWhatsAppIA: React.FC<ConfiguracoesWhatsAppIAProps> = (
   onSalvandoChange,
 }) => {
   const { isDark } = useTheme();
-  const { loja, usuario, recarregarDadosLoja } = useAuth();
+  const { loja, usuario, setLoja, recarregarDadosLoja } = useAuth();
   const { mostrarSucesso, mostrarErro } = useFeedbackModal();
 
   const lojaIdEfetivo = lojaIdProp || loja?.id || '';
@@ -196,8 +196,11 @@ export const ConfiguracoesWhatsAppIA: React.FC<ConfiguracoesWhatsAppIAProps> = (
         <CardCarteiraWhatsapp
           loja={loja}
           usuarioId={usuario?.id || null}
-          aoAtualizarLoja={() => {
-            recarregarDadosLoja?.();
+          aoAtualizarLoja={(parcial) => {
+            if (parcial && loja) {
+              setLoja({ ...loja, ...parcial });
+            }
+            void recarregarDadosLoja?.();
           }}
         />
       )}

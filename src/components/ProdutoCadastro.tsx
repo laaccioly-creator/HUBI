@@ -1570,8 +1570,8 @@ export const ProdutoCadastro: React.FC = () => {
             tipoItem: prod.tipo_item || 'produto',
             requerAgendamento: Boolean((prod as { requer_agendamento?: boolean }).requer_agendamento),
             profissionaisHabilitadosIds: profissionaisCarregadosIds,
-            fotosUrls: fotos,
-            fotoPrincipal: fotos[0] || '',
+            fotosUrls: fotosDb,
+            fotoPrincipal: fotosDb[0] || '',
             temVariacoes: Boolean(prod.tem_variacoes && Array.isArray(prod.variacoes) && prod.variacoes.length > 0),
             nomeTipoVariacao: prod.rotulo_variacao_1 || 'Opção',
             opcoesVariacao: (prod.variacoes || []).map((v: any) => ({
@@ -4438,8 +4438,24 @@ export const ProdutoCadastro: React.FC = () => {
         fotoUrl={fotoPrincipal || fotosUrls[0]}
         loja={loja}
         onSelecionarOpcao={(opcaoEscolhida) => {
-          aplicarDadosSugeridosIA(opcaoEscolhida);
-          setSucessoIAMsg(`✨ Produto preenchido com base na opção selecionada: "${opcaoEscolhida.nome}"!`);
+          void (async () => {
+            await aplicarDadosSugeridosIA(opcaoEscolhida);
+            setSucessoIAMsg(`✨ Produto preenchido com base na opção selecionada: "${opcaoEscolhida.nome}"!`);
+            if (!ehEdicao) {
+              const resDup = buscarProdutoDuplicado(produtosDaLoja, {
+                nome: opcaoEscolhida.nome || '',
+                codigoBarras: opcaoEscolhida.codigo_barras
+              });
+              if (resDup.encontrado && resDup.produto && resDup.motivo) {
+                setDuplicadoModal({
+                  produto: resDup.produto,
+                  motivo: resDup.motivo,
+                  origem: 'ia',
+                  fotoCapturada: fotoPrincipal || fotosUrls[0]
+                });
+              }
+            }
+          })();
         }}
       />
 
