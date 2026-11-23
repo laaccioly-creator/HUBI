@@ -16,6 +16,7 @@ import { formatarMoeda } from '../utils/formatters';
 import { supabase } from '../lib/supabase';
 import { ModalPagamentoFechamentoCatalogo } from './catalogo/ModalPagamentoFechamentoCatalogo';
 import { ReciboPedidoModal } from './pedidos/ReciboPedidoModal';
+import { formatarResumoCicloCaderneta, obterConfigCicloCliente } from '../utils/cadernetaCiclo';
 
 interface ModalCadernetaClienteCatalogoProps {
   isOpen: boolean;
@@ -117,9 +118,15 @@ export const ModalCadernetaClienteCatalogo: React.FC<ModalCadernetaClienteCatalo
         0
       );
 
+      const clienteEfetivo = resumoData?.cliente || cliente;
+      const cfgCiclo = obterConfigCicloCliente(clienteEfetivo, loja);
       setResumo({
-        cliente: resumoData?.cliente || cliente,
-        diaVencimento: resumoData?.diaVencimento || Number(cliente.dia_vencimento_caderneta || loja.dia_vencimento_padrao_caderneta || 10),
+        cliente: clienteEfetivo,
+        diaVencimento: resumoData?.diaVencimento || cfgCiclo.diaVencimento1,
+        cicloCaderneta: resumoData?.cicloCaderneta || cfgCiclo.ciclo,
+        diaSemana: resumoData?.diaSemana ?? cfgCiclo.diaSemana,
+        diaVencimento2: resumoData?.diaVencimento2 ?? cfgCiclo.diaVencimento2,
+        resumoCiclo: resumoData?.resumoCiclo || formatarResumoCicloCaderneta(cfgCiclo),
         proximoVencimento: resumoData?.proximoVencimento || '',
         estaVencido: Boolean(resumoData?.estaVencido),
         limiteTotal,
@@ -229,7 +236,9 @@ export const ModalCadernetaClienteCatalogo: React.FC<ModalCadernetaClienteCatalo
                   <span className="text-xs sm:text-sm font-black text-slate-900 dark:text-white block truncate">
                     {resumo?.proximoVencimento ? new Date(resumo.proximoVencimento + 'T12:00:00').toLocaleDateString('pt-BR') : '--'}
                   </span>
-                  <span className="text-[9px] font-bold text-slate-500 dark:text-slate-400">Todo dia {resumo?.diaVencimento || 10}</span>
+                  <span className="text-[9px] font-bold text-slate-500 dark:text-slate-400">
+                    {resumo?.resumoCiclo || formatarResumoCicloCaderneta(obterConfigCicloCliente(resumo?.cliente || cliente, loja))}
+                  </span>
                 </div>
               </div>
 

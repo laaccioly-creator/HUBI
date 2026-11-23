@@ -115,11 +115,16 @@ export interface PrazosTaxasMaquininha {
   debito_taxa_percentual?: number;
 }
 
+export type CicloCaderneta = 'semanal' | 'quinzenal' | 'mensal';
+
 export interface OpcoesPagamentoDetalhes {
   permitir_fiado?: boolean;
   dias_vencimento_fiado?: number;
   caderneta_ativa?: boolean;
+  ciclo_padrao_caderneta?: CicloCaderneta;
   dia_vencimento_padrao_caderneta?: number;
+  dia_semana_padrao_caderneta?: number | null;
+  dia_vencimento_2_padrao_caderneta?: number | null;
   pix_ativo?: boolean;
   pix_chave?: string;
   pix_orientacoes?: string;
@@ -388,7 +393,10 @@ export interface Loja {
   serper_api_key?: string | null;
   retirada_loja_ativa?: boolean;
   caderneta_ativa?: boolean;
+  ciclo_padrao_caderneta?: CicloCaderneta | null;
   dia_vencimento_padrao_caderneta?: number;
+  dia_semana_padrao_caderneta?: number | null;
+  dia_vencimento_2_padrao_caderneta?: number | null;
   frete_gratis_ativo?: boolean;
   frete_gratis_valor_minimo?: number;
   status_em_separacao?: boolean;
@@ -677,7 +685,10 @@ export interface Cliente {
   permite_caderneta?: boolean;
   limite_caderneta?: number;
   saldo_devedor_caderneta?: number;
+  ciclo_caderneta?: CicloCaderneta | null;
   dia_vencimento_caderneta?: number | null;
+  dia_semana_caderneta?: number | null;
+  dia_vencimento_2_caderneta?: number | null;
   data_aniversario?: string | null;
   observacoes?: string | null;
   senha_hash?: string | null;

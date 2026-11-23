@@ -1,6 +1,11 @@
 import { supabase } from '../lib/supabase';
-import { CadernetaLancamento, Cliente } from '../types';
+import { CadernetaLancamento, CicloCaderneta, Cliente } from '../types';
 import { SyncService, isUuidValido } from './syncService';
+import {
+  calcularProximoVencimentoPorCiclo,
+  formatarResumoCicloCaderneta,
+  obterConfigCicloCliente,
+} from '../utils/cadernetaCiclo';
 
 export interface ResumoCadernetaCliente {
   cliente: Cliente;
@@ -8,6 +13,10 @@ export interface ResumoCadernetaCliente {
   saldoDevedor: number;
   limiteDisponivel: number;
   diaVencimento: number;
+  cicloCaderneta: CicloCaderneta;
+  diaSemana?: number | null;
+  diaVencimento2?: number | null;
+  resumoCiclo: string;
   proximoVencimento: string; // ISO date 'YYYY-MM-DD'
   estaVencido: boolean;
 }
@@ -82,6 +91,17 @@ export class CadernetaService {
   }
 
   /**
+   * Calcula a data do próximo vencimento considerando o ciclo configurado no cliente (semanal, quinzenal ou mensal)
+   */
+  public static calcularProximoVencimentoCliente(
+    cliente: Partial<Cliente>,
+    dataBase: Date = new Date()
+  ): string {
+    const config = obterConfigCicloCliente(cliente);
+    return calcularProximoVencimentoPorCiclo(config, dataBase, true);
+  }
+
+  /**
    * Retorna o ciclo de referência atual no formato YYYY-MM
    */
   public static obterCicloReferenciaAtual(dataBase: Date = new Date()): string {
@@ -123,8 +143,10 @@ export class CadernetaService {
 
       const limiteTotal = Number(cliente.limite_caderneta || 0);
       const limiteDisponivel = Math.max(0, limiteTotal - saldoDevedor);
-      const diaVencimento = Number(cliente.dia_vencimento_caderneta || 10);
-      const proximoVencimento = this.calcularProximoVencimento(diaVencimento);
+      const configCiclo = obterConfigCicloCliente(cliente);
+      const diaVencimento = configCiclo.diaVencimento1;
+      const proximoVencimento = calcularProximoVencimentoPorCiclo(configCiclo, new Date(), true);
+      const resumoCiclo = formatarResumoCicloCaderneta(configCiclo);
 
       const hojeYmd = new Date().toISOString().split('T')[0];
       const estaVencido = saldoDevedor > 0 && hojeYmd > proximoVencimento;
@@ -135,6 +157,10 @@ export class CadernetaService {
         saldoDevedor,
         limiteDisponivel,
         diaVencimento,
+        cicloCaderneta: configCiclo.ciclo,
+        diaSemana: configCiclo.diaSemana,
+        diaVencimento2: configCiclo.diaVencimento2,
+        resumoCiclo,
         proximoVencimento,
         estaVencido
       };
@@ -263,8 +289,7 @@ export class CadernetaService {
       const saldoPosterior = Number((saldoAnterior + valor).toFixed(2));
 
       const cicloRef = this.obterCicloReferenciaAtual();
-      const diaVencimento = Number(cliente.dia_vencimento_caderneta || 10);
-      const dataVencimentoCiclo = this.calcularProximoVencimento(diaVencimento);
+      const dataVencimentoCiclo = this.calcularProximoVencimentoCliente(cliente);
 
       // 2. Atualizar saldo devedor do cliente IMEDIATAMENTE (garante consistência mesmo se o ledger sofrer restrição RLS)
       await supabase
@@ -366,8 +391,7 @@ export class CadernetaService {
       const saldoPosterior = Number(Math.max(0, saldoAnterior - valorEfetivo).toFixed(2));
 
       const cicloRef = this.obterCicloReferenciaAtual();
-      const diaVencimento = Number(cliente.dia_vencimento_caderneta || 10);
-      const dataVencimentoCiclo = this.calcularProximoVencimento(diaVencimento);
+      const dataVencimentoCiclo = this.calcularProximoVencimentoCliente(cliente);
 
       // Resolver UUID real da forma de pagamento
       let fpUuid: string | null = null;
@@ -485,8 +509,7 @@ export class CadernetaService {
 
       const valorEfetivo = Math.min(valorSolicitado, saldoAtual);
       const cicloRef = this.obterCicloReferenciaAtual();
-      const diaVencimento = Number(cliente.dia_vencimento_caderneta || 10);
-      const dataVencimentoCiclo = this.calcularProximoVencimento(diaVencimento);
+      const dataVencimentoCiclo = this.calcularProximoVencimentoCliente(cliente);
 
       let fpUuid: string | null = null;
       try {
@@ -936,8 +959,7 @@ export class CadernetaService {
       const saldoAnterior = Number(cliente.saldo_devedor_caderneta || 0);
       const saldoPosterior = Number((saldoAnterior + diferencaValor).toFixed(2));
       const cicloRef = this.obterCicloReferenciaAtual();
-      const diaVencimento = Number(cliente.dia_vencimento_caderneta || 10);
-      const dataVencimentoCiclo = this.calcularProximoVencimento(diaVencimento);
+      const dataVencimentoCiclo = this.calcularProximoVencimentoCliente(cliente);
 
       const descricaoAjuste = diferencaValor > 0
         ? `Ajuste de Balança (+${(pesoRealKg - pesoOriginalKg).toFixed(3)}kg) - ${nomeProduto} (Pedido #${numeroPedido || ''})`

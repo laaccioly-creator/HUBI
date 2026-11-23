@@ -40,6 +40,7 @@ import { formatarMoeda, formatarTelefone, normalizarTelefoneComDDI } from '../ut
 import { ModalExtratoCadernetaCliente } from './ModalExtratoCadernetaCliente';
 import { ModalImportarClientes } from './ModalImportarClientes';
 import { CadernetaService } from '../services/cadernetaService';
+import { formatarResumoCicloCaderneta, obterConfigCicloCliente } from '../utils/cadernetaCiclo';
 
 export const ClientesFiado: React.FC = () => {
   const { loja } = useAuth();
@@ -829,6 +830,11 @@ export const ClientesFiado: React.FC = () => {
                             {formatarTelefone(phoneWhatsapp)}
                           </span>
                         )}
+                        {cadernetaAtivaLoja && (Boolean(cliente.permite_caderneta) || emDebitoCaderneta) && (
+                          <span className={`text-[11px] font-semibold block truncate ${isDark ? 'text-emerald-400/90' : 'text-emerald-700'}`}>
+                            {formatarResumoCicloCaderneta(obterConfigCicloCliente(cliente, loja))}
+                          </span>
+                        )}
                       </div>
                     </div>
 
@@ -1114,6 +1120,11 @@ export const ClientesFiado: React.FC = () => {
                               >
                                 {cliente.nome}
                               </span>
+                              {cadernetaAtivaLoja && (Boolean(cliente.permite_caderneta) || emDebitoCaderneta) && (
+                                <span className={`text-[11px] font-semibold block truncate ${isDark ? 'text-emerald-400/90' : 'text-emerald-700'}`}>
+                                  {formatarResumoCicloCaderneta(obterConfigCicloCliente(cliente, loja))}
+                                </span>
+                              )}
                             </div>
                           </div>
                         </td>

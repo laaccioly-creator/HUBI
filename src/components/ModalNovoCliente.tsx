@@ -22,8 +22,14 @@ import { useTheme } from '../contexts/ThemeContext';
 import { usePermissions } from '../hooks/usePermissions';
 import { useFeedbackModal } from '../contexts/FeedbackContext';
 import { useRegisterOverlay } from '../hooks/useRegisterOverlay';
-import { Cliente, TabelaPreco } from '../types';
+import { Cliente, CicloCaderneta, TabelaPreco } from '../types';
 import { formatarMoeda, formatarValorBRL, normalizarTelefoneComDDI } from '../utils/formatters';
+import {
+  DIAS_SEMANA_CADERNETA,
+  obterConfigCicloCliente,
+  obterConfigCicloLoja,
+  sugerirSegundoDiaQuinzenal
+} from '../utils/cadernetaCiclo';
 
 interface ModalNovoClienteProps {
   isOpen: boolean;
@@ -218,7 +224,10 @@ export const ModalNovoCliente: React.FC<ModalNovoClienteProps> = ({
   const [limiteCredito, setLimiteCredito] = useState('');
   const [permiteCaderneta, setPermiteCaderneta] = useState(cadernetaAtivaLoja);
   const [limiteCaderneta, setLimiteCaderneta] = useState('');
-  const [diaVencimentoCaderneta, setDiaVencimentoCaderneta] = useState<number>(Number(loja?.dia_vencimento_padrao_caderneta || 10));
+  const [cicloCaderneta, setCicloCaderneta] = useState<CicloCaderneta>(() => obterConfigCicloLoja(loja).ciclo);
+  const [diaVencimentoCaderneta, setDiaVencimentoCaderneta] = useState<number>(() => obterConfigCicloLoja(loja).diaVencimento1);
+  const [diaSemanaCaderneta, setDiaSemanaCaderneta] = useState<number>(() => obterConfigCicloLoja(loja).diaSemana);
+  const [diaVencimento2Caderneta, setDiaVencimento2Caderneta] = useState<number>(() => obterConfigCicloLoja(loja).diaVencimento2);
   const [tabelaPreco, setTabelaPreco] = useState<TabelaPreco>('varejo');
 
   const permiteAtacado = (loja as any)?.permite_atacado !== false &&
@@ -275,7 +284,7 @@ export const ModalNovoCliente: React.FC<ModalNovoClienteProps> = ({
           Number(clienteEditar.limite_caderneta) > 0
             ? formatarValorBRL(clienteEditar.limite_caderneta)
             : '';
-        const diaCad = Number(clienteEditar.dia_vencimento_caderneta || loja?.dia_vencimento_padrao_caderneta || 10);
+        const cfgCad = obterConfigCicloCliente(clienteEditar, loja);
         const tab = clienteEditar.tabela_preco_padrao || 'varejo';
 
         // Endereço: se já tiver campos estruturados, usa-os
@@ -326,7 +335,10 @@ export const ModalNovoCliente: React.FC<ModalNovoClienteProps> = ({
         setLimiteCredito(lim);
         setPermiteCaderneta(cad);
         setLimiteCaderneta(limCad);
-        setDiaVencimentoCaderneta(diaCad);
+        setCicloCaderneta(cfgCad.ciclo);
+        setDiaVencimentoCaderneta(cfgCad.diaVencimento1);
+        setDiaSemanaCaderneta(cfgCad.diaSemana);
+        setDiaVencimento2Caderneta(cfgCad.diaVencimento2);
         setTabelaPreco(tab);
 
         setCep(finalCep);
@@ -349,6 +361,12 @@ export const ModalNovoCliente: React.FC<ModalNovoClienteProps> = ({
           telefone2IsWhatsapp: tel2Whats,
           permiteFiado: fiado,
           limiteCredito: lim,
+          permiteCaderneta: cad,
+          limiteCaderneta: limCad,
+          cicloCaderneta: cfgCad.ciclo,
+          diaVencimentoCaderneta: cfgCad.diaVencimento1,
+          diaSemanaCaderneta: cfgCad.diaSemana,
+          diaVencimento2Caderneta: cfgCad.diaVencimento2,
           tabelaPreco: tab,
           cep: finalCep,
           rua: finalRua,
@@ -370,9 +388,13 @@ export const ModalNovoCliente: React.FC<ModalNovoClienteProps> = ({
         setTelefone2IsWhatsapp(false);
         setPermiteFiado(false);
         setLimiteCredito('');
+        const cfgPadraoLoja = obterConfigCicloLoja(loja);
         setPermiteCaderneta(cadernetaAtivaLoja);
         setLimiteCaderneta('500,00');
-        setDiaVencimentoCaderneta(Number(loja?.dia_vencimento_padrao_caderneta || 10));
+        setCicloCaderneta(cfgPadraoLoja.ciclo);
+        setDiaVencimentoCaderneta(cfgPadraoLoja.diaVencimento1);
+        setDiaSemanaCaderneta(cfgPadraoLoja.diaSemana);
+        setDiaVencimento2Caderneta(cfgPadraoLoja.diaVencimento2);
         setTabelaPreco('varejo');
         setCep('');
         setRua('');
@@ -394,6 +416,12 @@ export const ModalNovoCliente: React.FC<ModalNovoClienteProps> = ({
           telefone2IsWhatsapp: false,
           permiteFiado: false,
           limiteCredito: '',
+          permiteCaderneta: cadernetaAtivaLoja,
+          limiteCaderneta: '500,00',
+          cicloCaderneta: cfgPadraoLoja.ciclo,
+          diaVencimentoCaderneta: cfgPadraoLoja.diaVencimento1,
+          diaSemanaCaderneta: cfgPadraoLoja.diaSemana,
+          diaVencimento2Caderneta: cfgPadraoLoja.diaVencimento2,
           tabelaPreco: 'varejo',
           cep: '',
           rua: '',
@@ -421,6 +449,12 @@ export const ModalNovoCliente: React.FC<ModalNovoClienteProps> = ({
     telefone2IsWhatsapp,
     permiteFiado,
     limiteCredito,
+    permiteCaderneta,
+    limiteCaderneta,
+    cicloCaderneta,
+    diaVencimentoCaderneta,
+    diaSemanaCaderneta,
+    diaVencimento2Caderneta,
     tabelaPreco,
     cep,
     rua,
@@ -674,7 +708,19 @@ export const ModalNovoCliente: React.FC<ModalNovoClienteProps> = ({
       permite_caderneta: cadernetaAtivaLoja ? permiteCaderneta : false,
       limite_caderneta: cadernetaAtivaLoja && permiteCaderneta ? (parseFloat(String(limiteCaderneta || '').trim().replace(/\./g, '').replace(',', '.')) || 0) : 0,
       saldo_devedor_caderneta: clienteEditar ? (Number(clienteEditar.saldo_devedor_caderneta) || 0) : 0,
-      dia_vencimento_caderneta: cadernetaAtivaLoja && permiteCaderneta ? diaVencimentoCaderneta : null,
+      ciclo_caderneta: cadernetaAtivaLoja && permiteCaderneta ? cicloCaderneta : null,
+      dia_semana_caderneta:
+        cadernetaAtivaLoja && permiteCaderneta && cicloCaderneta === 'semanal'
+          ? diaSemanaCaderneta
+          : null,
+      dia_vencimento_caderneta:
+        cadernetaAtivaLoja && permiteCaderneta && cicloCaderneta !== 'semanal'
+          ? diaVencimentoCaderneta
+          : null,
+      dia_vencimento_2_caderneta:
+        cadernetaAtivaLoja && permiteCaderneta && cicloCaderneta === 'quinzenal'
+          ? diaVencimento2Caderneta
+          : null,
       tabela_preco_padrao: tabelaPreco,
       observacoes: observacoes.trim() || null,
       endereco_cep: cep.trim() || null,
@@ -705,6 +751,26 @@ export const ModalNovoCliente: React.FC<ModalNovoClienteProps> = ({
         // Se falhar porque a coluna 'ativo' não existe no banco, remove 'ativo' e tenta novamente
         if (res.error && res.error.message && res.error.message.includes('ativo')) {
           delete payloadCompleto.ativo;
+          res = await supabase
+            .from('clientes')
+            .update(payloadCompleto)
+            .eq('id', clienteEditar.id)
+            .eq('loja_id', loja.id)
+            .select()
+            .single();
+        }
+
+        // Fallback caso colunas novas de ciclo ainda não existam no banco remoto
+        if (
+          res.error &&
+          (res.error.code === '42703' || res.error.code === 'PGRST204' || res.error.message?.includes('column')) &&
+          (res.error.message?.includes('ciclo_caderneta') ||
+            res.error.message?.includes('dia_semana_caderneta') ||
+            res.error.message?.includes('dia_vencimento_2_caderneta'))
+        ) {
+          delete payloadCompleto.ciclo_caderneta;
+          delete payloadCompleto.dia_semana_caderneta;
+          delete payloadCompleto.dia_vencimento_2_caderneta;
           res = await supabase
             .from('clientes')
             .update(payloadCompleto)
@@ -751,6 +817,24 @@ export const ModalNovoCliente: React.FC<ModalNovoClienteProps> = ({
         // Se falhar porque a coluna 'ativo' não existe no banco, remove 'ativo' e tenta novamente
         if (res.error && res.error.message && res.error.message.includes('ativo')) {
           delete payloadCompleto.ativo;
+          res = await supabase
+            .from('clientes')
+            .insert([payloadCompleto])
+            .select()
+            .single();
+        }
+
+        // Fallback caso colunas novas de ciclo ainda não existam no banco remoto
+        if (
+          res.error &&
+          (res.error.code === '42703' || res.error.code === 'PGRST204' || res.error.message?.includes('column')) &&
+          (res.error.message?.includes('ciclo_caderneta') ||
+            res.error.message?.includes('dia_semana_caderneta') ||
+            res.error.message?.includes('dia_vencimento_2_caderneta'))
+        ) {
+          delete payloadCompleto.ciclo_caderneta;
+          delete payloadCompleto.dia_semana_caderneta;
+          delete payloadCompleto.dia_vencimento_2_caderneta;
           res = await supabase
             .from('clientes')
             .insert([payloadCompleto])
@@ -1278,24 +1362,135 @@ export const ModalNovoCliente: React.FC<ModalNovoClienteProps> = ({
 
                             <div className="space-y-1">
                               <label className={`text-sm font-black block ${isDark ? 'text-white' : 'text-black'}`}>
-                                Dia Fixo de Fechamento/Acerto <span className="text-rose-500">*</span>
+                                Frequência de Fechamento <span className="text-rose-500">*</span>
                               </label>
-                              <select
-                                value={diaVencimentoCaderneta}
-                                onChange={(e) => setDiaVencimentoCaderneta(Number(e.target.value))}
-                                className={`w-full rounded-xl px-3.5 py-2.5 text-xs font-bold focus:outline-none transition cursor-pointer ${
-                                  isDark
-                                    ? 'bg-[#000000] border border-slate-700 text-white focus:border-emerald-500'
-                                    : 'bg-white border-2 border-slate-300 text-slate-900 focus:border-emerald-500'
-                                }`}
-                              >
-                                {Array.from({ length: 31 }, (_, i) => i + 1).map((d) => (
-                                  <option key={d} value={d}>
-                                    Todo dia {d} do mês
-                                  </option>
+                              <div className="grid grid-cols-3 gap-1.5">
+                                {([
+                                  { id: 'semanal', label: 'Semanal' },
+                                  { id: 'quinzenal', label: 'Quinzenal' },
+                                  { id: 'mensal', label: 'Mensal' }
+                                ] as const).map((opc) => (
+                                  <button
+                                    key={opc.id}
+                                    type="button"
+                                    onClick={() => {
+                                      setCicloCaderneta(opc.id);
+                                      if (opc.id === 'quinzenal') {
+                                        setDiaVencimento2Caderneta(
+                                          sugerirSegundoDiaQuinzenal(diaVencimentoCaderneta)
+                                        );
+                                      }
+                                    }}
+                                    className={`py-2.5 px-2 rounded-xl text-xs font-bold border transition cursor-pointer ${
+                                      cicloCaderneta === opc.id
+                                        ? 'bg-emerald-300 border-emerald-400 text-black'
+                                        : isDark
+                                        ? 'bg-[#000000] border-slate-700 text-slate-200 hover:bg-slate-900'
+                                        : 'bg-white border-2 border-slate-300 text-slate-900 hover:bg-slate-100'
+                                    }`}
+                                  >
+                                    {opc.label}
+                                  </button>
                                 ))}
-                              </select>
+                              </div>
                             </div>
+
+                            {cicloCaderneta === 'semanal' && (
+                              <div className="sm:col-span-2 space-y-1">
+                                <label className={`text-sm font-black block ${isDark ? 'text-white' : 'text-black'}`}>
+                                  Dia da Semana do Acerto <span className="text-rose-500">*</span>
+                                </label>
+                                <select
+                                  value={diaSemanaCaderneta}
+                                  onChange={(e) => setDiaSemanaCaderneta(Number(e.target.value))}
+                                  className={`w-full rounded-xl px-3.5 py-2.5 text-xs font-bold focus:outline-none transition cursor-pointer ${
+                                    isDark
+                                      ? 'bg-[#000000] border border-slate-700 text-white focus:border-emerald-500'
+                                      : 'bg-white border-2 border-slate-300 text-slate-900 focus:border-emerald-500'
+                                  }`}
+                                >
+                                  {DIAS_SEMANA_CADERNETA.map((d) => (
+                                    <option key={d.valor} value={d.valor}>
+                                      {d.label}
+                                    </option>
+                                  ))}
+                                </select>
+                              </div>
+                            )}
+
+                            {cicloCaderneta === 'quinzenal' && (
+                              <div className="sm:col-span-2 grid grid-cols-1 sm:grid-cols-2 gap-3.5">
+                                <div className="space-y-1">
+                                  <label className={`text-sm font-black block ${isDark ? 'text-white' : 'text-black'}`}>
+                                    1º Dia do Mês <span className="text-rose-500">*</span>
+                                  </label>
+                                  <select
+                                    value={diaVencimentoCaderneta}
+                                    onChange={(e) => {
+                                      const novoDia = Number(e.target.value);
+                                      setDiaVencimentoCaderneta(novoDia);
+                                      setDiaVencimento2Caderneta(
+                                        sugerirSegundoDiaQuinzenal(novoDia)
+                                      );
+                                    }}
+                                    className={`w-full rounded-xl px-3.5 py-2.5 text-xs font-bold focus:outline-none transition cursor-pointer ${
+                                      isDark
+                                        ? 'bg-[#000000] border border-slate-700 text-white focus:border-emerald-500'
+                                        : 'bg-white border-2 border-slate-300 text-slate-900 focus:border-emerald-500'
+                                    }`}
+                                  >
+                                    {Array.from({ length: 31 }, (_, i) => i + 1).map((d) => (
+                                      <option key={d} value={d}>
+                                        Todo dia {d}
+                                      </option>
+                                    ))}
+                                  </select>
+                                </div>
+                                <div className="space-y-1">
+                                  <label className={`text-sm font-black block ${isDark ? 'text-white' : 'text-black'}`}>
+                                    2º Dia do Mês <span className="text-rose-500">*</span>
+                                  </label>
+                                  <select
+                                    value={diaVencimento2Caderneta}
+                                    onChange={(e) => setDiaVencimento2Caderneta(Number(e.target.value))}
+                                    className={`w-full rounded-xl px-3.5 py-2.5 text-xs font-bold focus:outline-none transition cursor-pointer ${
+                                      isDark
+                                        ? 'bg-[#000000] border border-slate-700 text-white focus:border-emerald-500'
+                                        : 'bg-white border-2 border-slate-300 text-slate-900 focus:border-emerald-500'
+                                    }`}
+                                  >
+                                    {Array.from({ length: 31 }, (_, i) => i + 1).map((d) => (
+                                      <option key={d} value={d}>
+                                        Todo dia {d}
+                                      </option>
+                                    ))}
+                                  </select>
+                                </div>
+                              </div>
+                            )}
+
+                            {cicloCaderneta === 'mensal' && (
+                              <div className="sm:col-span-2 space-y-1">
+                                <label className={`text-sm font-black block ${isDark ? 'text-white' : 'text-black'}`}>
+                                  Dia Fixo de Fechamento/Acerto <span className="text-rose-500">*</span>
+                                </label>
+                                <select
+                                  value={diaVencimentoCaderneta}
+                                  onChange={(e) => setDiaVencimentoCaderneta(Number(e.target.value))}
+                                  className={`w-full rounded-xl px-3.5 py-2.5 text-xs font-bold focus:outline-none transition cursor-pointer ${
+                                    isDark
+                                      ? 'bg-[#000000] border border-slate-700 text-white focus:border-emerald-500'
+                                      : 'bg-white border-2 border-slate-300 text-slate-900 focus:border-emerald-500'
+                                  }`}
+                                >
+                                  {Array.from({ length: 31 }, (_, i) => i + 1).map((d) => (
+                                    <option key={d} value={d}>
+                                      Todo dia {d} do mês
+                                    </option>
+                                  ))}
+                                </select>
+                              </div>
+                            )}
                           </div>
                         </div>
                       )}

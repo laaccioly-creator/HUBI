@@ -31,7 +31,7 @@ import { useAuth } from '../contexts/AuthContext';
 import { useTheme } from '../contexts/ThemeContext';
 import { usePermissions } from '../hooks/usePermissions';
 import { useRegisterOverlay } from '../hooks/useRegisterOverlay';
-import { Cliente, Pedido, MovimentacaoSaldoCliente, TabelaPreco } from '../types';
+import { Cliente, CicloCaderneta, Pedido, MovimentacaoSaldoCliente, TabelaPreco } from '../types';
 import { extrairEnderecoEstruturado } from './ModalNovoCliente';
 import { caixaService } from '../services/caixaService';
 import { useFeedbackModal } from '../contexts/FeedbackContext';
@@ -40,6 +40,11 @@ import { ModalExtratoCadernetaCliente } from './ModalExtratoCadernetaCliente';
 import { obterInfoVencimentoFiado } from '../utils/statusPedidoUtils';
 import { normalizarTelefoneComDDI } from '../utils/formatters';
 import { CadernetaService } from '../services/cadernetaService';
+import {
+  DIAS_SEMANA_CADERNETA,
+  obterConfigCicloCliente,
+  sugerirSegundoDiaQuinzenal
+} from '../utils/cadernetaCiclo';
 
 interface ClientePerfilMobileProps {
   cliente: Cliente;
@@ -111,8 +116,14 @@ export const ClientePerfilMobile: React.FC<ClientePerfilMobileProps> = ({
       ? String(cliente.limite_caderneta)
       : ''
   );
+  const cfgCicloInicial = obterConfigCicloCliente(cliente, loja);
+  const [cicloCaderneta, setCicloCaderneta] = useState<CicloCaderneta>(cfgCicloInicial.ciclo);
   const [diaVencimentoCaderneta, setDiaVencimentoCaderneta] = useState<string>(
-    String(cliente.dia_vencimento_caderneta || loja?.dia_vencimento_padrao_caderneta || 10)
+    String(cfgCicloInicial.diaVencimento1)
+  );
+  const [diaSemanaCaderneta, setDiaSemanaCaderneta] = useState<number>(cfgCicloInicial.diaSemana);
+  const [diaVencimento2Caderneta, setDiaVencimento2Caderneta] = useState<string>(
+    String(cfgCicloInicial.diaVencimento2)
   );
   const [saldoDevedorCaderneta, setSaldoDevedorCaderneta] = useState<number>(
     Number(cliente.saldo_devedor_caderneta || 0)
@@ -146,8 +157,13 @@ export const ClientePerfilMobile: React.FC<ClientePerfilMobileProps> = ({
           ? String(cliente.limite_caderneta)
           : '')
         : '',
+      cicloCaderneta: cliente.permite_caderneta ? cfgCicloInicial.ciclo : 'mensal',
       diaVencimentoCaderneta: cliente.permite_caderneta
-        ? String(cliente.dia_vencimento_caderneta || loja?.dia_vencimento_padrao_caderneta || 10)
+        ? String(cfgCicloInicial.diaVencimento1)
+        : '',
+      diaSemanaCaderneta: cliente.permite_caderneta ? cfgCicloInicial.diaSemana : 5,
+      diaVencimento2Caderneta: cliente.permite_caderneta
+        ? String(cfgCicloInicial.diaVencimento2)
         : ''
     })
   );
@@ -173,7 +189,10 @@ export const ClientePerfilMobile: React.FC<ClientePerfilMobileProps> = ({
       limiteCredito: permiteFiado ? limiteCredito : '',
       permiteCaderneta,
       limiteCaderneta: permiteCaderneta ? limiteCaderneta : '',
-      diaVencimentoCaderneta: permiteCaderneta ? diaVencimentoCaderneta : ''
+      cicloCaderneta: permiteCaderneta ? cicloCaderneta : 'mensal',
+      diaVencimentoCaderneta: permiteCaderneta ? diaVencimentoCaderneta : '',
+      diaSemanaCaderneta: permiteCaderneta ? diaSemanaCaderneta : 5,
+      diaVencimento2Caderneta: permiteCaderneta ? diaVencimento2Caderneta : ''
     });
   }, [
     nome,
@@ -195,7 +214,10 @@ export const ClientePerfilMobile: React.FC<ClientePerfilMobileProps> = ({
     limiteCredito,
     permiteCaderneta,
     limiteCaderneta,
-    diaVencimentoCaderneta
+    cicloCaderneta,
+    diaVencimentoCaderneta,
+    diaSemanaCaderneta,
+    diaVencimento2Caderneta
   ]);
 
   const temAlteracoesForm = snapshotAtual !== snapshotInicial;
@@ -422,8 +444,11 @@ export const ClientePerfilMobile: React.FC<ClientePerfilMobileProps> = ({
       setSalvando(true);
       const limiteNum = (fiadoAtivoLoja && permiteFiado) ? (parseFloat(limiteCredito.replace(',', '.')) || 0) : 0;
       const limiteCadNum = (cadernetaAtivaLoja && permiteCaderneta) ? (parseFloat(limiteCaderneta.replace(',', '.')) || 0) : 0;
-      const diaVencCadNum = (cadernetaAtivaLoja && permiteCaderneta)
+      const diaVencCadNum = (cadernetaAtivaLoja && permiteCaderneta && cicloCaderneta !== 'semanal')
         ? Math.min(31, Math.max(1, parseInt(diaVencimentoCaderneta, 10) || 10))
+        : null;
+      const diaVenc2CadNum = (cadernetaAtivaLoja && permiteCaderneta && cicloCaderneta === 'quinzenal')
+        ? Math.min(31, Math.max(1, parseInt(diaVencimento2Caderneta, 10) || 25))
         : null;
       const whatsNorm = normalizarTelefoneComDDI(whatsapp.trim());
       const tel2Norm = normalizarTelefoneComDDI(telefone.trim());
@@ -442,7 +467,10 @@ export const ClientePerfilMobile: React.FC<ClientePerfilMobileProps> = ({
         limite_credito: limiteNum,
         permite_caderneta: cadernetaAtivaLoja ? permiteCaderneta : false,
         limite_caderneta: limiteCadNum,
+        ciclo_caderneta: (cadernetaAtivaLoja && permiteCaderneta) ? cicloCaderneta : null,
+        dia_semana_caderneta: (cadernetaAtivaLoja && permiteCaderneta && cicloCaderneta === 'semanal') ? diaSemanaCaderneta : null,
         dia_vencimento_caderneta: diaVencCadNum,
+        dia_vencimento_2_caderneta: diaVenc2CadNum,
         endereco_logradouro: enderecoLogradouro.trim() || null,
         endereco_numero: enderecoNumero.trim() || null,
         endereco_complemento: enderecoComplemento.trim() || null,
@@ -453,13 +481,34 @@ export const ClientePerfilMobile: React.FC<ClientePerfilMobileProps> = ({
         endereco_principal: `${enderecoLogradouro} ${enderecoNumero} ${enderecoComplemento} ${enderecoBairro}`.replace(/\s+/g, ' ').trim() || null
       };
 
-      const { data, error } = await supabase
+      let { data, error } = await supabase
         .from('clientes')
         .update(payload)
         .eq('id', cliente.id)
         .eq('loja_id', loja?.id || cliente.loja_id)
         .select()
         .single();
+
+      if (
+        error &&
+        (error.code === '42703' || error.code === 'PGRST204' || error.message?.includes('column')) &&
+        (error.message?.includes('ciclo_caderneta') ||
+          error.message?.includes('dia_semana_caderneta') ||
+          error.message?.includes('dia_vencimento_2_caderneta'))
+      ) {
+        delete payload.ciclo_caderneta;
+        delete payload.dia_semana_caderneta;
+        delete payload.dia_vencimento_2_caderneta;
+        const retry = await supabase
+          .from('clientes')
+          .update(payload)
+          .eq('id', cliente.id)
+          .eq('loja_id', loja?.id || cliente.loja_id)
+          .select()
+          .single();
+        data = retry.data;
+        error = retry.error;
+      }
 
       if (error) throw error;
 
@@ -978,7 +1027,7 @@ export const ClientePerfilMobile: React.FC<ClientePerfilMobileProps> = ({
                           ? 'bg-[#000000] border-emerald-500/40 text-white'
                           : 'bg-emerald-50/50 border-2 border-emerald-300 text-black'
                       }`}>
-                        <div className="grid grid-cols-2 gap-2.5">
+                        <div className="space-y-2.5">
                           <div>
                             <label className={`text-sm font-black block mb-1 ${isDark ? 'text-slate-200' : 'text-black'}`}>
                               Limite da Caderneta (R$)
@@ -1000,26 +1049,140 @@ export const ClientePerfilMobile: React.FC<ClientePerfilMobileProps> = ({
                               />
                             </div>
                           </div>
+
                           <div>
                             <label className={`text-sm font-black block mb-1 ${isDark ? 'text-slate-200' : 'text-black'}`}>
-                              Dia de Vencimento
+                              Frequência de Fechamento
                             </label>
-                            <select
-                              value={diaVencimentoCaderneta}
-                              onChange={(e) => setDiaVencimentoCaderneta(e.target.value)}
-                              className={`w-full rounded-xl px-3 py-2 text-xs font-black focus:outline-none transition ${
-                                isDark
-                                  ? 'bg-[#000000] border border-slate-700 text-white focus:border-emerald-500'
-                                  : 'bg-white border-2 border-slate-300 text-black focus:border-emerald-600'
-                              }`}
-                            >
-                              {Array.from({ length: 31 }, (_, i) => i + 1).map((dia) => (
-                                <option key={dia} value={String(dia)}>
-                                  Todo dia {dia}
-                                </option>
+                            <div className="grid grid-cols-3 gap-1.5">
+                              {([
+                                { id: 'semanal', label: 'Semanal' },
+                                { id: 'quinzenal', label: 'Quinzenal' },
+                                { id: 'mensal', label: 'Mensal' }
+                              ] as const).map((opc) => (
+                                <button
+                                  key={opc.id}
+                                  type="button"
+                                  onClick={() => {
+                                    setCicloCaderneta(opc.id);
+                                    if (opc.id === 'quinzenal') {
+                                      const dia1 = parseInt(diaVencimentoCaderneta, 10) || 15;
+                                      setDiaVencimento2Caderneta(
+                                        String(sugerirSegundoDiaQuinzenal(dia1))
+                                      );
+                                    }
+                                  }}
+                                  className={`py-2 px-2 rounded-xl text-xs font-bold border transition cursor-pointer ${
+                                    cicloCaderneta === opc.id
+                                      ? 'bg-emerald-300 border-emerald-400 text-black'
+                                      : isDark
+                                      ? 'bg-[#000000] border-slate-700 text-slate-200'
+                                      : 'bg-white border-2 border-slate-300 text-black'
+                                  }`}
+                                >
+                                  {opc.label}
+                                </button>
                               ))}
-                            </select>
+                            </div>
                           </div>
+
+                          {cicloCaderneta === 'semanal' && (
+                            <div>
+                              <label className={`text-sm font-black block mb-1 ${isDark ? 'text-slate-200' : 'text-black'}`}>
+                                Dia da Semana do Acerto
+                              </label>
+                              <select
+                                value={diaSemanaCaderneta}
+                                onChange={(e) => setDiaSemanaCaderneta(Number(e.target.value))}
+                                className={`w-full rounded-xl px-3 py-2 text-xs font-black focus:outline-none transition ${
+                                  isDark
+                                    ? 'bg-[#000000] border border-slate-700 text-white focus:border-emerald-500'
+                                    : 'bg-white border-2 border-slate-300 text-black focus:border-emerald-600'
+                                }`}
+                              >
+                                {DIAS_SEMANA_CADERNETA.map((d) => (
+                                  <option key={d.valor} value={d.valor}>
+                                    {d.label}
+                                  </option>
+                                ))}
+                              </select>
+                            </div>
+                          )}
+
+                          {cicloCaderneta === 'quinzenal' && (
+                            <div className="grid grid-cols-2 gap-2.5">
+                              <div>
+                                <label className={`text-xs font-black block mb-1 ${isDark ? 'text-slate-200' : 'text-black'}`}>
+                                  1º Dia do Mês
+                                </label>
+                                <select
+                                  value={diaVencimentoCaderneta}
+                                  onChange={(e) => {
+                                    const val = e.target.value;
+                                    setDiaVencimentoCaderneta(val);
+                                    const num = parseInt(val, 10) || 15;
+                                    setDiaVencimento2Caderneta(
+                                      String(sugerirSegundoDiaQuinzenal(num))
+                                    );
+                                  }}
+                                  className={`w-full rounded-xl px-2.5 py-2 text-xs font-black focus:outline-none transition ${
+                                    isDark
+                                      ? 'bg-[#000000] border border-slate-700 text-white focus:border-emerald-500'
+                                      : 'bg-white border-2 border-slate-300 text-black focus:border-emerald-600'
+                                  }`}
+                                >
+                                  {Array.from({ length: 31 }, (_, i) => i + 1).map((dia) => (
+                                    <option key={dia} value={String(dia)}>
+                                      Todo dia {dia}
+                                    </option>
+                                  ))}
+                                </select>
+                              </div>
+                              <div>
+                                <label className={`text-xs font-black block mb-1 ${isDark ? 'text-slate-200' : 'text-black'}`}>
+                                  2º Dia do Mês
+                                </label>
+                                <select
+                                  value={diaVencimento2Caderneta}
+                                  onChange={(e) => setDiaVencimento2Caderneta(e.target.value)}
+                                  className={`w-full rounded-xl px-2.5 py-2 text-xs font-black focus:outline-none transition ${
+                                    isDark
+                                      ? 'bg-[#000000] border border-slate-700 text-white focus:border-emerald-500'
+                                      : 'bg-white border-2 border-slate-300 text-black focus:border-emerald-600'
+                                  }`}
+                                >
+                                  {Array.from({ length: 31 }, (_, i) => i + 1).map((dia) => (
+                                    <option key={dia} value={String(dia)}>
+                                      Todo dia {dia}
+                                    </option>
+                                  ))}
+                                </select>
+                              </div>
+                            </div>
+                          )}
+
+                          {cicloCaderneta === 'mensal' && (
+                            <div>
+                              <label className={`text-sm font-black block mb-1 ${isDark ? 'text-slate-200' : 'text-black'}`}>
+                                Dia Fixo de Fechamento/Acerto
+                              </label>
+                              <select
+                                value={diaVencimentoCaderneta}
+                                onChange={(e) => setDiaVencimentoCaderneta(e.target.value)}
+                                className={`w-full rounded-xl px-3 py-2 text-xs font-black focus:outline-none transition ${
+                                  isDark
+                                    ? 'bg-[#000000] border border-slate-700 text-white focus:border-emerald-500'
+                                    : 'bg-white border-2 border-slate-300 text-black focus:border-emerald-600'
+                                }`}
+                              >
+                                {Array.from({ length: 31 }, (_, i) => i + 1).map((dia) => (
+                                  <option key={dia} value={String(dia)}>
+                                    Todo dia {dia} do mês
+                                  </option>
+                                ))}
+                              </select>
+                            </div>
+                          )}
                         </div>
 
                         <div className="flex items-center justify-between pt-1">
@@ -1958,7 +2121,11 @@ export const ClientePerfilMobile: React.FC<ClientePerfilMobileProps> = ({
           permite_caderneta: permiteCaderneta,
           limite_caderneta: parseFloat(limiteCaderneta.replace(',', '.')) || 0,
           saldo_devedor_caderneta: saldoDevedorCaderneta,
-          dia_vencimento_caderneta: parseInt(diaVencimentoCaderneta, 10) || 10
+          ciclo_caderneta: cicloCaderneta,
+          dia_semana_caderneta: cicloCaderneta === 'semanal' ? diaSemanaCaderneta : null,
+          dia_vencimento_caderneta: parseInt(diaVencimentoCaderneta, 10) || 10,
+          dia_vencimento_2_caderneta:
+            cicloCaderneta === 'quinzenal' ? parseInt(diaVencimento2Caderneta, 10) || 25 : null
         }}
         onAtualizado={async () => {
           if (!cliente.id || !loja?.id) return;

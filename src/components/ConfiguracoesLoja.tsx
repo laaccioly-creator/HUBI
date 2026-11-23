@@ -66,8 +66,14 @@ import {
   Categoria,
   StatusPedidoPersonalizado,
   ModoExibicaoCatalogo,
-  ComportamentoSemEstoque
+  ComportamentoSemEstoque,
+  CicloCaderneta
 } from '../types';
+import {
+  DIAS_SEMANA_CADERNETA,
+  obterConfigCicloLoja,
+  sugerirSegundoDiaQuinzenal
+} from '../utils/cadernetaCiclo';
 import { PrintService } from '../services/printService';
 import { feedExportService } from '../services/feedExportService';
 import { paymentGatewayService } from '../services/paymentGatewayService';
@@ -278,7 +284,10 @@ const gerarSnapshotConfig = (dados: any) => {
     outrosDescricao: (dados.outrosDescricao || '').trim(),
     permitirFiado: Boolean(dados.permitirFiado),
     cadernetaAtiva: Boolean(dados.cadernetaAtiva),
+    cicloPadraoCaderneta: dados.cicloPadraoCaderneta || 'mensal',
     diaVencimentoPadraoCaderneta: Number(dados.diaVencimentoPadraoCaderneta ?? 10),
+    diaSemanaPadraoCaderneta: Number(dados.diaSemanaPadraoCaderneta ?? 5),
+    diaVencimento2PadraoCaderneta: Number(dados.diaVencimento2PadraoCaderneta ?? 25),
     maqCreditoAtivo: Boolean(dados.maqCreditoAtivo),
     maqCreditoDias: Number(dados.maqCreditoDias ?? 30),
     maqCreditoTaxa: Number(dados.maqCreditoTaxa ?? 2.99),
@@ -865,7 +874,18 @@ export const ConfiguracoesLoja: React.FC<ConfiguracoesLojaProps> = ({ subTelaIni
       ? false
       : (loja?.configuracoes_extras?.pagamentos?.permitir_fiado ?? true)
   );
-  const [diaVencimentoPadraoCaderneta, setDiaVencimentoPadraoCaderneta] = useState<number>(Number(loja?.dia_vencimento_padrao_caderneta || loja?.configuracoes_extras?.pagamentos?.dia_vencimento_padrao_caderneta || 10));
+  const [cicloPadraoCaderneta, setCicloPadraoCaderneta] = useState<CicloCaderneta>(() =>
+    obterConfigCicloLoja(loja).ciclo
+  );
+  const [diaVencimentoPadraoCaderneta, setDiaVencimentoPadraoCaderneta] = useState<number>(() =>
+    obterConfigCicloLoja(loja).diaVencimento1
+  );
+  const [diaSemanaPadraoCaderneta, setDiaSemanaPadraoCaderneta] = useState<number>(() =>
+    obterConfigCicloLoja(loja).diaSemana
+  );
+  const [diaVencimento2PadraoCaderneta, setDiaVencimento2PadraoCaderneta] = useState<number>(() =>
+    obterConfigCicloLoja(loja).diaVencimento2
+  );
 
   // Prazos e Taxas Maquininha
   const [maqCreditoAtivo, setMaqCreditoAtivo] = useState<boolean>(true);
@@ -1074,9 +1094,13 @@ export const ConfiguracoesLoja: React.FC<ConfiguracoesLojaProps> = ({ subTelaIni
       setOutrosDescricao(pagManuais.outros_orientacoes || '');
       const cadernetaInicial = Boolean(loja.caderneta_ativa ?? pagManuais.caderneta_ativa);
       const fiadoInicial = cadernetaInicial ? false : (pagManuais.permitir_fiado ?? true);
+      const cicloCadernetaIni = obterConfigCicloLoja(loja);
       setPermitirFiado(fiadoInicial);
       setCadernetaAtiva(cadernetaInicial);
-      setDiaVencimentoPadraoCaderneta(Number(loja.dia_vencimento_padrao_caderneta || pagManuais.dia_vencimento_padrao_caderneta || 10));
+      setCicloPadraoCaderneta(cicloCadernetaIni.ciclo);
+      setDiaVencimentoPadraoCaderneta(cicloCadernetaIni.diaVencimento1);
+      setDiaSemanaPadraoCaderneta(cicloCadernetaIni.diaSemana);
+      setDiaVencimento2PadraoCaderneta(cicloCadernetaIni.diaVencimento2);
 
       // Maquininhas Prazos
       setMaqCreditoAtivo(prazosMaq.credito_ativo ?? true);
@@ -1266,7 +1290,10 @@ export const ConfiguracoesLoja: React.FC<ConfiguracoesLojaProps> = ({ subTelaIni
           outrosDescricao: pagManuais.outros_orientacoes || '',
           permitirFiado: Boolean(loja.caderneta_ativa ?? pagManuais.caderneta_ativa) ? false : (pagManuais.permitir_fiado ?? true),
           cadernetaAtiva: Boolean(loja.caderneta_ativa ?? pagManuais.caderneta_ativa),
-          diaVencimentoPadraoCaderneta: Number(loja.dia_vencimento_padrao_caderneta || pagManuais.dia_vencimento_padrao_caderneta || 10),
+          cicloPadraoCaderneta: cicloCadernetaIni.ciclo,
+          diaVencimentoPadraoCaderneta: cicloCadernetaIni.diaVencimento1,
+          diaSemanaPadraoCaderneta: cicloCadernetaIni.diaSemana,
+          diaVencimento2PadraoCaderneta: cicloCadernetaIni.diaVencimento2,
           maqCreditoAtivo: prazosMaq.credito_ativo ?? true,
           maqCreditoDias: prazosMaq.credito_dias ?? 30,
           maqCreditoTaxa: prazosMaq.credito_taxa_percentual ?? 2.99,
@@ -1431,7 +1458,10 @@ export const ConfiguracoesLoja: React.FC<ConfiguracoesLojaProps> = ({ subTelaIni
         pagamentos: {
           permitir_fiado: cadernetaAtiva ? false : Boolean(permitirFiado),
           caderneta_ativa: Boolean(cadernetaAtiva),
+          ciclo_padrao_caderneta: cicloPadraoCaderneta,
           dia_vencimento_padrao_caderneta: Number(diaVencimentoPadraoCaderneta || 10),
+          dia_semana_padrao_caderneta: cicloPadraoCaderneta === 'semanal' ? Number(diaSemanaPadraoCaderneta) : null,
+          dia_vencimento_2_padrao_caderneta: cicloPadraoCaderneta === 'quinzenal' ? Number(diaVencimento2PadraoCaderneta || 25) : null,
           pix_ativo: Boolean(pixAtivo),
           pix_chave: pixChave,
           pix_orientacoes: pixOrientacoes,
@@ -1552,7 +1582,10 @@ export const ConfiguracoesLoja: React.FC<ConfiguracoesLojaProps> = ({ subTelaIni
           status_entregue: statusEntregue,
           status_pronto_para_retirar: statusProntoRetirar,
           caderneta_ativa: Boolean(cadernetaAtiva),
+          ciclo_padrao_caderneta: cicloPadraoCaderneta,
           dia_vencimento_padrao_caderneta: Number(diaVencimentoPadraoCaderneta || 10),
+          dia_semana_padrao_caderneta: cicloPadraoCaderneta === 'semanal' ? Number(diaSemanaPadraoCaderneta) : null,
+          dia_vencimento_2_padrao_caderneta: cicloPadraoCaderneta === 'quinzenal' ? Number(diaVencimento2PadraoCaderneta || 25) : null,
           tipos_venda: {
             varejo: tipoVendaVarejo,
             atacado: tipoVendaAtacado,
@@ -1707,7 +1740,10 @@ export const ConfiguracoesLoja: React.FC<ConfiguracoesLojaProps> = ({ subTelaIni
         gemini_api_key: geminiApiKey.trim() || null,
         serper_api_key: serpApiKey.trim() || null,
         caderneta_ativa: Boolean(cadernetaAtiva),
+        ciclo_padrao_caderneta: cicloPadraoCaderneta,
         dia_vencimento_padrao_caderneta: Number(diaVencimentoPadraoCaderneta || 10),
+        dia_semana_padrao_caderneta: cicloPadraoCaderneta === 'semanal' ? Number(diaSemanaPadraoCaderneta) : null,
+        dia_vencimento_2_padrao_caderneta: cicloPadraoCaderneta === 'quinzenal' ? Number(diaVencimento2PadraoCaderneta || 25) : null,
         trabalha_com_agenda: Boolean(trabalhaComAgenda),
         atendimento_domicilio_ativo: Boolean(trabalhaComAgenda && atendimentoDomicilioAtivo),
         taxa_padrao_domicilio: taxaDomicilioFinal,
@@ -1890,7 +1926,10 @@ export const ConfiguracoesLoja: React.FC<ConfiguracoesLojaProps> = ({ subTelaIni
       outrosDescricao,
       permitirFiado,
       cadernetaAtiva,
+      cicloPadraoCaderneta,
       diaVencimentoPadraoCaderneta,
+      diaSemanaPadraoCaderneta,
+      diaVencimento2PadraoCaderneta,
       maqCreditoAtivo,
       maqCreditoDias,
       maqCreditoTaxa,
@@ -1996,7 +2035,10 @@ export const ConfiguracoesLoja: React.FC<ConfiguracoesLojaProps> = ({ subTelaIni
     outrosDescricao,
     permitirFiado,
     cadernetaAtiva,
+    cicloPadraoCaderneta,
     diaVencimentoPadraoCaderneta,
+    diaSemanaPadraoCaderneta,
+    diaVencimento2PadraoCaderneta,
     maqCreditoAtivo,
     maqCreditoDias,
     maqCreditoTaxa,
@@ -3431,22 +3473,131 @@ export const ConfiguracoesLoja: React.FC<ConfiguracoesLojaProps> = ({ subTelaIni
                       />
                     </label>
                     {cadernetaAtiva && (
-                      <div className="pt-2 border-t border-amber-200/50 flex items-center justify-between text-sm">
-                        <span className="text-sm font-medium text-black">Dia de vencimento:</span>
-                        <div className="flex items-center gap-1.5">
-                          <span className="text-sm text-black font-medium">Dia</span>
-                          <select
-                            value={diaVencimentoPadraoCaderneta}
-                            onChange={(e) => setDiaVencimentoPadraoCaderneta(Number(e.target.value))}
-                            className="bg-white border border-slate-300 rounded-lg px-2 py-0.5 text-sm font-bold text-black"
-                          >
-                            {Array.from({ length: 31 }, (_, i) => i + 1).map((d) => (
-                              <option key={d} value={d}>
-                                {d}
-                              </option>
+                      <div className="pt-2.5 border-t border-amber-200/50 space-y-2.5 text-sm">
+                        <div className="space-y-1.5">
+                          <span className="text-xs font-bold text-black block">
+                            Frequência de fechamento padrão:
+                          </span>
+                          <div className="grid grid-cols-3 gap-1.5">
+                            {([
+                              { id: 'semanal', label: 'Semanal' },
+                              { id: 'quinzenal', label: 'Quinzenal' },
+                              { id: 'mensal', label: 'Mensal' }
+                            ] as const).map((opc) => (
+                              <button
+                                key={opc.id}
+                                type="button"
+                                onClick={() => {
+                                  setCicloPadraoCaderneta(opc.id);
+                                  if (opc.id === 'quinzenal') {
+                                    setDiaVencimento2PadraoCaderneta(
+                                      sugerirSegundoDiaQuinzenal(diaVencimentoPadraoCaderneta)
+                                    );
+                                  }
+                                  marcarInteracaoFisica();
+                                }}
+                                className={`py-1.5 px-2 rounded-lg text-xs font-bold border transition cursor-pointer ${
+                                  cicloPadraoCaderneta === opc.id
+                                    ? 'bg-emerald-300 border-emerald-400 text-black'
+                                    : 'bg-white border-slate-300 text-black hover:bg-slate-100'
+                                }`}
+                              >
+                                {opc.label}
+                              </button>
                             ))}
-                          </select>
+                          </div>
                         </div>
+
+                        {cicloPadraoCaderneta === 'semanal' && (
+                          <div className="space-y-1">
+                            <span className="text-xs font-bold text-black block">
+                              Dia da semana do acerto:
+                            </span>
+                            <select
+                              value={diaSemanaPadraoCaderneta}
+                              onChange={(e) => {
+                                setDiaSemanaPadraoCaderneta(Number(e.target.value));
+                                marcarInteracaoFisica();
+                              }}
+                              className="w-full bg-white border border-slate-300 rounded-lg px-2.5 py-1.5 text-xs font-bold text-black"
+                            >
+                              {DIAS_SEMANA_CADERNETA.map((d) => (
+                                <option key={d.valor} value={d.valor}>
+                                  {d.label}
+                                </option>
+                              ))}
+                            </select>
+                          </div>
+                        )}
+
+                        {cicloPadraoCaderneta === 'quinzenal' && (
+                          <div className="grid grid-cols-2 gap-2">
+                            <div className="space-y-1">
+                              <span className="text-xs font-bold text-black block">
+                                1º Dia do mês:
+                              </span>
+                              <select
+                                value={diaVencimentoPadraoCaderneta}
+                                onChange={(e) => {
+                                  const novoDia = Number(e.target.value);
+                                  setDiaVencimentoPadraoCaderneta(novoDia);
+                                  setDiaVencimento2PadraoCaderneta(
+                                    sugerirSegundoDiaQuinzenal(novoDia)
+                                  );
+                                  marcarInteracaoFisica();
+                                }}
+                                className="w-full bg-white border border-slate-300 rounded-lg px-2 py-1.5 text-xs font-bold text-black"
+                              >
+                                {Array.from({ length: 31 }, (_, i) => i + 1).map((d) => (
+                                  <option key={d} value={d}>
+                                    Todo dia {d}
+                                  </option>
+                                ))}
+                              </select>
+                            </div>
+                            <div className="space-y-1">
+                              <span className="text-xs font-bold text-black block">
+                                2º Dia do mês:
+                              </span>
+                              <select
+                                value={diaVencimento2PadraoCaderneta}
+                                onChange={(e) => {
+                                  setDiaVencimento2PadraoCaderneta(Number(e.target.value));
+                                  marcarInteracaoFisica();
+                                }}
+                                className="w-full bg-white border border-slate-300 rounded-lg px-2 py-1.5 text-xs font-bold text-black"
+                              >
+                                {Array.from({ length: 31 }, (_, i) => i + 1).map((d) => (
+                                  <option key={d} value={d}>
+                                    Todo dia {d}
+                                  </option>
+                                ))}
+                              </select>
+                            </div>
+                          </div>
+                        )}
+
+                        {cicloPadraoCaderneta === 'mensal' && (
+                          <div className="flex items-center justify-between gap-2">
+                            <span className="text-xs font-bold text-black">
+                              Dia fixo de fechamento/acerto:
+                            </span>
+                            <select
+                              value={diaVencimentoPadraoCaderneta}
+                              onChange={(e) => {
+                                setDiaVencimentoPadraoCaderneta(Number(e.target.value));
+                                marcarInteracaoFisica();
+                              }}
+                              className="bg-white border border-slate-300 rounded-lg px-2.5 py-1 text-xs font-bold text-black"
+                            >
+                              {Array.from({ length: 31 }, (_, i) => i + 1).map((d) => (
+                                <option key={d} value={d}>
+                                  Todo dia {d} do mês
+                                </option>
+                              ))}
+                            </select>
+                          </div>
+                        )}
                       </div>
                     )}
                   </div>
@@ -5951,28 +6102,146 @@ export const ConfiguracoesLoja: React.FC<ConfiguracoesLojaProps> = ({ subTelaIni
                 </div>
 
                 {cadernetaAtiva && (
-                  <div className="pt-2 border-t border-slate-200 dark:border-slate-800 flex flex-col sm:flex-row sm:items-center justify-between gap-3 text-xs">
-                    <div>
-                      <span className="font-bold text-slate-900 dark:text-slate-100 block">Dia Padrão de Fechamento/Vencimento Mensal:</span>
-                      <span className="text-sm leading-relaxed text-black dark:text-slate-300">Sugerido automaticamente ao cadastrar novos clientes na caderneta</span>
-                    </div>
-                    <div className="flex items-center gap-2">
-                      <span className="font-medium text-slate-700 dark:text-slate-300">Todo dia</span>
-                      <select
-                        value={diaVencimentoPadraoCaderneta}
-                        onChange={(e) => setDiaVencimentoPadraoCaderneta(Number(e.target.value))}
-                        className={`border rounded-xl px-2.5 py-1 text-xs font-bold focus:outline-none ${
-                          isDark ? 'bg-slate-900 border-slate-700 text-white' : 'bg-white border-slate-300 text-slate-900'
-                        }`}
-                      >
-                        {Array.from({ length: 31 }, (_, i) => i + 1).map((d) => (
-                          <option key={d} value={d}>
-                            {d}
-                          </option>
+                  <div className="pt-3 border-t border-slate-200 dark:border-slate-800 space-y-3 text-xs">
+                    <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+                      <div>
+                        <span className="font-bold text-slate-900 dark:text-slate-100 block">
+                          Frequência Padrão de Fechamento da Caderneta:
+                        </span>
+                        <span className="text-sm leading-relaxed text-black dark:text-slate-300">
+                          Sugerido automaticamente ao cadastrar novos clientes na caderneta
+                        </span>
+                      </div>
+                      <div className="grid grid-cols-3 gap-1.5 shrink-0">
+                        {([
+                          { id: 'semanal', label: 'Semanal' },
+                          { id: 'quinzenal', label: 'Quinzenal' },
+                          { id: 'mensal', label: 'Mensal' }
+                        ] as const).map((opc) => (
+                          <button
+                            key={opc.id}
+                            type="button"
+                            onClick={() => {
+                              setCicloPadraoCaderneta(opc.id);
+                              if (opc.id === 'quinzenal') {
+                                setDiaVencimento2PadraoCaderneta(
+                                  sugerirSegundoDiaQuinzenal(diaVencimentoPadraoCaderneta)
+                                );
+                              }
+                              marcarInteracaoFisica();
+                            }}
+                            className={`px-3 py-1.5 rounded-xl text-xs font-bold border transition cursor-pointer ${
+                              cicloPadraoCaderneta === opc.id
+                                ? 'bg-emerald-300 border-emerald-400 text-black'
+                                : isDark
+                                ? 'bg-slate-900 border-slate-700 text-slate-200 hover:bg-slate-800'
+                                : 'bg-white border-slate-300 text-slate-900 hover:bg-slate-100'
+                            }`}
+                          >
+                            {opc.label}
+                          </button>
                         ))}
-                      </select>
-                      <span className="font-medium text-slate-700 dark:text-slate-300">do mês</span>
+                      </div>
                     </div>
+
+                    {cicloPadraoCaderneta === 'semanal' && (
+                      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pt-2 border-t border-slate-200/70 dark:border-slate-800/70">
+                        <span className="font-bold text-slate-900 dark:text-slate-100">
+                          Dia da Semana do Acerto:
+                        </span>
+                        <select
+                          value={diaSemanaPadraoCaderneta}
+                          onChange={(e) => {
+                            setDiaSemanaPadraoCaderneta(Number(e.target.value));
+                            marcarInteracaoFisica();
+                          }}
+                          className={`border rounded-xl px-3 py-1.5 text-xs font-bold focus:outline-none cursor-pointer ${
+                            isDark ? 'bg-slate-900 border-slate-700 text-white' : 'bg-white border-slate-300 text-slate-900'
+                          }`}
+                        >
+                          {DIAS_SEMANA_CADERNETA.map((d) => (
+                            <option key={d.valor} value={d.valor}>
+                              {d.label}
+                            </option>
+                          ))}
+                        </select>
+                      </div>
+                    )}
+
+                    {cicloPadraoCaderneta === 'quinzenal' && (
+                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 pt-2 border-t border-slate-200/70 dark:border-slate-800/70">
+                        <div className="flex items-center justify-between gap-2">
+                          <span className="font-bold text-slate-900 dark:text-slate-100">
+                            1º Dia do Mês:
+                          </span>
+                          <select
+                            value={diaVencimentoPadraoCaderneta}
+                            onChange={(e) => {
+                              const novoDia = Number(e.target.value);
+                              setDiaVencimentoPadraoCaderneta(novoDia);
+                              setDiaVencimento2PadraoCaderneta(
+                                sugerirSegundoDiaQuinzenal(novoDia)
+                              );
+                              marcarInteracaoFisica();
+                            }}
+                            className={`border rounded-xl px-3 py-1.5 text-xs font-bold focus:outline-none cursor-pointer ${
+                              isDark ? 'bg-slate-900 border-slate-700 text-white' : 'bg-white border-slate-300 text-slate-900'
+                            }`}
+                          >
+                            {Array.from({ length: 31 }, (_, i) => i + 1).map((d) => (
+                              <option key={d} value={d}>
+                                Todo dia {d}
+                              </option>
+                            ))}
+                          </select>
+                        </div>
+                        <div className="flex items-center justify-between gap-2">
+                          <span className="font-bold text-slate-900 dark:text-slate-100">
+                            2º Dia do Mês:
+                          </span>
+                          <select
+                            value={diaVencimento2PadraoCaderneta}
+                            onChange={(e) => {
+                              setDiaVencimento2PadraoCaderneta(Number(e.target.value));
+                              marcarInteracaoFisica();
+                            }}
+                            className={`border rounded-xl px-3 py-1.5 text-xs font-bold focus:outline-none cursor-pointer ${
+                              isDark ? 'bg-slate-900 border-slate-700 text-white' : 'bg-white border-slate-300 text-slate-900'
+                            }`}
+                          >
+                            {Array.from({ length: 31 }, (_, i) => i + 1).map((d) => (
+                              <option key={d} value={d}>
+                                Todo dia {d}
+                              </option>
+                            ))}
+                          </select>
+                        </div>
+                      </div>
+                    )}
+
+                    {cicloPadraoCaderneta === 'mensal' && (
+                      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pt-2 border-t border-slate-200/70 dark:border-slate-800/70">
+                        <span className="font-bold text-slate-900 dark:text-slate-100">
+                          Dia Fixo de Fechamento/Acerto:
+                        </span>
+                        <select
+                          value={diaVencimentoPadraoCaderneta}
+                          onChange={(e) => {
+                            setDiaVencimentoPadraoCaderneta(Number(e.target.value));
+                            marcarInteracaoFisica();
+                          }}
+                          className={`border rounded-xl px-3 py-1.5 text-xs font-bold focus:outline-none cursor-pointer ${
+                            isDark ? 'bg-slate-900 border-slate-700 text-white' : 'bg-white border-slate-300 text-slate-900'
+                          }`}
+                        >
+                          {Array.from({ length: 31 }, (_, i) => i + 1).map((d) => (
+                            <option key={d} value={d}>
+                              Todo dia {d} do mês
+                            </option>
+                          ))}
+                        </select>
+                      </div>
+                    )}
                   </div>
                 )}
               </div>

@@ -24,6 +24,7 @@ import { supabase } from '../lib/supabase';
 import { ModalPagamentoFechamentoCatalogo } from './catalogo/ModalPagamentoFechamentoCatalogo';
 import { ReciboPedidoModal } from './pedidos/ReciboPedidoModal';
 import { whatsappWalletService } from '../services/whatsappWalletService';
+import { formatarResumoCicloCaderneta, obterConfigCicloCliente } from '../utils/cadernetaCiclo';
 
 interface ModalExtratoCadernetaClienteProps {
   isOpen: boolean;
@@ -153,11 +154,13 @@ export const ModalExtratoCadernetaCliente: React.FC<ModalExtratoCadernetaCliente
     const fone = cliente.whatsapp || cliente.telefone;
     if (!fone || !resumo || !loja?.id) return;
 
+    const resumoCicloTexto =
+      resumo.resumoCiclo || formatarResumoCicloCaderneta(obterConfigCicloCliente(cliente, loja));
     const texto = `Olá, *${cliente.nome}*! 👋\n\n` +
       `Aqui está o resumo da sua *Caderneta no ${loja?.nome_fantasia || 'Mercadinho'}*:\n` +
       `💰 *Saldo Devedor Atual:* ${formatarMoeda(resumo.saldoDevedor)}\n` +
       `🟢 *Limite Disponível:* ${formatarMoeda(resumo.limiteDisponivel)} (de ${formatarMoeda(resumo.limiteTotal)})\n` +
-      `📅 *Dia de Acerto Mensal:* Todo dia ${resumo.diaVencimento}\n` +
+      `📅 *Fechamento da Caderneta:* ${resumoCicloTexto}\n` +
       `🗓️ *Próximo Vencimento:* ${new Date(resumo.proximoVencimento + 'T12:00:00').toLocaleDateString('pt-BR')}\n\n` +
       `Agradecemos pela preferência! ✨`;
 
@@ -261,7 +264,9 @@ export const ModalExtratoCadernetaCliente: React.FC<ModalExtratoCadernetaCliente
                   <span className="text-xs sm:text-sm font-black block truncate">
                     {resumo?.proximoVencimento ? new Date(resumo.proximoVencimento + 'T12:00:00').toLocaleDateString('pt-BR') : '--'}
                   </span>
-                  <span className={`text-sm leading-relaxed font-semibold block ${isDark ? 'text-slate-300' : 'text-black'}`}>Todo dia {resumo?.diaVencimento}</span>
+                  <span className={`text-sm leading-relaxed font-semibold block ${isDark ? 'text-slate-300' : 'text-black'}`}>
+                    {resumo?.resumoCiclo || formatarResumoCicloCaderneta(obterConfigCicloCliente(cliente, loja))}
+                  </span>
                 </div>
               </div>
 

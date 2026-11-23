@@ -1,6 +1,7 @@
 import { StatusPedido, Loja, Pedido } from '../types';
 import { obterDataOperacaoYMD } from './dataOperacao';
 import { formatarMoeda } from './formatters';
+import { calcularProximoVencimentoPorCiclo, obterConfigCicloCliente } from './cadernetaCiclo';
 
 export const ROTULOS_STATUS_PEDIDO: Record<string, string> = {
   todos: 'Todos os status',
@@ -564,9 +565,9 @@ export function obterInfoVencimentoFiado(pedido: any, loja?: any): {
   let dataVenc: string | null = pedido?.data_vencimento_fiado || null;
 
   if (ehCaderneta) {
-    const diaFixo = Number(pedido?.cliente?.dia_vencimento_caderneta || loja?.dia_vencimento_padrao_caderneta || 10);
     const dataRef = pedido?.data_venda || pedido?.criado_em || new Date().toISOString();
-    dataVenc = calcularVencimentoCaderneta(dataRef, diaFixo);
+    const configCiclo = obterConfigCicloCliente(pedido?.cliente, loja);
+    dataVenc = calcularProximoVencimentoPorCiclo(configCiclo, new Date(dataRef), false);
   } else {
     if (!dataVenc && pedido?.metadados) {
       try {
