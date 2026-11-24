@@ -1866,7 +1866,7 @@ export const ModalQuestionarioOnboarding: React.FC<ModalQuestionarioOnboardingPr
             <div className={`flex items-center gap-2 text-xs sm:text-sm font-medium ${isDark ? 'text-slate-200' : 'text-black'}`}>
               <Sparkles className="w-3.5 h-3.5 text-emerald-500 shrink-0" />
               <span>
-                Você pode reabrir este assistente a qualquer momento em Configurações.
+                Você pode reabrir este questionário a qualquer momento em Configurações.
               </span>
             </div>
 

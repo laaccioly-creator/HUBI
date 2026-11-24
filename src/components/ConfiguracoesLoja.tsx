@@ -90,7 +90,6 @@ import { useTheme } from '../contexts/ThemeContext';
 import { CardConexaoMercadoLivre } from './mercadolivre/CardConexaoMercadoLivre';
 import { CardParametrosHubiAdmin } from './configuracoes/CardParametrosHubiAdmin';
 import { ModalComoObterGeminiApiKey } from './configuracoes/ModalComoObterGeminiApiKey';
-import { ModalChecklistConfiguracao } from './configuracoes/ModalChecklistConfiguracao';
 import { comprimirFotoProduto } from '../utils/imageCompressor';
 import { useLojaProntidao } from '../hooks/useLojaProntidao';
 import {
@@ -352,7 +351,6 @@ export const ConfiguracoesLoja: React.FC<ConfiguracoesLojaProps> = ({ subTelaIni
   const location = useLocation();
   const [subTela, setSubTela] = useState<SubTelaConfig>('menu');
   const [salvando, setSalvando] = useState<boolean>(false);
-  const [modalChecklistAberto, setModalChecklistAberto] = useState<boolean>(false);
   const {
     totalConcluidas,
     totalEtapasAtivas,
@@ -2261,24 +2259,14 @@ export const ConfiguracoesLoja: React.FC<ConfiguracoesLojaProps> = ({ subTelaIni
                   <button
                     type="button"
                     onClick={() => solicitarAberturaQuestionarioOnboarding()}
-                    className={`flex-1 px-3 py-2 rounded-xl text-xs text-center cursor-pointer transition ${
+                    className={`flex-1 px-3 py-2 rounded-xl text-xs flex items-center justify-center gap-1.5 cursor-pointer transition ${
                       isDark
                         ? 'bg-emerald-600 hover:bg-emerald-500 text-white border border-emerald-500 font-black'
                         : 'bg-slate-100 hover:bg-slate-200 border border-slate-300 text-black font-semibold'
                     }`}
                   >
-                    Abrir Assistente / Refazer Questionário
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => setModalChecklistAberto(true)}
-                    className={`px-3 py-2 rounded-xl border font-bold text-xs cursor-pointer transition ${
-                      isDark
-                        ? 'border-slate-700 bg-slate-900 text-slate-200'
-                        : 'border-slate-300 bg-slate-50 text-slate-700'
-                    }`}
-                  >
-                    Ver Passo a Passo
+                    <Sparkles className="w-3.5 h-3.5" />
+                    <span>Abrir Questionário</span>
                   </button>
                 </div>
               </div>
@@ -4141,16 +4129,16 @@ export const ConfiguracoesLoja: React.FC<ConfiguracoesLojaProps> = ({ subTelaIni
           {!carregandoProntidao && statusOnboarding !== null && !tudoPronto && (
             <button
               type="button"
-              onClick={() => setModalChecklistAberto(true)}
+              onClick={() => solicitarAberturaQuestionarioOnboarding()}
               className={`px-3 py-1.5 rounded-xl border flex items-center gap-2 font-bold text-xs transition cursor-pointer shadow-sm active:scale-95 ${
                 isDark
                   ? 'bg-slate-900 border-slate-700 text-slate-200 hover:bg-slate-800 hover:border-amber-500/50'
                   : 'bg-white border-slate-300 text-slate-700 hover:bg-slate-50 hover:border-amber-500/50'
               }`}
-              title="Abrir Checklist de Configuração da Loja"
+              title="Abrir Questionário de Implantação da Loja"
             >
               <Sparkles className="w-3.5 h-3.5 text-amber-500" />
-              <span className="hidden sm:inline">Checklist de Configuração</span>
+              <span className="hidden sm:inline">Questionário</span>
               <span className="bg-amber-500/20 text-amber-600 dark:text-amber-400 font-bold px-2 py-0.5 rounded-full text-xs">
                 {totalConcluidas}/{totalEtapasAtivas}
               </span>
@@ -4272,18 +4260,7 @@ export const ConfiguracoesLoja: React.FC<ConfiguracoesLojaProps> = ({ subTelaIni
                   }`}
                 >
                   <Sparkles className="w-4 h-4" />
-                  <span>Abrir Assistente / Refazer Questionário</span>
-                </button>
-                <button
-                  type="button"
-                  onClick={() => setModalChecklistAberto(true)}
-                  className={`px-4 py-2.5 rounded-xl border font-bold text-xs flex items-center gap-2 transition cursor-pointer ${
-                    isDark
-                      ? 'border-slate-700 bg-slate-900 hover:bg-slate-800 text-slate-200'
-                      : 'border-slate-300 bg-slate-50 hover:bg-slate-100 text-slate-800'
-                  }`}
-                >
-                  <span>Ver Passo a Passo</span>
+                  <span>Abrir Questionário</span>
                 </button>
               </div>
             </div>
@@ -7200,12 +7177,6 @@ export const ConfiguracoesLoja: React.FC<ConfiguracoesLojaProps> = ({ subTelaIni
           setGeminiApiKey(chave);
           marcarInteracaoFisica();
         }}
-      />
-
-      {/* MODAL CHECKLIST DE CONFIGURAÇÃO DA LOJA */}
-      <ModalChecklistConfiguracao
-        isOpen={modalChecklistAberto}
-        onClose={() => setModalChecklistAberto(false)}
       />
 
     </div>

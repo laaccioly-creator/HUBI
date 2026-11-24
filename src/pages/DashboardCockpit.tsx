@@ -10,7 +10,6 @@ import {
   ChevronRight,
   ChevronDown,
   ChevronUp,
-  ArrowRight,
   Check,
   Zap,
   Menu,
@@ -46,7 +45,6 @@ import { ModalEntradaEstoque } from '../components/ModalEntradaEstoque';
 import { ModalAdicionarLoja } from '../components/lojas/ModalAdicionarLoja';
 import { useRegisterOverlay } from '../hooks/useRegisterOverlay';
 import { useLojaProntidao } from '../hooks/useLojaProntidao';
-import { ModalChecklistConfiguracao } from '../components/configuracoes/ModalChecklistConfiguracao';
 import { solicitarAberturaQuestionarioOnboarding } from '../services/onboardingSetupService';
 import { supabase } from '../lib/supabase';
 
@@ -104,7 +102,6 @@ export const DashboardCockpit: React.FC = () => {
     totalEtapasAtivas,
     percentual,
     tudoPronto,
-    etapaFoco,
     statusOnboarding,
     carregando: carregandoOnboarding,
   } = useLojaProntidao();
@@ -114,7 +111,6 @@ export const DashboardCockpit: React.FC = () => {
       statusOnboarding !== null &&
       !tudoPronto
   );
-  const [modalChecklistAberto, setModalChecklistAberto] = useState<boolean>(false);
   const storageKeyChecklistMin = `hubi_checklist_min_${loja?.id || 'default'}`;
   const [checklistMinimizado, setChecklistMinimizado] = useState<boolean>(() => {
     try {
@@ -1013,14 +1009,14 @@ export const DashboardCockpit: React.FC = () => {
               <div className="flex items-center gap-2">
                 <button
                   type="button"
-                  onClick={() => setModalChecklistAberto(true)}
+                  onClick={() => solicitarAberturaQuestionarioOnboarding()}
                   className={`px-3 py-1.5 rounded-xl text-xs transition cursor-pointer ${
                     isDark
                       ? 'bg-emerald-500 hover:bg-emerald-400 text-slate-950 font-semibold shadow-sm'
                       : 'hubi-btn-neutral bg-slate-100 hover:bg-slate-200 border border-slate-300 text-black font-semibold shadow-xs'
                   }`}
                 >
-                  Abrir Guia
+                  Abrir Questionário
                 </button>
                 <button
                   type="button"
@@ -1106,20 +1102,7 @@ export const DashboardCockpit: React.FC = () => {
                     }`}
                   >
                     <Sparkles className={`w-3.5 h-3.5 ${isDark ? 'text-emerald-400' : 'text-black'}`} />
-                    <span>Abrir Assistente / Questionário</span>
-                  </button>
-
-                  <button
-                    type="button"
-                    onClick={() => setModalChecklistAberto(true)}
-                    className={`px-4 py-2 rounded-xl text-xs flex items-center justify-center gap-2 transition cursor-pointer active:scale-95 ${
-                      isDark
-                        ? 'bg-emerald-500 hover:bg-emerald-400 text-slate-950 font-semibold shadow-md shadow-emerald-500/20'
-                        : 'hubi-btn-neutral bg-slate-100 hover:bg-slate-200 border border-slate-300 text-black font-semibold shadow-xs'
-                    }`}
-                  >
-                    <span>Abrir Guia de Configuração (Passo {statusOnboarding?.proximaEtapaPendente?.ordem || etapaFoco?.ordem || 1})</span>
-                    <ArrowRight className="w-4 h-4" />
+                    <span>Abrir Questionário</span>
                   </button>
                 </div>
               </div>
@@ -1320,12 +1303,6 @@ export const DashboardCockpit: React.FC = () => {
           dashboardJevService.invalidarCache();
           carregarMetricas(true);
         }}
-      />
-
-      {/* Modal Wizard de Checklist de Configuração Inicial */}
-      <ModalChecklistConfiguracao
-        isOpen={modalChecklistAberto}
-        onClose={() => setModalChecklistAberto(false)}
       />
 
     </div>
