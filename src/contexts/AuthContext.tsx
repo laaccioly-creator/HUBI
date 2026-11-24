@@ -2,7 +2,7 @@ import React, { createContext, useContext, useState, useEffect, useRef, useCallb
 import { supabase } from '../lib/supabase';
 import { Loja, UsuarioLoja, Organizacao } from '../types';
 import { authClientIsolado } from '../services/usuarioService';
-import { gerarEmailSintetico } from '../utils/formatters';
+import { gerarEmailSintetico, normalizarTelefoneComDDI } from '../utils/formatters';
 
 interface AuthContextType {
   loja: Loja | null;
@@ -651,162 +651,262 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     }
   };
 
-  // Entrar com E-mail ou WhatsApp e Senha (com suporte resiliente para operadores da loja e proprietários)
+  // Entrar com WhatsApp e Senha (validação estrita via Supabase Auth e RPC SECURITY DEFINER)
   const entrarComEmail = async (emailBusca: string, senha?: string): Promise<boolean> => {
+    const ERRO_CREDENCIAIS_INVALIDAS =
+      'WhatsApp ou senha incorretos. Verifique seus dados e tente novamente.';
+
     try {
-      const inputTrim = emailBusca.trim();
-      const emailTrim = inputTrim.includes('@')
-        ? inputTrim.toLowerCase()
-        : gerarEmailSintetico(inputTrim);
+      const inputTrim = (emailBusca || '').trim();
       const senhaInformada = (senha || '').trim();
+
+      if (!inputTrim) {
+        throw new Error('Por favor, informe seu número de WhatsApp cadastrado.');
+      }
+      if (!senhaInformada) {
+        throw new Error('Por favor, digite sua senha de acesso.');
+      }
+
+      // Higienização canônica do identificador para 55 + DDD + número (@hubi.app)
+      let telefoneNormalizado = '';
+      let emailAuth = '';
+
+      if (inputTrim.includes('@')) {
+        const emailLower = inputTrim.toLowerCase();
+        if (emailLower.endsWith('@hubi.app') || emailLower.endsWith('@hubi.internal')) {
+          const parteNumerica = emailLower.split('@')[0];
+          telefoneNormalizado = normalizarTelefoneComDDI(parteNumerica);
+          if (
+            telefoneNormalizado.length < 12 ||
+            telefoneNormalizado.length > 13 ||
+            !telefoneNormalizado.startsWith('55')
+          ) {
+            throw new Error(ERRO_CREDENCIAIS_INVALIDAS);
+          }
+          emailAuth = gerarEmailSintetico(telefoneNormalizado);
+        } else {
+          emailAuth = emailLower;
+        }
+      } else {
+        telefoneNormalizado = normalizarTelefoneComDDI(inputTrim);
+        if (
+          telefoneNormalizado.length < 12 ||
+          telefoneNormalizado.length > 13 ||
+          !telefoneNormalizado.startsWith('55')
+        ) {
+          throw new Error(ERRO_CREDENCIAIS_INVALIDAS);
+        }
+        emailAuth = `${telefoneNormalizado}@hubi.app`;
+      }
+
+      // Etapa A: Validação obrigatória no Supabase Auth (signInWithPassword)
+      let autenticadoViaGoTrue = false;
       let authUserId: string | null = null;
+      let sessaoAutenticada: any | null = null;
+
+      const { data: authData, error: authErr } = await supabase.auth.signInWithPassword({
+        email: emailAuth,
+        password: senhaInformada,
+      });
+
+      if (!authErr && authData?.session?.user) {
+        autenticadoViaGoTrue = true;
+        authUserId = authData.session.user.id;
+        sessaoAutenticada = authData.session;
+      }
+
+      // Etapa B: Fallback controlado para colaboradores com senha_hash local via RPC SECURITY DEFINER
+      let autenticadoViaRpcLocal = false;
+      let usuarioLocalValidadoId: string | null = null;
+      let lojaIdValidada: string | null = null;
+
+      if (!autenticadoViaGoTrue) {
+        const { data: rpcData, error: rpcErr } = await supabase.rpc('validar_senha_colaborador', {
+          p_telefone: telefoneNormalizado || inputTrim,
+          p_senha: senhaInformada,
+        });
+
+        const resultadoRpc = Array.isArray(rpcData) ? rpcData[0] : rpcData;
+        if (!rpcErr && resultadoRpc?.valido === true) {
+          if (resultadoRpc.ativo === false) {
+            throw new Error('Este usuário foi desativado pelo administrador da loja.');
+          }
+          autenticadoViaRpcLocal = true;
+          usuarioLocalValidadoId = resultadoRpc.usuario_id || null;
+          lojaIdValidada = resultadoRpc.loja_id || null;
+        }
+      }
+
+      // Etapa C: Bloqueio imediato caso nenhuma validação criptográfica tenha sucesso
+      if (!autenticadoViaGoTrue && !autenticadoViaRpcLocal) {
+        throw new Error(ERRO_CREDENCIAIS_INVALIDAS);
+      }
+
+      // Carregamento pós-autenticação (somente após validação confirmada)
       let usuarioEncontrado: UsuarioLoja | null = null;
       let lojaAssociada: Loja | null = null;
 
-      const numLimpo = inputTrim.replace(/\D/g, '');
-      const orFiltro = inputTrim.includes('@')
-        ? `email.ilike.${emailTrim}`
-        : (numLimpo.length >= 10
-            ? `email.ilike.${emailTrim},email.ilike.${numLimpo}@hubi.internal,whatsapp_atendimento.eq.${numLimpo}`
-            : `email.ilike.${emailTrim}`);
+      if (autenticadoViaGoTrue && authUserId) {
+        const { data: porAuthId } = await supabase
+          .from('usuarios_loja')
+          .select('*, loja:lojas(*)')
+          .eq('usuario_auth_id', authUserId);
 
-      // 1. Prioridade: verificar se o usuário é um operador/administrador cadastrado em usuarios_loja
-      const { data: usersFound } = await supabase
-        .from('usuarios_loja')
-        .select('*, loja:lojas(*)')
-        .or(orFiltro);
+        let candidatos = (porAuthId || []) as any[];
 
-      if (usersFound && usersFound.length > 0) {
-        const uCand = (usersFound.find(u => u.ativo !== false) || usersFound[0]) as any;
+        if (candidatos.length === 0) {
+          const telSemDdi =
+            telefoneNormalizado.startsWith('55') && telefoneNormalizado.length >= 12
+              ? telefoneNormalizado.slice(2)
+              : telefoneNormalizado;
 
-        if (uCand.ativo === false) {
-          throw new Error('Este usuário foi desativado pelo administrador da loja.');
+          const orFallback = telefoneNormalizado
+            ? `email.ilike.${emailAuth},email.ilike.${telSemDdi}@hubi.internal,email.ilike.${telefoneNormalizado}@hubi.internal,whatsapp_atendimento.eq.${telefoneNormalizado},whatsapp_atendimento.eq.${telSemDdi}`
+            : `email.ilike.${emailAuth}`;
+
+          const { data: porContato } = await supabase
+            .from('usuarios_loja')
+            .select('*, loja:lojas(*)')
+            .or(orFallback);
+
+          candidatos = (porContato || []) as any[];
         }
 
-        // Validação da credencial do colaborador contra a senha gravada no banco da loja
-        if (senhaInformada.length > 0) {
-          const senhaGravada = (uCand.senha_hash || '').trim();
-          if (senhaGravada && senhaGravada !== senhaInformada) {
-            throw new Error('E-mail ou senha incorretos. Por favor, verifique suas credenciais.');
+        if (candidatos.length > 0) {
+          const uCand = candidatos.find((u) => u.ativo !== false) || candidatos[0];
+
+          if (uCand.ativo === false) {
+            await supabase.auth.signOut().catch(() => {});
+            limparCachesPdvsSalvos();
+            throw new Error('Este usuário foi desativado pelo administrador da loja.');
+          }
+
+          if (!uCand.usuario_auth_id && uCand.loja_id) {
+            try {
+              await supabase
+                .from('usuarios_loja')
+                .update({ usuario_auth_id: authUserId })
+                .eq('id', uCand.id)
+                .eq('loja_id', uCand.loja_id);
+              uCand.usuario_auth_id = authUserId;
+            } catch {}
+          }
+
+          usuarioEncontrado = uCand as UsuarioLoja;
+          lojaAssociada = (uCand.loja || null) as Loja | null;
+
+          if (!lojaAssociada && uCand.loja_id) {
+            const { data: lojaDb } = await supabase
+              .from('lojas')
+              .select('*')
+              .eq('id', uCand.loja_id)
+              .maybeSingle();
+            if (lojaDb) {
+              lojaAssociada = lojaDb as Loja;
+            }
           }
         }
 
-        usuarioEncontrado = uCand;
-        lojaAssociada = (uCand.loja || null) as Loja | null;
+        // Fallback para proprietário cujo vínculo em usuarios_loja esteja sendo sincronizado
+        if (!usuarioEncontrado) {
+          const { data: lojasEncontradas } = await supabase
+            .from('lojas')
+            .select('*')
+            .ilike('email', emailAuth)
+            .limit(1);
 
-        if (!lojaAssociada && uCand.loja_id) {
+          if (lojasEncontradas && lojasEncontradas.length > 0) {
+            const primeiraLoja = lojasEncontradas[0] as Loja;
+            lojaAssociada = primeiraLoja;
+
+            const { data: usuarios } = await supabase
+              .from('usuarios_loja')
+              .select('*')
+              .eq('loja_id', primeiraLoja.id)
+              .order('criado_em', { ascending: true });
+
+            if (usuarios && usuarios.length > 0) {
+              let u = (usuarios.find((item) => item.ativo !== false) || usuarios[0]) as UsuarioLoja;
+              if (u.ativo === false) {
+                await supabase.auth.signOut().catch(() => {});
+                limparCachesPdvsSalvos();
+                throw new Error('Este usuário foi desativado pelo administrador da loja.');
+              }
+              if (!u.usuario_auth_id || u.usuario_auth_id !== authUserId) {
+                try {
+                  await supabase
+                    .from('usuarios_loja')
+                    .update({ usuario_auth_id: authUserId })
+                    .eq('id', u.id)
+                    .eq('loja_id', primeiraLoja.id);
+                  u = { ...u, usuario_auth_id: authUserId };
+                } catch {}
+              }
+              usuarioEncontrado = u;
+            }
+          }
+        }
+
+        if (!usuarioEncontrado || !lojaAssociada) {
+          await supabase.auth.signOut().catch(() => {});
+          limparCachesPdvsSalvos();
+          throw new Error(ERRO_CREDENCIAIS_INVALIDAS);
+        }
+
+        setSession(sessaoAutenticada);
+      } else if (autenticadoViaRpcLocal) {
+        if (!usuarioLocalValidadoId || !lojaIdValidada) {
+          throw new Error(ERRO_CREDENCIAIS_INVALIDAS);
+        }
+
+        const { data: userLocal } = await supabase
+          .from('usuarios_loja')
+          .select('*, loja:lojas(*)')
+          .eq('id', usuarioLocalValidadoId)
+          .eq('loja_id', lojaIdValidada)
+          .maybeSingle();
+
+        if (!userLocal) {
+          throw new Error(ERRO_CREDENCIAIS_INVALIDAS);
+        }
+        if (userLocal.ativo === false) {
+          throw new Error('Este usuário foi desativado pelo administrador da loja.');
+        }
+
+        usuarioEncontrado = userLocal as UsuarioLoja;
+        lojaAssociada = ((userLocal as any).loja || null) as Loja | null;
+
+        if (!lojaAssociada) {
           const { data: lojaDb } = await supabase
             .from('lojas')
             .select('*')
-            .eq('id', uCand.loja_id)
+            .eq('id', lojaIdValidada)
             .maybeSingle();
           if (lojaDb) {
             lojaAssociada = lojaDb as Loja;
           }
         }
-
-        // Sincronização em segundo plano não-bloqueante no Supabase Auth (se GoTrue estiver operante)
-        if (senhaInformada.length > 0) {
-          supabase.auth.signInWithPassword({
-            email: uCand.email || emailTrim,
-            password: senhaInformada
-          }).then(({ data: authData }) => {
-            if (authData?.session?.user && !uCand.usuario_auth_id) {
-              supabase
-                .from('usuarios_loja')
-                .update({ usuario_auth_id: authData.session.user.id })
-                .eq('id', uCand.id)
-                .then(() => {});
-            }
-          }).catch(() => {});
-        }
       }
 
-      // 2. Se não estiver em usuarios_loja, autentica via Supabase Auth oficial (ex: proprietários)
-      if (!usuarioEncontrado) {
-        if (senhaInformada.length > 0) {
-          const { data: authData, error: authErr } = await supabase.auth.signInWithPassword({
-            email: emailTrim,
-            password: senhaInformada
-          });
-
-          if (authErr) {
-            const msg = authErr.message.toLowerCase();
-            if (msg.includes('invalid login credentials') || msg.includes('invalid_grant')) {
-              throw new Error('E-mail ou senha incorretos. Por favor, verifique suas credenciais.');
-            }
-            if (msg.includes('email not confirmed')) {
-              throw new Error('E-mail ainda não confirmado no sistema. Verifique sua caixa de entrada.');
-            }
-            throw new Error('E-mail ou senha incorretos. Por favor, verifique suas credenciais.');
-          }
-
-          if (authData?.session?.user) {
-            authUserId = authData.session.user.id;
-          }
-        } else {
-          const { data: { session } } = await supabase.auth.getSession();
-          authUserId = session?.user?.id || null;
-        }
-
-        // Busca loja associada ao proprietário
-        const { data: lojasEncontradas } = await supabase
-          .from('lojas')
-          .select('*')
-          .ilike('email', emailTrim)
-          .limit(1);
-
-        if (lojasEncontradas && lojasEncontradas.length > 0) {
-          const primeiraLoja = lojasEncontradas[0];
-          lojaAssociada = primeiraLoja;
-          const { data: usuarios } = await supabase
-            .from('usuarios_loja')
-            .select('*')
-            .eq('loja_id', primeiraLoja.id)
-            .order('criado_em', { ascending: true });
-
-          if (usuarios && usuarios.length > 0) {
-            let u = usuarios[0] as UsuarioLoja;
-            if (authUserId && (!u.usuario_auth_id || u.usuario_auth_id !== authUserId)) {
-              try {
-                await supabase
-                  .from('usuarios_loja')
-                  .update({ usuario_auth_id: authUserId })
-                  .eq('id', u.id);
-                u = { ...u, usuario_auth_id: authUserId };
-              } catch {}
-            }
-            usuarioEncontrado = u;
-          }
-        }
+      if (!usuarioEncontrado || !lojaAssociada) {
+        throw new Error(ERRO_CREDENCIAIS_INVALIDAS);
       }
 
-      // Se nenhum usuário e nenhuma loja foram encontrados
-      if (!usuarioEncontrado && !lojaAssociada) {
-        throw new Error('Nenhuma conta encontrada com este e-mail. Crie uma nova conta em segundos!');
-      }
+      localStorage.removeItem('hubi_user_real_name');
+      localStorage.removeItem(STORAGE_KEY_USUARIO_ID);
 
-      if (lojaAssociada) {
-        setLoja(lojaAssociada);
-        localStorage.setItem(STORAGE_KEY_LOJA_ID, lojaAssociada.id);
-      }
-      if (usuarioEncontrado) {
-        // Limpar caches legados de operadores anteriores do localStorage
-        localStorage.removeItem('hubi_user_real_name');
-        localStorage.removeItem(STORAGE_KEY_USUARIO_ID);
+      setLoja(lojaAssociada);
+      setLojasDisponiveis((prev) => (prev.length > 0 ? prev : [lojaAssociada!]));
+      localStorage.setItem(STORAGE_KEY_LOJA_ID, lojaAssociada.id);
 
-        (usuarioEncontrado as any).nome = usuarioEncontrado.nome_completo;
-        setUsuario(usuarioEncontrado);
-        localStorage.setItem(STORAGE_KEY_USUARIO_ID, usuarioEncontrado.id);
-        if (usuarioEncontrado.nome_completo) {
-          localStorage.setItem('hubi_user_real_name', usuarioEncontrado.nome_completo.trim());
-        }
-        return true;
+      (usuarioEncontrado as any).nome = usuarioEncontrado.nome_completo;
+      setUsuario(usuarioEncontrado);
+      localStorage.setItem(STORAGE_KEY_USUARIO_ID, usuarioEncontrado.id);
+      if (usuarioEncontrado.nome_completo) {
+        localStorage.setItem('hubi_user_real_name', usuarioEncontrado.nome_completo.trim());
       }
-
-      throw new Error('Nenhuma conta encontrada com este e-mail. Crie uma nova conta em segundos!');
+      return true;
     } catch (err: any) {
-      console.warn('Falha no login com e-mail:', err?.message || err);
       throw err;
     }
   };

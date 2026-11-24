@@ -23,6 +23,7 @@ import {
 } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
 import { formatarTelefoneInput } from '../utils/formatters';
+import { ModalRecuperacaoSenha } from './ModalRecuperacaoSenha';
 
 type AuthScreen = 'welcome' | 'signup_email' | 'signin_email';
 
@@ -38,6 +39,9 @@ export const CadastroPdv: React.FC = () => {
 
   const [salvando, setSalvando] = useState(false);
   const [erroMsg, setErroMsg] = useState<string | null>(null);
+  const [sucessoMsg, setSucessoMsg] = useState<string | null>(null);
+  const [mostrarEsqueciSenha, setMostrarEsqueciSenha] = useState(false);
+  const [modalRecuperacaoAberto, setModalRecuperacaoAberto] = useState(false);
 
   // Carousel State
   const [activeSlide, setActiveSlide] = useState(0);
@@ -89,6 +93,9 @@ export const CadastroPdv: React.FC = () => {
       setNome('');
       setNomeLoja('');
       setErroMsg(null);
+      setSucessoMsg(null);
+      setMostrarEsqueciSenha(false);
+      setModalRecuperacaoAberto(false);
       setMostrarSenha(false);
       setScreen('signin_email');
     };
@@ -134,6 +141,8 @@ export const CadastroPdv: React.FC = () => {
   // Submissão do Login com WhatsApp ou E-mail
   const handleSignIn = async (e: React.FormEvent) => {
     e.preventDefault();
+    setSucessoMsg(null);
+
     if (!whatsapp.trim()) {
       setErroMsg('Por favor, informe seu número de WhatsApp cadastrado.');
       return;
@@ -148,8 +157,8 @@ export const CadastroPdv: React.FC = () => {
       setErroMsg(null);
       await entrarComEmail(whatsapp, senha);
     } catch (err: any) {
-      console.warn('Falha na autenticação do operador:', err);
-      setErroMsg(err?.message || 'WhatsApp ou senha incorretos. Por favor, verifique suas credenciais.');
+      setMostrarEsqueciSenha(true);
+      setErroMsg(err?.message || 'WhatsApp ou senha incorretos. Verifique seus dados e tente novamente.');
     } finally {
       setSalvando(false);
     }
@@ -294,6 +303,14 @@ export const CadastroPdv: React.FC = () => {
                   <p className="text-xs text-slate-400">Digite seu WhatsApp e senha para acessar seu PDV</p>
                 </div>
 
+                {/* Alerta Visual de Sucesso na Tela de Login */}
+                {sucessoMsg && (
+                  <div className="p-3.5 bg-emerald-500/15 border border-emerald-500/40 rounded-xl flex items-center gap-2.5 text-xs text-emerald-200 animate-in fade-in">
+                    <CheckCircle2 className="w-4 h-4 text-emerald-400 shrink-0" />
+                    <span className="flex-1 font-medium leading-relaxed">{sucessoMsg}</span>
+                  </div>
+                )}
+
                 {/* Alerta Visual de Erro na Tela de Login */}
                 {erroMsg && (
                   <div className="p-3.5 bg-rose-500/15 border border-rose-500/40 rounded-xl flex items-center gap-2.5 text-xs text-rose-200 animate-in fade-in">
@@ -346,6 +363,19 @@ export const CadastroPdv: React.FC = () => {
                       {mostrarSenha ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
                     </button>
                   </div>
+
+                  {/* Botão Condicional "Esqueci a senha" após tentativa com senha incorreta */}
+                  {mostrarEsqueciSenha && (
+                    <div className="flex justify-end pt-0.5">
+                      <button
+                        type="button"
+                        onClick={() => setModalRecuperacaoAberto(true)}
+                        className="text-xs font-bold text-emerald-400 hover:text-emerald-300 underline underline-offset-2 transition cursor-pointer"
+                      >
+                        Esqueci a senha
+                      </button>
+                    </div>
+                  )}
                 </div>
 
                 {/* Botão Entrar */}
@@ -370,6 +400,8 @@ export const CadastroPdv: React.FC = () => {
                     onClick={() => {
                       setScreen('signup_email');
                       setErroMsg(null);
+                      setSucessoMsg(null);
+                      setMostrarEsqueciSenha(false);
                     }}
                     className="text-xs font-bold text-emerald-400 hover:text-emerald-300 transition"
                   >
@@ -607,6 +639,26 @@ export const CadastroPdv: React.FC = () => {
           </div>
         </div>
       </div>
+
+      <ModalRecuperacaoSenha
+        isOpen={modalRecuperacaoAberto}
+        telefoneInicial={whatsapp}
+        onClose={() => setModalRecuperacaoAberto(false)}
+        onSucesso={(telefoneNormalizado) => {
+          const semDdi =
+            telefoneNormalizado.startsWith('55') && telefoneNormalizado.length >= 12
+              ? telefoneNormalizado.slice(2)
+              : telefoneNormalizado;
+          setWhatsapp(formatarTelefoneInput(semDdi));
+          setSenha('');
+          setErroMsg(null);
+          setMostrarEsqueciSenha(false);
+          setModalRecuperacaoAberto(false);
+          setSucessoMsg(
+            'Senha redefinida com sucesso! Você já pode entrar com sua nova senha.'
+          );
+        }}
+      />
     </div>
   );
 };
