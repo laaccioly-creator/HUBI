@@ -492,72 +492,77 @@ serve(async (req: Request) => {
 
       const templateNome = (Deno.env.get("META_TEMPLATE_OTP") || "hello_world").trim();
       const templateIdioma = (Deno.env.get("META_TEMPLATE_OTP_LANG") || "pt_BR").trim();
+      const errosParametroTemplate = new Set(["132000", "132012", "131008"]);
+      const ehTemplateAutenticacao = templateNome.toLowerCase() !== "hello_world";
 
-      // Tentativa 1A: Template oficial (body com parâmetro {{1}} = código)
+      const componentesSomenteBody = [
+        {
+          type: "body",
+          parameters: [{ type: "text", text: codigo }],
+        },
+      ];
+
+      const componentesComBotao = [
+        ...componentesSomenteBody,
+        {
+          type: "button",
+          sub_type: "url",
+          index: "0",
+          parameters: [{ type: "text", text: codigo }],
+        },
+      ];
+
+      const montarPayloadTemplate = (
+        componentes: Record<string, unknown>[]
+      ): Record<string, unknown> => ({
+        messaging_product: "whatsapp",
+        recipient_type: "individual",
+        to: telefoneNormalizado,
+        type: "template",
+        template: {
+          name: templateNome,
+          language: { code: templateIdioma },
+          components: componentes,
+        },
+      });
+
+      const usouBotaoNaTentativaInicial = ehTemplateAutenticacao;
+      const componentesIniciais = usouBotaoNaTentativaInicial
+        ? componentesComBotao
+        : componentesSomenteBody;
+
+      // Tentativa 1A: Template de autenticação envia body + botão Copiar Código; placeholder usa somente body
       let resultadoEnvio = await enviarRequisicaoMeta(
         metaPhoneNumberId,
         metaAccessToken,
-        {
-          messaging_product: "whatsapp",
-          recipient_type: "individual",
-          to: telefoneNormalizado,
-          type: "template",
-          template: {
-            name: templateNome,
-            language: { code: templateIdioma },
-            components: [
-              {
-                type: "body",
-                parameters: [{ type: "text", text: codigo }],
-              },
-            ],
-          },
-        }
+        montarPayloadTemplate(componentesIniciais)
       );
       let modoEnvio = "template";
 
-      // Tentativa 1B: Template de autenticação com botão Copiar Código / URL exigindo parâmetro adicional
+      // Tentativa 1B: Fallback bidirecional caso componente de botão ou parâmetro seja rejeitado (#132000, #132012, #131008)
+      const codigoErroInicial = resultadoEnvio.erroMeta?.codigoMeta || "";
       if (
         !resultadoEnvio.ok &&
-        (resultadoEnvio.erroMeta?.codigoMeta === "132000" ||
-          resultadoEnvio.erroMeta?.codigoMeta === "132012") &&
-        templateNome !== "hello_world"
+        errosParametroTemplate.has(codigoErroInicial) &&
+        ehTemplateAutenticacao
       ) {
+        const componentesAlternativos = usouBotaoNaTentativaInicial
+          ? componentesSomenteBody
+          : componentesComBotao;
+
         resultadoEnvio = await enviarRequisicaoMeta(
           metaPhoneNumberId,
           metaAccessToken,
-          {
-            messaging_product: "whatsapp",
-            recipient_type: "individual",
-            to: telefoneNormalizado,
-            type: "template",
-            template: {
-              name: templateNome,
-              language: { code: templateIdioma },
-              components: [
-                {
-                  type: "body",
-                  parameters: [{ type: "text", text: codigo }],
-                },
-                {
-                  type: "button",
-                  sub_type: "url",
-                  index: "0",
-                  parameters: [{ type: "text", text: codigo }],
-                },
-              ],
-            },
-          }
+          montarPayloadTemplate(componentesAlternativos)
         );
       }
 
       // Tentativa 2: Fallback para texto livre caso template não exista (#132001) ou placeholder hello_world incompatível
+      const codigoErroPosTemplate = resultadoEnvio.erroMeta?.codigoMeta || "";
       const deveTentarTextoLivre =
         !resultadoEnvio.ok &&
-        (resultadoEnvio.erroMeta?.codigoMeta === "132001" ||
-          (templateNome === "hello_world" &&
-            (resultadoEnvio.erroMeta?.codigoMeta === "132000" ||
-              resultadoEnvio.erroMeta?.codigoMeta === "132012")));
+        (codigoErroPosTemplate === "132001" ||
+          (!ehTemplateAutenticacao && errosParametroTemplate.has(codigoErroPosTemplate)));
 
       if (deveTentarTextoLivre) {
         const codigoFallback = resultadoEnvio.erroMeta?.codigoMeta || "";
