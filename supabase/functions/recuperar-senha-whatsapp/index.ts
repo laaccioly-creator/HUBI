@@ -22,11 +22,132 @@ interface RecuperacaoPayload {
 
 interface OperadorVinculo {
   id: string;
+  loja_id: string | null;
   nome_completo: string | null;
   email: string | null;
   whatsapp_atendimento: string | null;
   usuario_auth_id: string | null;
   ativo: boolean | null;
+}
+
+interface ErroMetaDetalhe {
+  codigoMeta: string;
+  subcodigoMeta: string;
+  mensagemMeta: string;
+}
+
+interface ResultadoEnvioMeta {
+  ok: boolean;
+  statusHttp: number;
+  payload: Record<string, unknown> | null;
+  erroMeta: ErroMetaDetalhe | null;
+}
+
+function extrairErroMeta(statusHttp: number, payload: unknown): ErroMetaDetalhe {
+  const errObj = (
+    payload &&
+    typeof payload === "object" &&
+    "error" in payload &&
+    payload.error &&
+    typeof payload.error === "object"
+      ? payload.error
+      : null
+  ) as Record<string, unknown> | null;
+
+  const codigoMeta =
+    errObj?.code !== undefined && errObj?.code !== null
+      ? String(errObj.code)
+      : `HTTP_${statusHttp}`;
+  const subcodigoMeta =
+    errObj?.error_subcode !== undefined && errObj?.error_subcode !== null
+      ? String(errObj.error_subcode)
+      : "";
+  const mensagemBruta =
+    (typeof errObj?.error_user_msg === "string" && errObj.error_user_msg.trim()) ||
+    (typeof errObj?.message === "string" && errObj.message.trim()) ||
+    `Falha HTTP ${statusHttp} na Meta Graph API`;
+
+  return {
+    codigoMeta,
+    subcodigoMeta,
+    mensagemMeta: mensagemBruta.slice(0, 400),
+  };
+}
+
+async function registrarLogMeta(
+  supabaseAdmin: ReturnType<typeof createClient>,
+  params: {
+    lojaId?: string | null;
+    usuarioId?: string | null;
+    nivel: "ERROR" | "WARN" | "INFO";
+    codigoErro?: string | null;
+    mensagem: string;
+  }
+): Promise<void> {
+  try {
+    await supabaseAdmin.from("sistema_logs").insert({
+      loja_id: params.lojaId || null,
+      usuario_id: params.usuarioId || null,
+      nivel: params.nivel,
+      origem: "recuperar-senha-whatsapp",
+      contexto: "envio_meta_api",
+      codigo_erro: params.codigoErro ? params.codigoErro.slice(0, 50) : null,
+      mensagem: params.mensagem.slice(0, 1000),
+    });
+  } catch {
+    // Nunca interrompe o fluxo principal caso a gravação de observabilidade falhe
+  }
+}
+
+async function enviarRequisicaoMeta(
+  phoneNumberId: string,
+  accessToken: string,
+  payloadEnvio: Record<string, unknown>
+): Promise<ResultadoEnvioMeta> {
+  try {
+    const res = await fetch(
+      `https://graph.facebook.com/v21.0/${phoneNumberId}/messages`,
+      {
+        method: "POST",
+        headers: {
+          Authorization: `Bearer ${accessToken}`,
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify(payloadEnvio),
+      }
+    );
+
+    const json = (await res.json().catch(() => null)) as Record<string, unknown> | null;
+    const possuiErroCorpo = Boolean(json && typeof json === "object" && "error" in json && json.error);
+
+    if (!res.ok || possuiErroCorpo) {
+      return {
+        ok: false,
+        statusHttp: res.status || 502,
+        payload: json,
+        erroMeta: extrairErroMeta(res.status || 502, json),
+      };
+    }
+
+    return {
+      ok: true,
+      statusHttp: res.status,
+      payload: json,
+      erroMeta: null,
+    };
+  } catch (err) {
+    const detalhe = err instanceof Error ? err.message : "Erro de rede ao consultar Meta Graph API";
+    return {
+      ok: false,
+      statusHttp: 502,
+      payload: null,
+      erroMeta: {
+        codigoMeta: "META_NETWORK_ERROR",
+        subcodigoMeta: "",
+        mensagemMeta: detalhe.slice(0, 400),
+      },
+    };
+  }
 }
 
 function responderJson(body: Record<string, unknown>, status = 200): Response {
@@ -109,7 +230,7 @@ async function buscarOperadoresAtivosPorTelefone(
 
   const { data: diretos, error: errDiretos } = await supabaseAdmin
     .from("usuarios_loja")
-    .select("id, nome_completo, email, whatsapp_atendimento, usuario_auth_id, ativo")
+    .select("id, loja_id, nome_completo, email, whatsapp_atendimento, usuario_auth_id, ativo")
     .or(
       `email.ilike.${emailCanonico},email.ilike.${emailInternoSemDdi},email.ilike.${emailInternoComDdi},whatsapp_atendimento.eq.${telefoneNormalizado},whatsapp_atendimento.eq.${telSemDdi}`
     );
@@ -128,7 +249,7 @@ async function buscarOperadoresAtivosPorTelefone(
   if (sufixo8Digitos.length === 8) {
     const { data: porSufixo } = await supabaseAdmin
       .from("usuarios_loja")
-      .select("id, nome_completo, email, whatsapp_atendimento, usuario_auth_id, ativo")
+      .select("id, loja_id, nome_completo, email, whatsapp_atendimento, usuario_auth_id, ativo")
       .ilike("whatsapp_atendimento", `%${sufixo8Digitos}%`);
 
     for (const item of (porSufixo || []) as OperadorVinculo[]) {
@@ -341,63 +462,172 @@ serve(async (req: Request) => {
         ""
       ).trim();
 
+      const operadorPrincipal = operadores[0];
+
       if (!metaPhoneNumberId || !metaAccessToken) {
         await supabaseAdmin
           .from("recuperacao_senha_tokens")
           .update({ usado: true })
           .eq("id", tokenInserido.id);
 
+        await registrarLogMeta(supabaseAdmin, {
+          lojaId: operadorPrincipal?.loja_id,
+          usuarioId: operadorPrincipal?.id,
+          nivel: "ERROR",
+          codigoErro: "META_CREDENTIALS_MISSING",
+          mensagem:
+            "Credenciais da API do WhatsApp (meta_phone_number_id / meta_access_token) ausentes em configuracoes_plataforma e variaveis de ambiente.",
+        });
+
+        const msgCredenciais = "Credenciais da API do WhatsApp não configuradas na plataforma.";
         return responderJson(
           {
             sucesso: false,
-            erro: "O envio automático via WhatsApp não está configurado no momento. Entre em contato com o suporte.",
+            erro: msgCredenciais,
+            error: msgCredenciais,
           },
-          503
+          500
         );
       }
 
-      const mensagemWhatsApp =
-        `HUBI: Seu código de verificação para redefinir sua senha é: ${codigo}.\n\n` +
-        `Este código é válido por 10 minutos. Não compartilhe com ninguém.`;
+      const templateNome = (Deno.env.get("META_TEMPLATE_OTP") || "hello_world").trim();
+      const templateIdioma = (Deno.env.get("META_TEMPLATE_OTP_LANG") || "pt_BR").trim();
 
-      const metaRes = await fetch(
-        `https://graph.facebook.com/v21.0/${metaPhoneNumberId}/messages`,
+      // Tentativa 1A: Template oficial (body com parâmetro {{1}} = código)
+      let resultadoEnvio = await enviarRequisicaoMeta(
+        metaPhoneNumberId,
+        metaAccessToken,
         {
-          method: "POST",
-          headers: {
-            Authorization: `Bearer ${metaAccessToken}`,
-            "Content-Type": "application/json",
+          messaging_product: "whatsapp",
+          recipient_type: "individual",
+          to: telefoneNormalizado,
+          type: "template",
+          template: {
+            name: templateNome,
+            language: { code: templateIdioma },
+            components: [
+              {
+                type: "body",
+                parameters: [{ type: "text", text: codigo }],
+              },
+            ],
           },
-          body: JSON.stringify({
+        }
+      );
+      let modoEnvio = "template";
+
+      // Tentativa 1B: Template de autenticação com botão Copiar Código / URL exigindo parâmetro adicional
+      if (
+        !resultadoEnvio.ok &&
+        (resultadoEnvio.erroMeta?.codigoMeta === "132000" ||
+          resultadoEnvio.erroMeta?.codigoMeta === "132012") &&
+        templateNome !== "hello_world"
+      ) {
+        resultadoEnvio = await enviarRequisicaoMeta(
+          metaPhoneNumberId,
+          metaAccessToken,
+          {
+            messaging_product: "whatsapp",
+            recipient_type: "individual",
+            to: telefoneNormalizado,
+            type: "template",
+            template: {
+              name: templateNome,
+              language: { code: templateIdioma },
+              components: [
+                {
+                  type: "body",
+                  parameters: [{ type: "text", text: codigo }],
+                },
+                {
+                  type: "button",
+                  sub_type: "url",
+                  index: "0",
+                  parameters: [{ type: "text", text: codigo }],
+                },
+              ],
+            },
+          }
+        );
+      }
+
+      // Tentativa 2: Fallback para texto livre caso template não exista (#132001) ou placeholder hello_world incompatível
+      const deveTentarTextoLivre =
+        !resultadoEnvio.ok &&
+        (resultadoEnvio.erroMeta?.codigoMeta === "132001" ||
+          (templateNome === "hello_world" &&
+            (resultadoEnvio.erroMeta?.codigoMeta === "132000" ||
+              resultadoEnvio.erroMeta?.codigoMeta === "132012")));
+
+      if (deveTentarTextoLivre) {
+        const codigoFallback = resultadoEnvio.erroMeta?.codigoMeta || "";
+        const detalheTemplate = resultadoEnvio.erroMeta?.mensagemMeta || "Template indisponível";
+
+        await registrarLogMeta(supabaseAdmin, {
+          lojaId: operadorPrincipal?.loja_id,
+          usuarioId: operadorPrincipal?.id,
+          nivel: "WARN",
+          codigoErro: codigoFallback,
+          mensagem: `Template '${templateNome}' (${templateIdioma}) falhou (${detalheTemplate}). Tentando fallback em texto livre para janela de 24h.`,
+        });
+
+        resultadoEnvio = await enviarRequisicaoMeta(
+          metaPhoneNumberId,
+          metaAccessToken,
+          {
             messaging_product: "whatsapp",
             recipient_type: "individual",
             to: telefoneNormalizado,
             type: "text",
             text: {
               preview_url: false,
-              body: mensagemWhatsApp,
+              body: `HUBI: Seu código de verificação para redefinir sua senha é: *${codigo}*. Válido por 10 minutos.`,
             },
-          }),
-        }
-      );
+          }
+        );
+        modoEnvio = "texto_janela_24h";
+      }
 
-      if (!metaRes.ok) {
+      if (!resultadoEnvio.ok) {
         await supabaseAdmin
           .from("recuperacao_senha_tokens")
           .update({ usado: true })
           .eq("id", tokenInserido.id);
 
+        const erroMeta = resultadoEnvio.erroMeta || {
+          codigoMeta: String(resultadoEnvio.statusHttp || 502),
+          subcodigoMeta: "",
+          mensagemMeta: "Falha desconhecida na Meta Graph API",
+        };
+        const sufixoSubcodigo = erroMeta.subcodigoMeta ? `/${erroMeta.subcodigoMeta}` : "";
+        const detalheMetaFormatado = `(#${erroMeta.codigoMeta}${sufixoSubcodigo}) ${erroMeta.mensagemMeta}`;
+
+        await registrarLogMeta(supabaseAdmin, {
+          lojaId: operadorPrincipal?.loja_id,
+          usuarioId: operadorPrincipal?.id,
+          nivel: "ERROR",
+          codigoErro: erroMeta.codigoMeta,
+          mensagem: `Erro Meta Cloud API ao enviar OTP (${modoEnvio}): ${detalheMetaFormatado}`,
+        });
+
+        const mensagemErroClara = `Não foi possível entregar o código no WhatsApp: ${detalheMetaFormatado}. Verifique se o template de autenticação está aprovado no Gerenciador do WhatsApp.`;
+        const statusRetorno =
+          resultadoEnvio.statusHttp >= 400 && resultadoEnvio.statusHttp < 500 ? 400 : 502;
+
         return responderJson(
           {
             sucesso: false,
-            erro: "Não foi possível enviar o código para o seu WhatsApp no momento. Tente novamente em instantes.",
+            erro: mensagemErroClara,
+            error: mensagemErroClara,
+            meta_error_code: erroMeta.codigoMeta,
           },
-          502
+          statusRetorno
         );
       }
 
       return responderJson({
         sucesso: true,
+        modo_envio: modoEnvio,
         mensagem: "Código de 6 dígitos enviado para o seu WhatsApp! Ele é válido por 10 minutos.",
       });
     }

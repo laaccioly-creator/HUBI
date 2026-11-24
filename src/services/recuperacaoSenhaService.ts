@@ -19,12 +19,13 @@ async function invocarRecuperacao(
     if (error) {
       try {
         const contexto = (
-          error as { context?: { json?: () => Promise<{ erro?: string; mensagem?: string }> } }
+          error as { context?: { json?: () => Promise<{ erro?: string; error?: string; mensagem?: string }> } }
         ).context;
         if (contexto && typeof contexto.json === 'function') {
           const corpoErro = await contexto.json();
-          if (corpoErro?.erro) {
-            return { sucesso: false, erro: corpoErro.erro };
+          const msgErro = corpoErro?.erro || corpoErro?.error;
+          if (msgErro) {
+            return { sucesso: false, erro: msgErro };
           }
         }
       } catch {
