@@ -449,7 +449,7 @@ export const PedidoAndamentoPublico: React.FC = () => {
         ) : (
           <div className="flex items-center gap-2 font-black text-base text-emerald-500">
             <Store className="w-5 h-5" />
-            <span className={isDark ? 'text-white' : 'text-slate-900'}>{loja?.nome_fantasia || 'HUBI'}</span>
+            <span className={isDark ? 'text-white' : 'text-slate-900'}>{loja?.nome_fantasia || 'Rubi'}</span>
           </div>
         )}
       </div>
@@ -735,7 +735,7 @@ export const PedidoAndamentoPublico: React.FC = () => {
                 ) : (
                   <Store className="w-6 h-6 text-slate-700 mx-auto mb-1" />
                 )}
-                <h4 className="font-black text-sm text-slate-950 uppercase">{loja?.nome_fantasia || 'HUBI PDV'}</h4>
+                <h4 className="font-black text-sm text-slate-950 uppercase">{loja?.nome_fantasia || 'Rubi PDV'}</h4>
                 <p className="text-[10px] text-slate-500 leading-tight">{enderecoLoja}</p>
                 <p className="text-[10px] text-slate-500">
                   {loja?.whatsapp ? `Tel: +55 ${loja.whatsapp}` : (loja?.telefone ? `Tel: +55 ${loja.telefone}` : '')}

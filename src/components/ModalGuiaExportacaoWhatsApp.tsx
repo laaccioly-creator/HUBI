@@ -53,7 +53,7 @@ export const ModalGuiaExportacaoWhatsApp: React.FC<ModalGuiaExportacaoWhatsAppPr
             </div>
             <div>
               <h2 className="text-lg sm:text-xl font-black tracking-tight">
-                Como extrair seus contatos para o HUBI
+                Como extrair seus contatos para a Rubi
               </h2>
               <p className="text-xs text-slate-400 font-medium">
                 Escolha o método mais prático para o seu dia a dia e importe em segundos
@@ -118,7 +118,7 @@ export const ModalGuiaExportacaoWhatsApp: React.FC<ModalGuiaExportacaoWhatsAppPr
             }`}
           >
             <FileSpreadsheet className="w-4 h-4" />
-            <span>3. Planilha Modelo HUBI</span>
+            <span>3. Planilha Modelo Rubi</span>
           </button>
         </div>
 
@@ -216,11 +216,11 @@ export const ModalGuiaExportacaoWhatsApp: React.FC<ModalGuiaExportacaoWhatsAppPr
                     <span className="w-5 h-5 rounded-full bg-emerald-500 text-slate-950 flex items-center justify-center text-[11px] font-black">
                       4
                     </span>
-                    <span>Arraste o arquivo baixado para o HUBI</span>
+                    <span>Arraste o arquivo baixado para a Rubi</span>
                   </div>
                   <p className="text-xs text-slate-400 ml-7">
-                    O arquivo <strong>contacts.csv</strong> será baixado no seu dispositivo. Agora basta enviá-lo aqui no
-                    HUBI — nosso sistema reconhece automaticamente os nomes, limpa prefixos e organiza os números para
+                    O arquivo <strong>contacts.csv</strong> será baixado no seu dispositivo. Agora basta enviá-lo aqui na
+                    Rubi — nosso sistema reconhece automaticamente os nomes, limpa prefixos e organiza os números para
                     você!
                   </p>
                 </div>
@@ -323,10 +323,10 @@ export const ModalGuiaExportacaoWhatsApp: React.FC<ModalGuiaExportacaoWhatsAppPr
                     <span className="w-5 h-5 rounded-full bg-emerald-500 text-slate-950 flex items-center justify-center text-[11px] font-black">
                       4
                     </span>
-                    <span>O HUBI faz o trabalho pesado de limpeza</span>
+                    <span>A Rubi faz o trabalho pesado de limpeza</span>
                   </div>
                   <p className="text-xs text-slate-400 ml-7">
-                    Mesmo que os números venham com código <code>+55</code>, traços ou sem nome salvo, o motor do HUBI
+                    Mesmo que os números venham com código <code>+55</code>, traços ou sem nome salvo, o motor da Rubi
                     higieniza os dados e preenche automaticamente como <code>Cliente (XX) 9XXXX-XXXX</code>.
                   </p>
                 </div>
@@ -334,7 +334,7 @@ export const ModalGuiaExportacaoWhatsApp: React.FC<ModalGuiaExportacaoWhatsAppPr
             </div>
           )}
 
-          {/* ABA 3: PLANILHA MODELO HUBI */}
+          {/* ABA 3: PLANILHA MODELO RUBI */}
           {abaAtiva === 'planilha' && (
             <div className="space-y-4 animate-in fade-in duration-150">
               <div
@@ -345,7 +345,7 @@ export const ModalGuiaExportacaoWhatsApp: React.FC<ModalGuiaExportacaoWhatsAppPr
                 <FileSpreadsheet className="w-5 h-5 text-emerald-500 shrink-0 mt-0.5" />
                 <div className="text-xs leading-relaxed">
                   <strong className="block text-emerald-600 dark:text-emerald-400 font-black mb-0.5">
-                    Preencha ou cole os dados usando a Planilha Modelo Oficial do HUBI
+                    Preencha ou cole os dados usando a Planilha Modelo Oficial da Rubi
                   </strong>
                   Perfeito para quem tem uma caderneta física, anotações em papel ou quer migrar contatos de outro sistema
                   de forma rápida e organizada.
@@ -409,7 +409,7 @@ export const ModalGuiaExportacaoWhatsApp: React.FC<ModalGuiaExportacaoWhatsAppPr
                 </div>
                 <p className="text-slate-400 leading-relaxed">
                   Não se preocupe com pontuações! Você pode preencher telefones como <code>(11) 98765-4321</code>,{' '}
-                  <code>11987654321</code> ou apenas <code>987654321</code> — se você omitir o DDD, o HUBI insere
+                  <code>11987654321</code> ou apenas <code>987654321</code> — se você omitir o DDD, a Rubi insere
                   automaticamente o DDD da sua loja para você não perder tempo.
                 </p>
               </div>
@@ -422,7 +422,7 @@ export const ModalGuiaExportacaoWhatsApp: React.FC<ModalGuiaExportacaoWhatsAppPr
                   className="text-xs text-slate-400 hover:text-emerald-500 underline font-medium cursor-pointer transition inline-flex items-center gap-1"
                 >
                   <Download className="w-3.5 h-3.5" />
-                  <span>Precisa cadastrar limites de fiado, CPF e datas de aniversário? Baixar Planilha Completa HUBI</span>
+                  <span>Precisa cadastrar limites de fiado, CPF e datas de aniversário? Baixar Planilha Completa Rubi</span>
                 </button>
               </div>
             </div>

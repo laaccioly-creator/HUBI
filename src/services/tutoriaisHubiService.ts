@@ -12,19 +12,19 @@ export interface ArtigoTutorial {
 }
 
 export const TUTORIAIS_HUBI: ArtigoTutorial[] = [
-  // 1. PRODUTOS & CADASTRO INTELIGENTE COM IA (DESTAQUE HUBI)
+  // 1. PRODUTOS & CADASTRO INTELIGENTE COM IA (DESTAQUE RUBI IA)
   {
     id: 'cadastro-produtos-ia',
     titulo: 'Como cadastrar produtos usando Inteligência Artificial (Foto, Código de Barras e Descrição)',
     categoria: 'ia',
-    resumo: 'Cadastre produtos em segundos usando a IA do HUBI: por foto do produto, leitor de código de barras ou gerador automático de descrições.',
-    conteudo: `O HUBI possui o cadastro de produtos mais rápido e inteligente do mercado com 3 recursos de IA:
+    resumo: 'Cadastre produtos em segundos usando a Rubi IA: por foto do produto, leitor de código de barras ou gerador automático de descrições.',
+    conteudo: `A Rubi possui o cadastro de produtos mais rápido e inteligente do mercado com 3 recursos de IA:
 1. 📸 Cadastro por Foto / Imagem com IA:
    Tire uma foto do produto com a câmera do celular ou envie uma imagem no computador. A IA reconhece o produto, identifica a embalagem e preenche automaticamente o Nome, Categoria sugerida e Descrição de vendas.
 2. 🏷️ Gerador de Descrições Comerciais com IA:
    Basta digitar o nome básico do produto e clicar no botão 'Gerar com IA ✨'. A IA cria uma descrição atrativa, vendedora e profissional, ideal para o Catálogo Online e vitrine do WhatsApp.
 3. 📦 Leitor de Código de Barras (EAN):
-   Aponte a câmera do celular ou o leitor de código de barras. O HUBI consulta a base de produtos e preenche os dados cadastrais instantaneamente.
+   Aponte a câmera do celular ou o leitor de código de barras. A Rubi consulta a base de produtos e preenche os dados cadastrais instantaneamente.
 4. 🎨 Grade e Variações:
    Adicione variações de cores, tamanhos, voltagens ou sabores com controle de estoque e código individual.`,
     passos: [
@@ -46,7 +46,7 @@ export const TUTORIAIS_HUBI: ArtigoTutorial[] = [
 2. Preencha Nome, Categoria e Preço base.
 3. Ative a opção 'Tem variações'.
 4. Defina os atributos (ex: Tamanho: P, M, G, GG | Cor: Preto, Branco, Azul).
-5. O HUBI gera a matriz de variações com controle de estoque, código de barras e foto individual para cada combinação.`,
+5. A Rubi gera a matriz de variações com controle de estoque, código de barras e foto individual para cada combinação.`,
     passos: [
       'Acesse Produtos & Estoque > Cadastrar Produto',
       'Ative a opção "Tem variações"',
@@ -60,7 +60,7 @@ export const TUTORIAIS_HUBI: ArtigoTutorial[] = [
     titulo: 'Como configurar preços de Atacado e Distribuidor (Autoatacado)',
     categoria: 'estoque',
     resumo: 'Defina preços escalonados por quantidade para compras em volume e atacado.',
-    conteudo: `No HUBI, cada produto pode ter faixas de preços automáticas:
+    conteudo: `Na Rubi, cada produto pode ter faixas de preços automáticas:
 • Varejo: Preço padrão para compras individuais no balcão e no catálogo.
 • Atacado: Aplicado automaticamente quando o cliente compra acima da quantidade mínima de atacado (ex: 5 peças).
 • Distribuidor (Autoatacado): Preço especial para revendedores em grandes volumes (ex: 20 peças).`,
@@ -80,7 +80,7 @@ export const TUTORIAIS_HUBI: ArtigoTutorial[] = [
     conteudo: `Kits promocionais aumentam o ticket médio da sua loja:
 • No cadastro ou edição do produto, ative a opção 'Este produto é um Combo / Kit'.
 • Selecione os itens que compõem o kit e as respectivas quantidades.
-• Quando o combo é vendido no PDV ou Catálogo, o HUBI abate automaticamente o estoque dos produtos individuais que o compõem.`,
+• Quando o combo é vendido no PDV ou Catálogo, a Rubi abate automaticamente o estoque dos produtos individuais que o compõem.`,
     passos: [
       'Acesse Produtos & Estoque > Novo Produto',
       'Ative a opção "É um Combo / Kit"',
@@ -93,10 +93,10 @@ export const TUTORIAIS_HUBI: ArtigoTutorial[] = [
   // 2. IMPRESSÃO & RECIBOS
   {
     id: 'impressoras-recibo',
-    titulo: 'Como instalar impressoras de recibo no HUBI',
+    titulo: 'Como instalar impressoras de recibo na Rubi',
     categoria: 'impressao',
     resumo: 'Passo a passo para conectar impressoras térmicas (58mm/80mm), Bluetooth e impressoras comuns A4.',
-    conteudo: `O HUBI possui um motor de impressão universal compatível com qualquer impressora instalada no Windows/Mac ou conectada via Bluetooth no celular:
+    conteudo: `A Rubi possui um motor de impressão universal compatível com qualquer impressora instalada no Windows/Mac ou conectada via Bluetooth no celular:
 1. Impressoras Térmicas USB/Rede (58mm ou 80mm): Instale o driver oficial do fabricante no computador (ex: Elgin, Bematech, Epson, Pos-58/80). Ao clicar em 'Térmica 58/80mm' no recibo, selecione sua impressora e imprima em alta velocidade.
 2. Impressoras Bluetooth no Celular/Tablet: Pareie a mini-impressora nas configurações Bluetooth do aparelho e selecione imprimir recibo.
 3. Impressoras Comuns (Folha A4): Utilize o botão 'Imprimir A4' ou 'Baixar PDF'.`,
@@ -132,7 +132,7 @@ export const TUTORIAIS_HUBI: ArtigoTutorial[] = [
     titulo: 'Como fazer uma venda rápida no PDV (Frente de Caixa)',
     categoria: 'vendas',
     resumo: 'Passo a passo para registrar uma venda rápida no balcão, bipar produtos, cobrar e emitir recibo.',
-    conteudo: `O PDV do HUBI foi desenvolvido para registrar vendas em poucos segundos:
+    conteudo: `O PDV da Rubi foi desenvolvido para registrar vendas em poucos segundos:
 1. **Adicione os produtos**: Selecione os produtos tocando nos cards de categorias, digitando o nome na busca rápida ou escaneando o código de barras com o leitor / câmera.
 2. **Ajuste quantidades**: Toque no produto no carrinho para alterar a quantidade.
 3. **Desconto ou Cliente (Opcional)**: Toque em 'Desconto' para abater valor em R$ ou % ou 'Vincular Cliente' para identificar a compra.
@@ -156,7 +156,7 @@ export const TUTORIAIS_HUBI: ArtigoTutorial[] = [
     titulo: 'Como aplicar descontos em uma venda ou produto no PDV',
     categoria: 'vendas',
     resumo: 'Como conceder descontos em porcentagem (%) ou valor em dinheiro (R$) no carrinho do PDV.',
-    conteudo: `No HUBI você pode conceder descontos com total flexibilidade durante o atendimento:
+    conteudo: `Na Rubi você pode conceder descontos com total flexibilidade durante o atendimento:
 • **Desconto em Reais (R$)**: Insira um valor fixo de abatimento sobre o total da compra (ex: R$ 10,00 de desconto).
 • **Desconto em Porcentagem (%)**: Aplique uma porcentagem de abatimento (ex: 5% ou 10% de desconto).
 • O total da venda é recalculado instantaneamente e o valor do desconto sai detalhado no cupom do cliente.`,
@@ -174,8 +174,8 @@ export const TUTORIAIS_HUBI: ArtigoTutorial[] = [
     titulo: 'Como receber pagamentos, calcular troco e formas aceitas',
     categoria: 'vendas',
     resumo: 'Suporte a Dinheiro com cálculo automático de troco, Pix com QR Code, Cartões e Fiado.',
-    conteudo: `O HUBI gerencia todas as formas de pagamento do comércio:
-1. **Dinheiro**: Digite o valor entregue pelo cliente em cédulas. O HUBI calcula na hora o troco exato a devolver, evitando erros de caixa.
+    conteudo: `A Rubi gerencia todas as formas de pagamento do comércio:
+1. **Dinheiro**: Digite o valor entregue pelo cliente em cédulas. A Rubi calcula na hora o troco exato a devolver, evitando erros de caixa.
 2. **Pix**: Exiba a chave Pix da loja ou gere a cobrança rápida.
 3. **Cartão de Crédito / Débito**: Registre a bandeira e as taxas configuradas da maquininha são descontadas automaticamente da apuração do lucro.
 4. **Venda Fiado**: Lance na conta do cliente com controle de limite e vencimento.`,
@@ -192,7 +192,7 @@ export const TUTORIAIS_HUBI: ArtigoTutorial[] = [
     titulo: 'Como concluir um pedido e transformar em venda no histórico',
     categoria: 'pedidos',
     resumo: 'Entenda a separação entre Pedidos em andamento e Histórico de Vendas finalizadas.',
-    conteudo: `No HUBI, existe uma separação clara entre Pedidos e Vendas:
+    conteudo: `Na Rubi, existe uma separação clara entre Pedidos e Vendas:
 • Pedidos: Abrange todo o fluxo de produção, separação e entrega (Pendente, Confirmado, Em produção, Saiu para entrega).
 • Vendas: Quando o pedido é finalizado e o pagamento é confirmado, clique em 'Concluir venda'. O pedido passa para Concluído e migra automaticamente para a aba Vendas.`,
     passos: [
@@ -229,7 +229,7 @@ export const TUTORIAIS_HUBI: ArtigoTutorial[] = [
     titulo: 'Como fazer uma venda no fiado e controle de crédito',
     categoria: 'fiado',
     resumo: 'Registro de vendas fiado, limites de crédito para clientes e quitação de débitos.',
-    conteudo: `O HUBI possui controle completo de fiado e conta-corrente de clientes:
+    conteudo: `A Rubi possui controle completo de fiado e conta-corrente de clientes:
 1. No PDV ou ao Concluir Pedido, selecione a forma de pagamento 'Venda Fiado'.
 2. O sistema exige que a venda seja vinculada a um Cliente cadastrado.
 3. O saldo devedor do cliente é atualizado automaticamente.
@@ -266,7 +266,7 @@ export const TUTORIAIS_HUBI: ArtigoTutorial[] = [
     titulo: 'Como cadastrar clientes, dados de contato e limite de fiado',
     categoria: 'geral',
     resumo: 'Cadastre nomes, telefones, WhatsApp e defina limite de crédito fiado.',
-    conteudo: `Cadastrar clientes no HUBI agiliza o atendimento e previne inadimplência:
+    conteudo: `Cadastrar clientes na Rubi agiliza o atendimento e previne inadimplência:
 • Acesse a aba Clientes e clique em 'Novo Cliente'.
 • Preencha Nome, Telefone / WhatsApp e endereço.
 • Defina se o cliente tem permissão para comprar no Fiado e estipule um Limite de Crédito seguro em R$.`,
@@ -285,9 +285,9 @@ export const TUTORIAIS_HUBI: ArtigoTutorial[] = [
     titulo: 'Como ativar e personalizar o Catálogo Online para vender pelo WhatsApp',
     categoria: 'catalogo',
     resumo: 'Crie sua vitrine digital com link personalizado para clientes fazerem pedidos pelo WhatsApp.',
-    conteudo: `O Catálogo Online do HUBI permite que seus clientes comprem direto pelo celular:
+    conteudo: `O Catálogo Online da Rubi permite que seus clientes comprem direto pelo celular:
 1. Acesse Mais > Configuração do Catálogo.
-2. Defina o link exclusivo da sua loja (ex: hubi.app/catalog/sualoja).
+2. Defina o link exclusivo da sua loja (ex: rubi.ia.br/catalog/sualoja).
 3. Adicione banners promocionais, horário de funcionamento, formas de entrega e chave Pix.
 4. Quando o cliente finaliza o pedido na vitrine, ele chega instantaneamente na sua tela de Pedidos com alerta sonoro!`,
     passos: [
@@ -321,7 +321,7 @@ export const TUTORIAIS_HUBI: ArtigoTutorial[] = [
     titulo: 'Como cadastrar, inativar e apagar usuários / operadores',
     categoria: 'usuarios',
     resumo: 'Controle de operadores, níveis de acesso (Admin, Gerente, Vendedor) e permissões de segurança.',
-    conteudo: `O controle de usuários do HUBI permite definir exatamente o que cada operador pode fazer:
+    conteudo: `O controle de usuários da Rubi permite definir exatamente o que cada operador pode fazer:
 • Perfis disponíveis: Owner (Dono), Admin (Acesso total), Gerente (Financeiro e relatórios) e Vendedor/Comum (Frente de caixa e pedidos próprios).
 • Permissões individuais: Bloqueio de uso em celular pessoal, permissão para dar desconto, visualização de transações de outros operadores e permissão de gerenciar estoque.`,
     passos: [
@@ -532,7 +532,7 @@ export const responderDuvidaSuporteIA = async (
 ): Promise<string> => {
   const apiKey = getGeminiApiKey(loja);
   const nomeUsuario = primeiroNomeUsuario(usuario?.nome_completo);
-  const nomeLoja = loja?.nome_fantasia || 'HUBI PDV';
+  const nomeLoja = loja?.nome_fantasia || 'Rubi PDV';
 
   // Base de conhecimento condensada de todos os tutoriais
   const baseConhecimentoTexto = TUTORIAIS_HUBI.map(
@@ -540,20 +540,20 @@ export const responderDuvidaSuporteIA = async (
   ).join('\n\n');
 
   const prompt = `
-Você é a **Rubi**, a assistente virtual e especialista oficial em suporte do **Sistema HUBI** (sistema de gestão comercial e PDV).
+Você é a **Rubi**, a assistente virtual e especialista oficial em suporte do **Sistema Rubi IA** (sistema de gestão comercial e PDV).
 Seu objetivo é ajudar o usuário (${nomeUsuario}, da loja ${nomeLoja}) respondendo dúvidas operacionais com extrema clareza, precisão, assertividade e empatia.
 
 DIRETRIZES FUNDAMENTAIS:
 1. Responda em português brasileiro com tom prestativo, ágil, profissional e encorajador.
 2. DÚVIDAS OPERACIONAIS ("Como faço...", "Como funciona...", "Passo a passo", "Onde clico..."):
-   - Forneça um PASSO A PASSO numerado e claro de como realizar a ação no sistema HUBI.
+   - Forneça um PASSO A PASSO numerado e claro de como realizar a ação na plataforma Rubi.
    - NUNCA dê um relatório ou resumo financeiro de faturamento quando o usuário perguntar COMO FAZER uma operação (ex: "como faço uma venda", "como dar desconto", "como cadastrar produto").
 3. NOME DO SISTEMA:
-   - O nome exclusivo do sistema é **HUBI**. NUNCA mencione outros softwares. Sempre se refira ao sistema como **HUBI** ou **HUBI PDV**.
+   - O nome exclusivo do sistema é **Rubi** (ou **Rubi IA** / **Rubi PDV**). NUNCA mencione outros softwares.
 4. Use formatação markdown (negritos, tópicos numerados e emojis) para leitura fácil e agradável.
 5. Finalize sempre se colocando à disposição para ajudar com qualquer outra dúvida.
 
-BASE OFICIAL DE TUTORIAIS DO HUBI (MENUS DE AJUDA):
+BASE OFICIAL DE TUTORIAIS DA RUBI (MENUS DE AJUDA):
 ${baseConhecimentoTexto}
 
 PERGUNTA DO USUÁRIO:
@@ -581,10 +581,10 @@ PERGUNTA DO USUÁRIO:
   const tutorialEncontrado = encontrarTutorialMaisRelevante(duvida);
 
   if (tutorialEncontrado) {
-    return `Olá, **${nomeUsuario}**! 😊\n\nAqui está o passo a passo sobre **${tutorialEncontrado.titulo}** no HUBI:\n\n${tutorialEncontrado.conteudo}\n\n**Passo a passo prático:**\n${tutorialEncontrado.passos.map((p, i) => `${i + 1}. ${p}`).join('\n')}\n\nSe precisar de mais detalhes ou tiver outra dúvida, conte comigo! 👍`;
+    return `Olá, **${nomeUsuario}**! 😊\n\nAqui está o passo a passo sobre **${tutorialEncontrado.titulo}** na Rubi:\n\n${tutorialEncontrado.conteudo}\n\n**Passo a passo prático:**\n${tutorialEncontrado.passos.map((p, i) => `${i + 1}. ${p}`).join('\n')}\n\nSe precisar de mais detalhes ou tiver outra dúvida, conte comigo! 👍`;
   }
 
-  return `Olá, **${nomeUsuario}**! 👋\n\nSou a **Rubi**, sua assistente no **HUBI**! Posso te ensinar qualquer rotina do sistema:\n\n• **Vendas & PDV**: Como fazer uma venda rápida, dar descontos em R$ ou % e emitir recibos.\n• **Cadastro com IA**: Como cadastrar produtos tirando foto, escaneando código de barras ou gerando descrições com IA.\n• **Gestão de Pedidos**: Concluir pedidos, alterar status e cancelamento com estorno.\n• **Fiado & Clientes**: Vender no fiado, consultar saldos e dar baixa em pagamentos.\n• **Caixa & Finanças**: Abertura, fechamento, sangrias e suprimentos de troco.\n• **Impressão**: Configuração de impressoras térmicas (58/80mm) Bluetooth/USB e recibos A4.\n\nQual operação você gostaria de realizar agora?`;
+  return `Olá, **${nomeUsuario}**! 👋\n\nSou a **Rubi**, sua assistente inteligente na **Rubi IA**! Posso te ensinar qualquer rotina do sistema:\n\n• **Vendas & PDV**: Como fazer uma venda rápida, dar descontos em R$ ou % e emitir recibos.\n• **Cadastro com IA**: Como cadastrar produtos tirando foto, escaneando código de barras ou gerando descrições com IA.\n• **Gestão de Pedidos**: Concluir pedidos, alterar status e cancelamento com estorno.\n• **Fiado & Clientes**: Vender no fiado, consultar saldos e dar baixa em pagamentos.\n• **Caixa & Finanças**: Abertura, fechamento, sangrias e suprimentos de troco.\n• **Impressão**: Configuração de impressoras térmicas (58/80mm) Bluetooth/USB e recibos A4.\n\nQual operação você gostaria de realizar agora?`;
 };
 
 /**

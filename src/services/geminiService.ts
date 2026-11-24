@@ -360,7 +360,7 @@ const montarContextoSegmentoSistema = (
   if (!ramoEfetivo && !sobreLoja) return '';
 
   const partes: string[] = [
-    'Você é o assistente de catálogo comercial do sistema HUBI (varejo brasileiro).'
+    'Você é o assistente de catálogo comercial do sistema Rubi IA (varejo brasileiro).'
   ];
 
   if (ramoEfetivo) {

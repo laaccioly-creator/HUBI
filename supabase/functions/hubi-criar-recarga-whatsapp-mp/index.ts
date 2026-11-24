@@ -112,7 +112,8 @@ serve(async (req: Request) => {
     // 4. Identificação do perfil do coletor e ambiente configurado pelo Super Admin
     const perfilColetor = await consultarPerfilColetorMp(tokenFinal);
     const isSandboxMode = configMp.mpAmbiente === "sandbox";
-    const backUrlBase = String(body?.back_url || "https://hubi.app/dashboard").trim().replace(/\/+$/, "");
+    const appUrlPadrao = (Deno.env.get("APP_URL") || Deno.env.get("VITE_APP_URL") || "https://rubi.ia.br").trim().replace(/\/+$/, "");
+    const backUrlBase = String(body?.back_url || `${appUrlPadrao}/dashboard`).trim().replace(/\/+$/, "");
 
     const externalReference = `whatsapp_wallet:${loja.id}:${transacaoCriada.id}`;
 
@@ -120,7 +121,7 @@ serve(async (req: Request) => {
     const preferencePayload: Record<string, any> = {
       items: [
         {
-          title: "HUBI - Recarga Creditos WhatsApp",
+          title: "Rubi - Recarga Creditos WhatsApp",
           quantity: 1,
           currency_id: "BRL",
           unit_price: Number(valorRecarga.toFixed(2)),

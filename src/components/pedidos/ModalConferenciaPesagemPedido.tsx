@@ -264,7 +264,7 @@ export const ModalConferenciaPesagemPedido: React.FC<ModalConferenciaPesagemPedi
       ).trim();
 
       const protocolo = typeof window !== 'undefined' && window.location.protocol ? window.location.protocol : 'https:';
-      const host = typeof window !== 'undefined' && window.location.host ? window.location.host : 'hubi.app';
+      const host = typeof window !== 'undefined' && window.location.host ? window.location.host : 'rubi.ia.br';
       const urlBase = `${protocolo}//${host}`;
       const slugLoja = loja.slug_catalogo || loja.id;
       const linkRecibo = `${urlBase}/recibo/${pedido.id}`;

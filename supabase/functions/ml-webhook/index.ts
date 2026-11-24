@@ -52,7 +52,7 @@ serve(async (req: Request) => {
       // Retorna 200 para evitar que o Mercado Livre retente indefinidamente
       console.warn(`[ml-webhook] Notificação recebida para vendedor não cadastrado: ${mlUserId}`);
       return new Response(
-        JSON.stringify({ sucesso: false, mensagem: "Vendedor não vinculado a nenhuma loja do HUBI." }),
+        JSON.stringify({ sucesso: false, mensagem: "Vendedor não vinculado a nenhuma loja da Rubi." }),
         { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } }
       );
     }
@@ -163,12 +163,12 @@ serve(async (req: Request) => {
         .from("marketplace_pedidos_webhook")
         .update({
           status_processamento: "erro",
-          mensagem_resultado: `O anúncio ${mlItemId} não possui vínculo com nenhum produto cadastrado no HUBI.`,
+          mensagem_resultado: `O anúncio ${mlItemId} não possui vínculo com nenhum produto cadastrado na Rubi.`,
         })
         .eq("id", webhookLog.id);
 
       return new Response(
-        JSON.stringify({ sucesso: false, error: `Anúncio ${mlItemId} não vinculado ao HUBI.` }),
+        JSON.stringify({ sucesso: false, error: `Anúncio ${mlItemId} não vinculado à Rubi.` }),
         { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } }
       );
     }

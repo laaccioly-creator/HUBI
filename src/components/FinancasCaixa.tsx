@@ -895,7 +895,7 @@ export const FinancasCaixa: React.FC = () => {
 
       const textoRecibo = caixaService.gerarTextoComprovanteFechamento(
         { ...resumo, sessao: sessaoFechada },
-        loja?.nome_fantasia || 'HUBI GESTÃO'
+        loja?.nome_fantasia || 'Rubi Gestão'
       );
 
       setRelatorioFechamentoTexto(textoRecibo);

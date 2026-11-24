@@ -373,7 +373,7 @@ export const ReciboPublico: React.FC = () => {
               {dadosRecibo.subtituloRecibo}
             </p>
             <p className="font-bold text-slate-800 uppercase text-[11px]">
-              {loja?.nome_fantasia || 'HUBI PDV'}
+              {loja?.nome_fantasia || 'Rubi PDV'}
             </p>
             <p className="text-slate-500 text-[10px]">
               {[loja?.endereco_logradouro, loja?.endereco_numero, loja?.endereco_bairro, loja?.endereco_cidade].filter(Boolean).join(', ')}
@@ -791,7 +791,7 @@ export const ReciboPublico: React.FC = () => {
           </div>
 
           <div className="text-center text-[9px] text-slate-500 pt-1 border-t border-slate-200">
-            Comprovante Oficial • HUBI PDV
+            Comprovante Oficial • Rubi PDV • rubi.ia.br
           </div>
         </div>
       </div>

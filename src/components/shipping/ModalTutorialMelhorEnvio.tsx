@@ -112,7 +112,7 @@ export const ModalTutorialMelhorEnvio: React.FC<ModalTutorialMelhorEnvioProps> =
                   Gerar Novo Token com Escopo de Cálculo
                 </h4>
                 <p className="text-xs text-slate-600 dark:text-slate-400 leading-relaxed">
-                  Clique no botão <strong className="text-slate-800 dark:text-slate-200">&quot;Novo Token&quot;</strong>. Dê um nome amigável (ex: <code>HUBI Sistema de Gestão</code>) e marque a permissão essencial:
+                  Clique no botão <strong className="text-slate-800 dark:text-slate-200">&quot;Novo Token&quot;</strong>. Dê um nome amigável (ex: <code>Rubi Sistema de Gestão</code>) e marque a permissão essencial:
                 </p>
                 <div className="p-2.5 rounded-lg bg-sky-100 dark:bg-sky-900/40 text-xs font-mono font-semibold text-sky-900 dark:text-sky-200 inline-block mt-1">
                   [x] shipping-calculate (Calcular cotações de envio)
@@ -128,7 +128,7 @@ export const ModalTutorialMelhorEnvio: React.FC<ModalTutorialMelhorEnvioProps> =
               <div className="space-y-1">
                 <h4 className="font-semibold text-slate-900 dark:text-white">Copiar o Token JWT</h4>
                 <p className="text-xs text-slate-600 dark:text-slate-400 leading-relaxed">
-                  Copie a chave JWT gerada (uma sequência longa começando com <code>eyJ...</code>) e cole no campo <strong className="text-slate-800 dark:text-slate-200">&quot;Token de Acesso (Personal Token)&quot;</strong> nas configurações do HUBI.
+                  Copie a chave JWT gerada (uma sequência longa começando com <code>eyJ...</code>) e cole no campo <strong className="text-slate-800 dark:text-slate-200">&quot;Token de Acesso (Personal Token)&quot;</strong> nas configurações da Rubi.
                 </p>
               </div>
             </div>

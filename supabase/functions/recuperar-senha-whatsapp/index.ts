@@ -586,7 +586,7 @@ serve(async (req: Request) => {
             type: "text",
             text: {
               preview_url: false,
-              body: `HUBI: Seu código de verificação para redefinir sua senha é: *${codigo}*. Válido por 10 minutos.`,
+              body: `Rubi: Seu código de verificação para redefinir sua senha é: *${codigo}*. Válido por 10 minutos.`,
             },
           }
         );

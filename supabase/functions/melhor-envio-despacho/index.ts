@@ -242,7 +242,7 @@ serve(async (req: Request) => {
       Accept: "application/json",
       "Content-Type": "application/json",
       Authorization: `Bearer ${token}`,
-      "User-Agent": "HUBI Sistema (suporte@hubi.app)",
+      "User-Agent": "Rubi Sistema (suporte@rubi.ia.br)",
     };
 
     // Consulta perfil do titular no Melhor Envio com cache em memória (otimização de despacho)
@@ -676,7 +676,7 @@ serve(async (req: Request) => {
             method: "POST",
             headers: {
               "Content-Type": "application/json",
-              "User-Agent": "HUBI Sistema (suporte@hubi.app)"
+              "User-Agent": "Rubi Sistema (suporte@rubi.ia.br)"
             },
             body: JSON.stringify(mrQuery)
           });
@@ -939,7 +939,7 @@ serve(async (req: Request) => {
             method: "POST",
             headers: {
               "Content-Type": "application/json",
-              "User-Agent": "HUBI Sistema (suporte@hubi.app)"
+              "User-Agent": "Rubi Sistema (suporte@rubi.ia.br)"
             },
             body: JSON.stringify(mrQuery)
           });
@@ -1162,7 +1162,7 @@ serve(async (req: Request) => {
                 method: "POST",
                 headers: {
                   "Content-Type": "application/json",
-                  "User-Agent": "HUBI Sistema (suporte@hubi.app)"
+                  "User-Agent": "Rubi Sistema (suporte@rubi.ia.br)"
                 },
                 body: JSON.stringify(mrQuery)
               });

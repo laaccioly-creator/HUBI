@@ -110,13 +110,14 @@ serve(async (req: Request) => {
     const perfilColetor = await consultarPerfilColetorMp(mpAccessToken);
     const isCollectorTestUser = perfilColetor.isCollectorTestUser;
     const isSandboxMode = configMp.mpAmbiente === "sandbox";
-    const backUrlBase = String(body?.back_url || "https://hubi.app/dashboard").trim().replace(/\/+$/, "");
+    const appUrlPadrao = (Deno.env.get("APP_URL") || Deno.env.get("VITE_APP_URL") || "https://rubi.ia.br").trim().replace(/\/+$/, "");
+    const backUrlBase = String(body?.back_url || `${appUrlPadrao}/dashboard`).trim().replace(/\/+$/, "");
 
     // 2.2 Payload Canônico da Preferência Checkout Pro (clone estrito de public.criar_link_mercado_pago do Catálogo Online)
     const preferencePayload: Record<string, any> = {
       items: [
         {
-          title: `HUBI PDV - Licenca Anual ${loja.nome_fantasia || ""}`.trim(),
+          title: `Rubi PDV - Licenca Anual ${loja.nome_fantasia || ""}`.trim(),
           quantity: 1,
           currency_id: "BRL",
           unit_price: Number(Number(valorAnualTotal).toFixed(2)),

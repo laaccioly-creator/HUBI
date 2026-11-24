@@ -153,7 +153,7 @@ export const ModalEscolhaPagamento: React.FC<ModalEscolhaPagamentoProps> = ({
     if (!temChavePixLoja) return '';
     return gerarPayloadPixEmv({
       chavePix: chavePixLoja,
-      nomeRecebedor: loja.nome_fantasia || 'HUBI SISTEMAS',
+      nomeRecebedor: loja.nome_fantasia || 'RUBI SISTEMAS',
       cidade: (loja as any)?.cidade || (loja as any)?.endereco_cidade || 'BRASIL',
       valor: valorTotal,
       identificador: `PED${pedido?.numero_pedido || ''}`

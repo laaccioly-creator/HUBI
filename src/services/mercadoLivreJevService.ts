@@ -358,7 +358,7 @@ async function selecionarCategoriaComJev(
       estado,
       {
         categoria_ml: typesafeService.criarChoice(
-          'Selecione a categoria oficial do Mercado Livre que classifica com maior precisão este produto comercial, considerando o nome, a descrição e a categoria local no HUBI.',
+          'Selecione a categoria oficial do Mercado Livre que classifica com maior precisão este produto comercial, considerando o nome, a descrição e a categoria local na Rubi.',
           criteria
         ),
       },
@@ -1051,7 +1051,7 @@ export const mercadoLivreJevService = {
       '2. Se não houver evidência clara na ficha do produto para preencher o atributo, retorne null.',
       '3. Para tipo "number" ou "number_unit" com unidade_padrao informada, retorne apenas o número (ex: "500").',
       '',
-      `Produto HUBI: ${JSON.stringify(contextoProduto)}`,
+      `Produto Rubi: ${JSON.stringify(contextoProduto)}`,
       `Atributos solicitados: ${JSON.stringify(camposSolicitados)}`,
     ].join('\n');
 

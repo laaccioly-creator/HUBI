@@ -69,7 +69,7 @@ export const CardConexaoMercadoLivre: React.FC<CardConexaoMercadoLivreProps> = (
 
     if (mlStatus === 'success') {
       const nomeConta = nickname ? `@${nickname}` : 'Mercado Livre';
-      mostrarSucesso(`Conta ${nomeConta} conectada com sucesso ao HUBI!`, 'Mercado Livre Conectado');
+      mostrarSucesso(`Conta ${nomeConta} conectada com sucesso à Rubi!`, 'Mercado Livre Conectado');
       carregarDadosConta();
       // Limpa query params da barra de endereço para higiene da URL
       window.history.replaceState({}, document.title, window.location.pathname);
@@ -96,7 +96,7 @@ export const CardConexaoMercadoLivre: React.FC<CardConexaoMercadoLivreProps> = (
           setCarregando(true);
           const contaSalva = await mercadoLivreService.processarCallbackCodigo(code, state);
           setConta(contaSalva);
-          mostrarSucesso(`Conta @${contaSalva.ml_nickname} vinculada com sucesso ao HUBI!`, 'Mercado Livre Conectado');
+          mostrarSucesso(`Conta @${contaSalva.ml_nickname} vinculada com sucesso à Rubi!`, 'Mercado Livre Conectado');
           // Limpa query params da barra de endereço para higiene da URL
           window.history.replaceState({}, document.title, window.location.pathname);
         } catch (err: any) {

@@ -799,7 +799,7 @@ export const ModalVincularAnuncioMl: React.FC<ModalVincularAnuncioMlProps> = ({
               {/* Breakdown Claro do Cálculo */}
               <div className="pt-2 border-t border-slate-200 dark:border-slate-800 space-y-1 text-xs font-semibold text-slate-700 dark:text-slate-300">
                 <div className="flex items-center justify-between">
-                  <span>Preço Base HUBI (Líquido desejado)</span>
+                  <span>Preço Base Rubi (Líquido desejado)</span>
                   <span className="font-mono font-bold">{formatarMoeda(breakdownPreco.precoBaseHubi)}</span>
                 </div>
                 <div className="flex items-center justify-between">

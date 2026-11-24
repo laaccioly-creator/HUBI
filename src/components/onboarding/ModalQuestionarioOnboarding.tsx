@@ -187,7 +187,7 @@ const MODULOS_OPCIONAIS_DEFINICAO: ModuloOpcionalCardDef[] = [
     id: 'mercado_livre',
     titulo: 'Integração com Mercado Livre',
     descricaoComercial:
-      'Sincronize o estoque físico com seus anúncios em tempo real e imprima etiquetas direto pelo HUBI.',
+      'Sincronize o estoque físico com seus anúncios em tempo real e imprima etiquetas direto pela Rubi.',
     rotaDestino: '/config?tab=parceiros',
     icone: ShoppingBag,
   },

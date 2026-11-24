@@ -187,7 +187,7 @@ export const ImportarClientes: React.FC<ImportarClientesProps> = ({ onVoltar }) 
             Baixe a Planilha Modelo de Importação de Clientes
           </h3>
           <p className="text-xs sm:text-sm text-slate-300/90 leading-relaxed">
-            Utilize o layout padrão do HUBI com colunas para dados pessoais, telefones, WhatsApp, limites de fiado e endereço para garantir uma importação segura.
+            Utilize o layout padrão da Rubi com colunas para dados pessoais, telefones, WhatsApp, limites de fiado e endereço para garantir uma importação segura.
           </p>
         </div>
 
@@ -207,7 +207,7 @@ export const ImportarClientes: React.FC<ImportarClientesProps> = ({ onVoltar }) 
             type="button"
             onClick={() => clientImportExportService.downloadModeloXLSX()}
             className="hubi-btn-neutral px-4 py-2.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-100 font-bold text-xs flex items-center justify-center gap-2 border border-slate-700 transition cursor-pointer active:scale-95"
-            title="Planilha Completa HUBI com Fiado e Dados Pessoais"
+            title="Planilha Completa Rubi com Fiado e Dados Pessoais"
           >
             <FileSpreadsheet className="w-4 h-4 text-emerald-400" />
             <span>Modelo Completo (.XLSX)</span>

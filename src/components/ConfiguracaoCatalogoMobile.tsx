@@ -284,7 +284,7 @@ export const ConfiguracaoCatalogoMobile: React.FC = () => {
     if (typeof window !== 'undefined') {
       return `${window.location.origin}/catalog/${slugCatalogo || loja?.id || ''}`;
     }
-    return `https://hubi.app/catalog/${slugCatalogo || ''}`;
+    return `https://rubi.ia.br/catalog/${slugCatalogo || ''}`;
   }, [slugCatalogo, loja?.id]);
 
   const feedInstagramUrl = `${catalogoUrl}/feed/instagram`;
@@ -578,7 +578,7 @@ export const ConfiguracaoCatalogoMobile: React.FC = () => {
               <div>
                 <span className={`text-sm font-black block ${isDark ? 'text-white' : 'text-black'}`}>Publicar Catálogo Online</span>
                 <div className="flex items-center gap-1.5 mt-0.5">
-                  <span className={`text-sm font-medium ${isDark ? 'text-slate-300' : 'text-black'}`}>{slugCatalogo || 'minhaloja'}.hubi.app</span>
+                  <span className={`text-sm font-medium ${isDark ? 'text-slate-300' : 'text-black'}`}>rubi.ia.br/catalog/{slugCatalogo || 'minhaloja'}</span>
                   <button
                     type="button"
                     onClick={() => {
@@ -883,7 +883,7 @@ export const ConfiguracaoCatalogoMobile: React.FC = () => {
                 <span className={`text-sm font-bold ${isDark ? 'text-white' : 'text-black'}`}>Estes dados não serão exibidos no catálogo.</span>
               </div>
               <p className={`text-sm leading-relaxed font-medium pl-7 ${isDark ? 'text-slate-300' : 'text-black'}`}>
-                Informar o CPF ou CNPJ é uma medida para validar a sua conta, preservar sua privacidade e garantir a conformidade e qualidade de todos os catálogos do HUBI.
+                Informar o CPF ou CNPJ é uma medida para validar a sua conta, preservar sua privacidade e garantir a conformidade e qualidade de todos os catálogos da Rubi.
               </p>
             </div>
           </div>
@@ -1354,7 +1354,7 @@ export const ConfiguracaoCatalogoMobile: React.FC = () => {
               <div className="pr-3">
                 <span className={`text-sm font-black block ${isDark ? 'text-white' : 'text-black'}`}>Resumo via WhatsApp</span>
                 <p className={`text-sm leading-relaxed font-medium mt-0.5 ${isDark ? 'text-slate-300' : 'text-black'}`}>
-                  Além de ter seu pedido criado no HUBI, seus clientes serão direcionados para enviar o resumo do pedido para seu WhatsApp cadastrado.
+                  Além de ter seu pedido criado na Rubi, seus clientes serão direcionados para enviar o resumo do pedido para seu WhatsApp cadastrado.
                 </p>
               </div>
               <label className="relative inline-flex items-center cursor-pointer shrink-0">

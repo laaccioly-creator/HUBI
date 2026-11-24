@@ -94,7 +94,7 @@ export const TelaBloqueioAssinatura: React.FC<TelaBloqueioAssinaturaProps> = ({
             {aberturaManual ? 'Oferta Especial' : 'Período Expirado'}
           </span>
           <h2 className="text-2xl sm:text-3xl font-black tracking-tight">
-            {aberturaManual ? 'Garanta sua Assinatura HUBI Pro' : 'Assinatura da Loja Pausada'}
+            {aberturaManual ? 'Garanta sua Assinatura Rubi Pro' : 'Assinatura da Loja Pausada'}
           </h2>
           <p className="text-white/90 text-sm mt-1 max-w-md mx-auto">
             {aberturaManual ? (
@@ -105,7 +105,7 @@ export const TelaBloqueioAssinatura: React.FC<TelaBloqueioAssinaturaProps> = ({
                 ) : valoresDisponiveis ? (
                   <> por apenas {valorMensalAnualFormatado}/mês.</>
                 ) : (
-                  <> com o plano anual HUBI.</>
+                  <> com o plano anual Rubi.</>
                 )}
               </>
             ) : (
@@ -126,7 +126,7 @@ export const TelaBloqueioAssinatura: React.FC<TelaBloqueioAssinaturaProps> = ({
               <div>
                 <div className="flex items-center gap-2">
                   <span className="px-2.5 py-0.5 rounded-md text-[11px] font-bold bg-emerald-500 text-slate-950 uppercase tracking-wider">
-                    Plano Anual HUBI
+                    Plano Anual Rubi
                   </span>
                   <span className="text-xs text-emerald-500 font-semibold flex items-center gap-1">
                     <Sparkles className="w-3.5 h-3.5" /> Acesso Ilimitado

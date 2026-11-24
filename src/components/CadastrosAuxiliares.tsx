@@ -2619,7 +2619,7 @@ export const CadastrosAuxiliares: React.FC = () => {
                   }`}>
                     <Sparkles className="w-5 h-5 text-emerald-500 shrink-0 mt-0.5" />
                     <div className="text-xs space-y-0.5">
-                      <h4 className={`font-black text-xs sm:text-sm ${isDark ? 'text-white' : 'text-black'}`}>Sugestão de Preços no HUBI</h4>
+                      <h4 className={`font-black text-xs sm:text-sm ${isDark ? 'text-white' : 'text-black'}`}>Sugestão de Preços na Rubi</h4>
                       <p className={`text-sm leading-relaxed font-semibold ${isDark ? 'text-slate-300' : 'text-black'}`}>
                         Defina os descontos padrão e o critério de ativação para vendas no atacado e para distribuidores (por valor em R$ ou quantidade de peças).
                       </p>

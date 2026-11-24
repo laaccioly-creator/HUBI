@@ -1536,7 +1536,7 @@ export const PedidosLista: React.FC = () => {
         const msgStatus = `Olá${
           pedAlvo.cliente?.nome ? `, *${pedAlvo.cliente.nome}*` : ''
         }! 🛍️\nO status do seu pedido *#${numPed}* na loja *${
-          loja.nome_fantasia || 'HUBI'
+          loja.nome_fantasia || 'Rubi'
         }* foi atualizado para: *${rotuloStatus}*.`;
 
         const eventoGatilhoStatus: EventoGatilhoWhatsapp =
@@ -3846,7 +3846,7 @@ export const PedidosLista: React.FC = () => {
                                     type="button"
                                     onClick={() => setPedidoEtiquetaModal(pedidoSelecionado)}
                                     className={`inline-flex items-center justify-center gap-2 px-3.5 py-2.5 rounded-xl text-xs transition cursor-pointer shadow-xs active:scale-95 ${isDark ? 'bg-emerald-600 hover:bg-emerald-500 border border-emerald-500 text-white font-bold' : 'bg-slate-100 hover:bg-slate-200 border border-slate-300 text-black font-semibold'}`}
-                                    title="Imprimir Etiqueta Térmica Padrão HUBI"
+                                    title="Imprimir Etiqueta Térmica Padrão Rubi"
                                   >
                                     <Tag className="w-3.5 h-3.5" />
                                     <span>Imprimir Etiqueta</span>
@@ -4376,7 +4376,7 @@ export const PedidosLista: React.FC = () => {
                     </div>
                   )}
                   <p className="text-[10px] text-slate-500">
-                    {loja?.nome_fantasia || 'HUBI PDV'} • {loja?.whatsapp || loja?.telefone}
+                    {loja?.nome_fantasia || 'Rubi PDV'} • {loja?.whatsapp || loja?.telefone}
                   </p>
                 </div>
 

@@ -177,18 +177,18 @@ export function formatarDataPtBr(dataStr: string): string {
  * Nunca utiliza localhost/127.0.0.1 para garantir links clicáveis em dispositivos externos.
  */
 export function obterUrlBasePublica(): string {
-  const envUrl = import.meta.env?.VITE_PUBLIC_APP_URL;
+  const envUrl = import.meta.env?.VITE_PUBLIC_APP_URL || import.meta.env?.VITE_APP_URL;
   if (typeof envUrl === 'string' && envUrl.trim()) {
     return envUrl.trim().replace(/\/+$/, '');
   }
   if (typeof window !== 'undefined') {
     const hostname = window.location.hostname;
     if (hostname === 'localhost' || hostname === '127.0.0.1') {
-      return 'https://hubi-studio.ai.studio';
+      return 'https://rubi.ia.br';
     }
     return window.location.origin.replace(/\/+$/, '');
   }
-  return 'https://hubi-studio.ai.studio';
+  return 'https://rubi.ia.br';
 }
 
 export const agendamentoService = {

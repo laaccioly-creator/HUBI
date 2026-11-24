@@ -1,6 +1,6 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" width="512" height="512">
   <defs>
-    <linearGradient id="hubiGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+    <linearGradient id="rubiGrad" x1="0%" y1="0%" x2="100%" y2="100%">
       <stop offset="0%" stop-color="#10B981" />
       <stop offset="100%" stop-color="#059669" />
     </linearGradient>
@@ -9,8 +9,8 @@
     </filter>
   </defs>
   <rect width="512" height="512" rx="128" fill="#020617"/>
-  <rect x="32" y="32" width="448" height="448" rx="112" fill="url(#hubiGrad)" filter="url(#shadow)"/>
+  <rect x="32" y="32" width="448" height="448" rx="112" fill="url(#rubiGrad)" filter="url(#shadow)"/>
   <g fill="#FFFFFF">
-    <path d="M160 160h48v80h96v-80h48v192h-48v-72h-96v72h-48V160z" font-weight="900"/>
+    <path fill-rule="evenodd" d="M166 160H276Q344 160 344 219Q344 270 292 276L346 352H294L244 278H214V352H166ZM214 202V238H270Q298 238 298 220Q298 202 270 202Z"/>
   </g>
 </svg>

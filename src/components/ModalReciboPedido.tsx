@@ -345,7 +345,7 @@ export const ModalReciboPedido: React.FC<ModalReciboPedidoProps> = ({
                 ) : (
                   <Store className="w-8 h-8 text-slate-500 mx-auto mb-1" />
                 )}
-                <h4 className="font-bold text-sm text-slate-900 uppercase tracking-wider">{lojaAtual?.nome_fantasia || 'HUBI PDV'}</h4>
+                <h4 className="font-bold text-sm text-slate-900 uppercase tracking-wider">{lojaAtual?.nome_fantasia || 'Rubi PDV'}</h4>
                 {enderecoLojaFormatado && <p className="text-[11px] text-slate-600">{enderecoLojaFormatado}</p>}
                 {(lojaAtual?.whatsapp || lojaAtual?.telefone) && (
                   <p className="text-[11px] text-slate-600">{lojaAtual?.whatsapp || lojaAtual?.telefone}</p>

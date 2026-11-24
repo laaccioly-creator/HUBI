@@ -480,7 +480,7 @@ export const AppLayout: React.FC = () => {
         </div>
         <div className={`flex items-center gap-2 text-sm ${isDark ? 'text-slate-400' : 'text-slate-900 font-medium'}`}>
           <Loader2 className={`w-4 h-4 animate-spin ${isDark ? 'text-emerald-400' : 'text-slate-900'}`} />
-          <span>Carregando Sistema HUBI...</span>
+          <span>Carregando Sistema Rubi...</span>
         </div>
       </div>
     );
@@ -664,7 +664,7 @@ export const AppLayout: React.FC = () => {
             >
               <span className="w-2 h-2 rounded-full bg-emerald-500 shrink-0" />
               <span className="font-black text-xs tracking-tight truncate">
-                {loja?.nome_fantasia || 'HUBI PDV'}
+                {loja?.nome_fantasia || 'Rubi PDV'}
               </span>
               <ChevronDown
                 className={`w-3.5 h-3.5 shrink-0 transition-transform ${
@@ -676,7 +676,7 @@ export const AppLayout: React.FC = () => {
             <div className="inline-flex items-center gap-1.5 max-w-full py-1">
               <span className="w-2 h-2 rounded-full bg-emerald-500 shrink-0" />
               <span className="font-black text-xs tracking-tight truncate">
-                {loja?.nome_fantasia || 'HUBI PDV'}
+                {loja?.nome_fantasia || 'Rubi PDV'}
               </span>
             </div>
           )}
@@ -767,19 +767,19 @@ export const AppLayout: React.FC = () => {
               className={`flex items-center gap-2.5 group text-left min-w-0 w-full p-1 -m-1 rounded-xl transition ${
                 podeTrocarLoja ? 'cursor-pointer hover:bg-slate-500/5' : 'cursor-default'
               }`}
-              title={podeTrocarLoja ? "Clique para alternar de filial / loja" : (loja?.nome_fantasia || "HUBI PDV")}
+              title={podeTrocarLoja ? "Clique para alternar de filial / loja" : (loja?.nome_fantasia || "Rubi PDV")}
             >
               <div className={`w-9 h-9 rounded-xl bg-gradient-to-tr from-emerald-600 to-emerald-400 flex items-center justify-center font-black text-white shadow-lg shadow-emerald-500/20 text-sm shrink-0 transition ${
                 podeTrocarLoja ? 'group-hover:scale-105' : ''
               }`}>
-                {loja?.nome_fantasia ? loja.nome_fantasia.slice(0, 2).toUpperCase() : 'HB'}
+                {loja?.nome_fantasia ? loja.nome_fantasia.slice(0, 2).toUpperCase() : 'RB'}
               </div>
               <div className="hidden sm:block min-w-0 flex-1">
                 <div className="flex items-center gap-1.5">
                   <h1 className={`font-bold text-xs lg:text-sm truncate max-w-[130px] lg:max-w-[160px] leading-tight transition ${
                     isDark ? 'text-slate-100' : 'text-[#0F172A]'
                   } ${podeTrocarLoja ? 'group-hover:text-emerald-500' : ''}`}>
-                    {loja?.nome_fantasia || 'HUBI PDV'}
+                    {loja?.nome_fantasia || 'Rubi PDV'}
                   </h1>
                   {podeTrocarLoja && (
                     <ChevronDown className={`w-3.5 h-3.5 text-slate-400 group-hover:text-emerald-500 transition shrink-0 ${storeDropdownOpen ? 'rotate-180' : ''}`} />

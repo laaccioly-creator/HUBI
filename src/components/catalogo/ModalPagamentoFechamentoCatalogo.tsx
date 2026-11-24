@@ -703,7 +703,7 @@ export const ModalPagamentoFechamentoCatalogo: React.FC<ModalPagamentoFechamento
       try {
         return gerarPayloadPixEmv({
           chavePix: chavePixBruta,
-          nomeRecebedor: loja?.nome_fantasia || (loja as any)?.razao_social || 'HUBI SISTEMAS',
+          nomeRecebedor: loja?.nome_fantasia || (loja as any)?.razao_social || 'RUBI SISTEMAS',
           cidade: (loja as any)?.cidade || (loja as any)?.endereco_cidade || 'BRASIL',
           valor: Number(saldoDevedorAtual.toFixed(2)),
           identificador: `PED${pedSeguro.numero_pedido || ''}`.slice(0, 25)

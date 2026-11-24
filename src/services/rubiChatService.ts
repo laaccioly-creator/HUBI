@@ -11,7 +11,7 @@ const SINAL_ABRIR_FLUTUANTE_KEY = 'hubi_rubi_abrir_flutuante';
 const MENSAGEM_BOAS_VINDAS: MensagemRubi = {
   id: 'boas-vindas',
   remetente: 'ia',
-  texto: 'Olá! Sou a **Rubi**, sua assistente inteligente no **HUBI**. 🚀\n\nPosso te ajudar com perguntas sobre suas vendas de hoje, estoque baixo, produtos mais vendidos ou calcular seu fluxo de caixa.\n\nComo posso ajudar o seu negócio hoje?',
+  texto: 'Olá! Sou a **Rubi**, sua assistente inteligente da plataforma **Rubi IA**. 🚀\n\nPosso te ajudar com perguntas sobre suas vendas de hoje, estoque baixo, produtos mais vendidos ou calcular seu fluxo de caixa.\n\nComo posso ajudar o seu negócio hoje?',
   data: new Date().toISOString()
 };
 

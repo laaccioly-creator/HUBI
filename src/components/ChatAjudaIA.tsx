@@ -393,7 +393,7 @@ export const ChatAjudaIA: React.FC = () => {
                 <h3 className="text-xs font-bold text-slate-800 md:text-slate-100 flex items-center gap-1.5">
                   <span>Rubi - Assistente IA</span>
                   <span className="bg-indigo-50 md:bg-indigo-500/20 text-indigo-700 md:text-indigo-300 text-[10px] font-bold px-1.5 py-0.2 rounded border border-indigo-200 md:border-indigo-500/30">
-                    HUBI AI
+                    Rubi IA
                   </span>
                 </h3>
                 <div className="flex items-center gap-1.5 text-[10px] text-slate-400">

@@ -575,7 +575,7 @@ serve(async (req: Request) => {
       customPayload?.pickup_name ||
       customPayload?.pickup?.name ||
       loja?.nome_fantasia ||
-      "HUBI Loja";
+      "Rubi Loja";
 
     const pickupPhone = formatarTelefoneE164(
       customPayload?.pickup_phone_number ||
@@ -646,7 +646,7 @@ serve(async (req: Request) => {
         }))
       : [
           {
-            name: `Pedido #${pedido?.numero_pedido || pedido?.id?.slice(0, 6) || "HUBI"}`,
+            name: `Pedido #${pedido?.numero_pedido || pedido?.id?.slice(0, 6) || "Rubi"}`,
             quantity: 1,
             size: "small",
           },

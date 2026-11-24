@@ -4466,7 +4466,7 @@ Fico no aguardo da confirmação! ✨`;
         isOpen={modalOnboardingAberto}
         onClose={clienteSelecionado?.id ? () => setModalOnboardingAberto(false) : undefined}
         lojaId={loja?.id || ''}
-        nomeLoja={loja?.nome_fantasia || 'HUBI'}
+        nomeLoja={loja?.nome_fantasia || 'Rubi'}
         corTema={corTema}
         motivoAbertura={modalOnboardingMotivo}
         bloqueioObrigatorio={!clienteSelecionado?.id}

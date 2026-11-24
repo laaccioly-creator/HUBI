@@ -140,7 +140,7 @@ async function baixarAudioMeta(
       method: "GET",
       headers: {
         Authorization: `Bearer ${accessToken}`,
-        "User-Agent": "HUBI-Audio-Worker/1.0"
+        "User-Agent": "Rubi-Audio-Worker/1.0"
       }
     });
 
@@ -282,7 +282,7 @@ serve(async (req: Request) => {
     }
 
     return new Response(
-      JSON.stringify({ status: "active", service: "HUBI WhatsApp IA Webhook" }),
+      JSON.stringify({ status: "active", service: "Rubi WhatsApp IA Webhook" }),
       { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } }
     );
   }
@@ -1096,7 +1096,7 @@ const GEMINI_TOOLS_DECLARATIONS = [
     functionDeclarations: [
       {
         name: "registrar_pedido",
-        description: "Grava formalmente um novo pedido de compra no sistema HUBI após o cliente confirmar os itens, endereço de entrega e forma de pagamento.",
+        description: "Grava formalmente um novo pedido de compra no sistema Rubi após o cliente confirmar os itens, endereço de entrega e forma de pagamento.",
         parameters: {
           type: "OBJECT",
           properties: {
@@ -1154,7 +1154,7 @@ const GEMINI_TOOLS_DECLARATIONS = [
       },
       {
         name: "solicitar_atendente_humano",
-        description: "Pausa a assistência da IA e transfere a conversa para a equipe de atendimento humano no painel HUBI.",
+        description: "Pausa a assistência da IA e transfere a conversa para a equipe de atendimento humano no painel Rubi.",
         parameters: {
           type: "OBJECT",
           properties: {
@@ -1607,7 +1607,7 @@ async function gerarRespostaGemini(
           // Fallback resiliente garantido caso o 2º turno da IA não responda
           if (resultado.success) {
             const freteTxt = resultado.valor_frete ? `R$ ${resultado.valor_frete.toFixed(2)}` : "Grátis";
-            return `🎉 *Pedido #${resultado.numero_pedido} Confirmado com Sucesso!*\n\n• *Subtotal:* R$ ${resultado.subtotal?.toFixed(2)}\n• *Taxa de Entrega:* ${freteTxt}\n• *Total Geral:* *R$ ${resultado.valor_total?.toFixed(2)}*\n• *Forma de Pagamento:* ${String(resultado.forma_pagamento || "pix").toUpperCase()}\n• *Tempo Estimado:* ${resultado.tempo_estimado}\n\nNossa equipe já recebeu seu pedido no sistema HUBI e está separando tudo com muito carinho!`;
+            return `🎉 *Pedido #${resultado.numero_pedido} Confirmado com Sucesso!*\n\n• *Subtotal:* R$ ${resultado.subtotal?.toFixed(2)}\n• *Taxa de Entrega:* ${freteTxt}\n• *Total Geral:* *R$ ${resultado.valor_total?.toFixed(2)}*\n• *Forma de Pagamento:* ${String(resultado.forma_pagamento || "pix").toUpperCase()}\n• *Tempo Estimado:* ${resultado.tempo_estimado}\n\nNossa equipe já recebeu seu pedido na Rubi e está separando tudo com muito carinho!`;
           } else {
             return `Ops! Tivemos uma pequena divergência ao registrar seu pedido: ${resultado.erro || "Por favor, confirme os itens novamente com a gente."}`;
           }
@@ -1923,8 +1923,9 @@ function montarPromptAtendimento(
   const personaInfo = PERSONAS_SEGMENTO[segmento] || PERSONAS_SEGMENTO.geral;
 
   const nomeLoja = loja.nome_fantasia || "HOTAMAZON";
+  const appBaseUrl = (Deno.env.get("APP_URL") || Deno.env.get("VITE_APP_URL") || "https://rubi.ia.br").trim().replace(/\/+$/, "");
   const catalogoLink = loja.slug_catalogo
-    ? `https://hubi.com.br/catalogo/${loja.slug_catalogo}`
+    ? `${appBaseUrl}/catalogo/${loja.slug_catalogo}`
     : "";
 
   const instrucaoAudio = temAudio

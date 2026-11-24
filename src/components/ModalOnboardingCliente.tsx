@@ -38,7 +38,7 @@ export const ModalOnboardingCliente: React.FC<ModalOnboardingClienteProps> = ({
   isOpen,
   onClose,
   lojaId,
-  nomeLoja = 'HUBI',
+  nomeLoja = 'Rubi',
   corTema = '#10B981',
   onSucesso,
   motivoAbertura = 'geral',

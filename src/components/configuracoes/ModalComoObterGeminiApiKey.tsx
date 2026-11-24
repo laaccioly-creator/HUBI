@@ -304,14 +304,14 @@ export const ModalComoObterGeminiApiKey: React.FC<ModalComoObterGeminiApiKeyProp
                     isDark ? 'text-white' : 'text-slate-900'
                   }`}
                 >
-                  Copie o código gerado e cole no HUBI
+                  Copie o código gerado e cole na Rubi
                 </h4>
                 <p
                   className={`text-[11px] leading-relaxed ${
                     isDark ? 'text-slate-300' : 'text-slate-700'
                   }`}
                 >
-                  A chave gerada começa com <strong className="text-amber-500 font-mono">AIzaSy...</strong>. Copie esse código e cole no campo de configurações do HUBI logo abaixo.
+                  A chave gerada começa com <strong className="text-amber-500 font-mono">AIzaSy...</strong>. Copie esse código e cole no campo de configurações da Rubi logo abaixo.
                 </p>
               </div>
             </div>

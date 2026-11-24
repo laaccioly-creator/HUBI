@@ -5410,7 +5410,7 @@ export const ConfiguracoesLoja: React.FC<ConfiguracoesLojaProps> = ({ subTelaIni
                     className="w-full bg-white dark:bg-slate-950 border border-slate-300 dark:border-slate-800 rounded-xl p-3 text-sm text-black dark:text-slate-100 placeholder:text-slate-500 dark:placeholder:text-slate-600 focus:border-emerald-500 outline-hidden transition font-mono"
                   />
                   <p className="text-sm text-black dark:text-slate-300 mt-1.5 leading-relaxed font-medium">
-                    Credencial oficial e obrigatória do <strong>Google AI Studio</strong>. Ponto único e exclusivo de configuração utilizado de forma transparente por todas as inteligências do HUBI (Rubi IA, Vendedora IA no Catálogo Online, Reconhecimento Multimodal de Produtos e Atendimento no WhatsApp).
+                    Credencial oficial e obrigatória do <strong>Google AI Studio</strong>. Ponto único e exclusivo de configuração utilizado de forma transparente por todas as inteligências da Rubi (Rubi IA, Vendedora IA no Catálogo Online, Reconhecimento Multimodal de Produtos e Atendimento no WhatsApp).
                   </p>
                 </div>
 

@@ -96,7 +96,7 @@ export const ModalConfigurarMetasHubi: React.FC<ModalConfigurarMetasHubiProps> =
             </div>
             <div>
               <h3 className={`text-sm font-black ${isDark ? 'text-white' : 'text-black'}`}>
-                Configurar Metas HUBI
+                Configurar Metas Rubi
               </h3>
               <p className={`text-xs ${isDark ? 'text-slate-400' : 'text-slate-700'}`}>
                 Metas executivas globais exibidas nos 6 velocímetros do Cockpit SaaS
@@ -126,7 +126,7 @@ export const ModalConfigurarMetasHubi: React.FC<ModalConfigurarMetasHubiProps> =
 
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <div>
-              <label className={labelBaseClass}>Meta Faturamento Bruto HUBI (R$)</label>
+              <label className={labelBaseClass}>Meta Faturamento Bruto Rubi (R$)</label>
               <MoneyInput
                 value={faturamento}
                 onChange={setFaturamento}
@@ -217,7 +217,7 @@ export const ModalConfigurarMetasHubi: React.FC<ModalConfigurarMetasHubiProps> =
               className="px-4 py-2 rounded-xl text-xs font-bold bg-emerald-600 hover:bg-emerald-700 text-white flex items-center gap-2 transition cursor-pointer disabled:opacity-50 shadow-sm"
             >
               {salvando ? <Loader2 className="w-4 h-4 animate-spin" /> : <Save className="w-4 h-4" />}
-              <span>{salvando ? 'Salvando...' : 'Salvar Metas HUBI'}</span>
+              <span>{salvando ? 'Salvando...' : 'Salvar Metas Rubi'}</span>
             </button>
           </div>
         </form>

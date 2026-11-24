@@ -563,7 +563,7 @@ export const ModalUsuarioDrawer: React.FC<ModalUsuarioDrawerProps> = ({
                 </button>
               </div>
               <span className={`text-sm leading-relaxed font-medium block ${isDark ? 'text-slate-300' : 'text-black'}`}>
-                Esta senha é utilizada para entrar no HUBI Web e no aplicativo PDV.
+                Esta senha é utilizada para entrar na Rubi Web e no aplicativo PDV.
               </span>
             </div>
 
@@ -783,7 +783,7 @@ export const ModalUsuarioDrawer: React.FC<ModalUsuarioDrawerProps> = ({
                 <div className="space-y-0.5">
                   <span className="font-black block">Proprietário da Conta</span>
                   <p className={`text-sm leading-relaxed font-medium ${isDark ? 'text-teal-300/90' : 'text-black'}`}>
-                    Como proprietário desta conta, você possui acesso total e irrestrito a todas as funcionalidades do Hubi. Todas as permissões permanecem ativas e não podem ser revogadas.
+                    Como proprietário desta conta, você possui acesso total e irrestrito a todas as funcionalidades da Rubi. Todas as permissões permanecem ativas e não podem ser revogadas.
                   </p>
                 </div>
               </div>
@@ -806,7 +806,7 @@ export const ModalUsuarioDrawer: React.FC<ModalUsuarioDrawerProps> = ({
                     <span className={`text-sm font-black ${isDark ? 'text-white' : 'text-black'}`}>Administrador</span>
                   </div>
                   <p className={`text-sm leading-relaxed font-medium ${isDark ? 'text-slate-300' : 'text-black'}`}>
-                    Dá acesso a todas as funcionalidades do Hubi - exceto à gestão da assinatura, disponível apenas para o proprietário da conta.
+                    Dá acesso a todas as funcionalidades da Rubi - exceto à gestão da assinatura, disponível apenas para o proprietário da conta.
                   </p>
                 </div>
                 <label className="relative inline-flex items-center cursor-pointer shrink-0 mt-0.5" title={ehOwner ? "Permissão travada para o proprietário" : ""}>

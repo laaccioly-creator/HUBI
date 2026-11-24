@@ -32,7 +32,7 @@ function limparDescricao(desc?: string): string {
 }
 
 function sanitizarNomeLoja(nomeLoja?: string): string {
-  return (nomeLoja || 'HUBI').replace(/[^a-zA-Z0-9_-]/g, '_');
+  return (nomeLoja || 'Rubi').replace(/[^a-zA-Z0-9_-]/g, '_');
 }
 
 function obterTimestamp(): string {

@@ -20,7 +20,7 @@ serve(async (req: Request) => {
   // Health check / Liveness probe
   if (req.method === "GET") {
     return new Response(
-      JSON.stringify({ status: "active", service: "HUBI Mercado Pago Webhook" }),
+      JSON.stringify({ status: "active", service: "Rubi Mercado Pago Webhook" }),
       { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } }
     );
   }

@@ -1,6 +1,6 @@
 /**
- * HUBI - Serviço de Exportação de Feeds de Parceiros & Relatórios
- * Padrão oficial HUBI (Sales, Products, Customers) e Feeds XML
+ * Rubi IA - Serviço de Exportação de Feeds de Parceiros & Relatórios
+ * Padrão oficial Rubi (Sales, Products, Customers) e Feeds XML
  */
 
 import { Loja, Produto, Pedido, Cliente, ItemPedido } from '../types';
@@ -10,7 +10,10 @@ class FeedExportService {
    * Gera Feed XML no padrão Google Merchant Center (Google Shopping)
    */
   gerarGoogleMerchantXml(loja: Loja, produtos: Produto[]): string {
-    const baseUrl = typeof window !== 'undefined' ? window.location.origin : 'https://hubi.app';
+    const baseUrl =
+      typeof window !== 'undefined'
+        ? window.location.origin
+        : (import.meta.env?.VITE_APP_URL || 'https://rubi.ia.br');
     const catalogoUrl = `${baseUrl}/catalog/${loja.slug_catalogo || loja.id}`;
 
     const itemsXml = produtos

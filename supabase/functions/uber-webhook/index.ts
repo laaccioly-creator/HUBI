@@ -19,7 +19,7 @@ serve(async (req: Request) => {
   // Suporte a verificação de liveness / health check (GET)
   if (req.method === "GET") {
     return new Response(
-      JSON.stringify({ status: "active", service: "HUBI Uber Direct Webhook" }),
+      JSON.stringify({ status: "active", service: "Rubi Uber Direct Webhook" }),
       { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } }
     );
   }
@@ -95,7 +95,7 @@ serve(async (req: Request) => {
     }
 
     if (!pedidoId) {
-      console.warn(`[UberWebhook] Nenhum pedido encontrado no HUBI para delivery_id: ${deliveryId}`);
+      console.warn(`[UberWebhook] Nenhum pedido encontrado na Rubi para delivery_id: ${deliveryId}`);
       return new Response(
         JSON.stringify({ received: true, warning: `Pedido não encontrado para ${deliveryId}` }),
         { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } }

@@ -1331,7 +1331,7 @@ export async function avaliarProgressoCompletoOnboarding(
       ordem: 16,
       titulo: 'Integração com Mercado Livre',
       descricao:
-        'Sincronize o estoque físico com seus anúncios em tempo real e imprima etiquetas direto pelo HUBI.',
+        'Sincronize o estoque físico com seus anúncios em tempo real e imprima etiquetas direto pela Rubi.',
       concluido: mercadoLivreConfigurado,
       rotaDestino: '/config?tab=parceiros',
       chaveInteresse: 'interesse_mercado_livre',

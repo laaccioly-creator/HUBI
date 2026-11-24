@@ -93,7 +93,7 @@ export const ModalTutorialUberDirect: React.FC<ModalTutorialUberDirectProps> = (
                   Copie o Customer ID (Identificador da Loja)
                 </h4>
                 <p className="text-xs text-slate-900 dark:text-slate-400 leading-relaxed">
-                  Na seção superior da tela de desenvolvedor, localize o identificador exclusivo da sua organização chamado <strong className="text-black dark:text-slate-200">Customer ID</strong> (formato UUID). Copie e cole no campo correspondente no HUBI.
+                  Na seção superior da tela de desenvolvedor, localize o identificador exclusivo da sua organização chamado <strong className="text-black dark:text-slate-200">Customer ID</strong> (formato UUID). Copie e cole no campo correspondente na Rubi.
                 </p>
               </div>
             </div>
@@ -150,7 +150,7 @@ export const ModalTutorialUberDirect: React.FC<ModalTutorialUberDirectProps> = (
           <div className="p-4 rounded-xl bg-amber-50 dark:bg-amber-950/30 border border-amber-200 dark:border-amber-800/50 flex items-start gap-3">
             <AlertTriangle className="w-5 h-5 text-amber-600 dark:text-amber-400 shrink-0 mt-0.5" />
             <p className="text-xs text-amber-900 dark:text-amber-300 leading-relaxed">
-              <strong>Importante:</strong> Certifique-se de que o endereço de origem da loja informado nas configurações do HUBI esteja correto e com número e bairro precisos, pois a Uber usa esse ponto exato para localizar o motorista e calcular o raio máximo de atendimento.
+              <strong>Importante:</strong> Certifique-se de que o endereço de origem da loja informado nas configurações da Rubi esteja correto e com número e bairro precisos, pois a Uber usa esse ponto exato para localizar o motorista e calcular o raio máximo de atendimento.
             </p>
           </div>
         </div>

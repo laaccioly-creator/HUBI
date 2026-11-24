@@ -275,7 +275,7 @@ export const AssistenteRubi: React.FC = () => {
             <div className="flex items-center gap-1.5">
               <span>Rubi IA</span>
               <span className="bg-indigo-50 dark:bg-indigo-500/10 text-indigo-700 dark:text-indigo-400 text-[10px] font-bold px-1.5 py-0.2 rounded border border-indigo-200 dark:border-indigo-500/30">
-                HUBI
+                Rubi
               </span>
             </div>
           }
@@ -480,7 +480,7 @@ export const AssistenteRubi: React.FC = () => {
             <h1 className="font-bold text-sm text-slate-100 flex items-center gap-2">
               <span>Rubi - Assistente de Inteligência Artificial</span>
               <span className="bg-indigo-500/20 text-indigo-300 text-[10px] font-bold px-1.5 py-0.5 rounded border border-indigo-500/30">
-                HUBI AI
+                Rubi IA
               </span>
             </h1>
             <p className="text-[11px] text-slate-400">Pergunte sobre faturamento, produtos, alertas de estoque e dicas de crescimento.</p>

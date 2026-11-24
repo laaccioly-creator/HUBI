@@ -304,7 +304,7 @@ export const clientImportExportService = {
     ];
 
     XLSX.utils.book_append_sheet(wb, ws, 'Modelo_Clientes');
-    XLSX.writeFile(wb, 'HUBI_Modelo_Importacao_Clientes.xlsx');
+    XLSX.writeFile(wb, 'Rubi_Modelo_Importacao_Clientes.xlsx');
   },
 
   downloadModeloCSV() {
@@ -340,7 +340,7 @@ export const clientImportExportService = {
     const url = URL.createObjectURL(blob);
     const link = document.createElement('a');
     link.setAttribute('href', url);
-    link.setAttribute('download', 'HUBI_Modelo_Importacao_Clientes.csv');
+    link.setAttribute('download', 'Rubi_Modelo_Importacao_Clientes.csv');
     document.body.appendChild(link);
     link.click();
     document.body.removeChild(link);
@@ -358,7 +358,7 @@ export const clientImportExportService = {
     ];
 
     XLSX.utils.book_append_sheet(wb, ws, 'Modelo_Simplificado');
-    XLSX.writeFile(wb, 'HUBI_Modelo_Simplificado_WhatsApp.xlsx');
+    XLSX.writeFile(wb, 'Rubi_Modelo_Simplificado_WhatsApp.xlsx');
   },
 
   downloadModeloSimplificadoCSV() {
@@ -379,7 +379,7 @@ export const clientImportExportService = {
     const url = URL.createObjectURL(blob);
     const link = document.createElement('a');
     link.setAttribute('href', url);
-    link.setAttribute('download', 'HUBI_Modelo_Simplificado_WhatsApp.csv');
+    link.setAttribute('download', 'Rubi_Modelo_Simplificado_WhatsApp.csv');
     document.body.appendChild(link);
     link.click();
     document.body.removeChild(link);
@@ -985,7 +985,7 @@ export const clientImportExportService = {
 
     XLSX.utils.book_append_sheet(wb, ws, 'Clientes');
     const timestamp = new Date().toISOString().slice(0, 10);
-    const safeNomeLoja = (nomeLoja || 'HUBI').replace(/[^a-zA-Z0-9_-]/g, '_');
+    const safeNomeLoja = (nomeLoja || 'Rubi').replace(/[^a-zA-Z0-9_-]/g, '_');
     XLSX.writeFile(wb, `${safeNomeLoja}_Clientes_${timestamp}.xlsx`);
   },
 
@@ -1036,7 +1036,7 @@ export const clientImportExportService = {
     const url = URL.createObjectURL(blob);
     const link = document.createElement('a');
     const timestamp = new Date().toISOString().slice(0, 10);
-    const safeNomeLoja = (nomeLoja || 'HUBI').replace(/[^a-zA-Z0-9_-]/g, '_');
+    const safeNomeLoja = (nomeLoja || 'Rubi').replace(/[^a-zA-Z0-9_-]/g, '_');
     link.setAttribute('href', url);
     link.setAttribute('download', `${safeNomeLoja}_Clientes_${timestamp}.csv`);
     document.body.appendChild(link);

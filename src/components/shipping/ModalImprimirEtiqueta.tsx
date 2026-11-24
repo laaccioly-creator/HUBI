@@ -455,7 +455,7 @@ export const ModalImprimirEtiqueta: React.FC<ModalImprimirEtiquetaProps> = ({
             <div class="header">
               <div>
                 <h1>${transportadora}</h1>
-                <span>Envio Padrão HUBI</span>
+                <span>Envio Padrão Rubi</span>
               </div>
               <div style="text-align: right;">
                 <strong>Pedido #${pedido.numero_pedido}</strong>
@@ -484,7 +484,7 @@ export const ModalImprimirEtiqueta: React.FC<ModalImprimirEtiquetaProps> = ({
             </div>
 
             <div class="footer">
-              HUBI Plataforma de Gestão • Impresso em ${new Date().toLocaleDateString('pt-BR')} ${new Date().toLocaleTimeString('pt-BR')}
+              Rubi Plataforma de Gestão • rubi.ia.br • Impresso em ${new Date().toLocaleDateString('pt-BR')} ${new Date().toLocaleTimeString('pt-BR')}
             </div>
           </div>
           <script>
@@ -550,7 +550,7 @@ export const ModalImprimirEtiqueta: React.FC<ModalImprimirEtiquetaProps> = ({
                   <h4 className="font-bold text-sm text-slate-900 uppercase tracking-wide leading-none">
                     {transportadora}
                   </h4>
-                  <span className="text-[10px] text-slate-500 font-semibold">Logística HUBI</span>
+                  <span className="text-[10px] text-slate-500 font-semibold">Logística Rubi</span>
                 </div>
               </div>
               <div className="text-right">
@@ -694,10 +694,10 @@ export const ModalImprimirEtiqueta: React.FC<ModalImprimirEtiquetaProps> = ({
             className={`hubi-btn-neutral px-4 py-2.5 rounded-xl text-xs flex items-center gap-1.5 shadow-xs transition cursor-pointer active:scale-95 ${
               isDark ? 'bg-emerald-600 hover:bg-emerald-500 text-white border border-emerald-500 font-bold' : 'bg-slate-100 hover:bg-slate-200 border border-slate-300 text-black font-semibold'
             }`}
-            title="Imprimir formato simplificado HUBI (térmica/A4)"
+            title="Imprimir formato simplificado Rubi (térmica/A4)"
           >
             <Printer className="w-3.5 h-3.5" />
-            <span>Etiqueta HUBI</span>
+            <span>Etiqueta Rubi</span>
           </button>
         </div>
       </div>

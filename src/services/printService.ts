@@ -543,7 +543,7 @@ export class PrintService {
       const is58 = format === '58mm';
       const pageWidth = isA4 ? '210mm' : is58 ? '58mm' : '80mm';
       const maxCssWidth = isA4 ? '680px' : is58 ? '320px' : '380px';
-      const nomeLoja = loja?.nome_fantasia || 'HUBI PDV';
+      const nomeLoja = loja?.nome_fantasia || 'Rubi PDV';
       
       // Endereço e telefone da loja formatados
       const enderecoLinha = [
@@ -1295,7 +1295,7 @@ export class PrintService {
     let text = '';
     text += '\x1B\x61\x01'; // Align Center
     text += '\x1B\x45\x01'; // Bold ON
-    text += `${(loja.nome_fantasia || 'HUBI').toUpperCase()}\n`;
+    text += `${(loja.nome_fantasia || 'Rubi').toUpperCase()}\n`;
     text += '\x1B\x45\x00'; // Bold OFF
     if (loja.telefone || loja.whatsapp) text += `Tel/Whats: ${loja.whatsapp || loja.telefone}\n`;
     if (loja.endereco_cidade) text += `${loja.endereco_cidade} - ${loja.endereco_estado || ''}\n`;
@@ -1504,7 +1504,7 @@ export class PrintService {
    * Formata o corpo do e-mail com base no modelo de recibo
    */
   static generateEmailBody(pedido: Pedido, loja?: Loja | null): string {
-    const nomeLoja = loja?.nome_fantasia || 'HUBI';
+    const nomeLoja = loja?.nome_fantasia || 'Rubi';
     const itens = (pedido.itens || (pedido as any).itens_pedido || []) as ItemPedido[];
     const totalQtd = itens.reduce((acc, i) => acc + Number(i.quantidade || 1), 0);
     const dataFormatada = formatarDataRecibo(pedido.data_venda || pedido.criado_em);
@@ -1612,7 +1612,7 @@ export class PrintService {
    */
   static openEmail(pedido: Pedido, loja?: Loja | null): void {
     const emailDestino = pedido.cliente?.email || '';
-    const assunto = `Recibo Pedido #${pedido.numero_pedido} - ${loja?.nome_fantasia || 'HUBI'}`;
+    const assunto = `Recibo Pedido #${pedido.numero_pedido} - ${loja?.nome_fantasia || 'Rubi'}`;
     const corpo = this.generateEmailBody(pedido, loja);
     const mailtoUrl = `mailto:${emailDestino}?subject=${encodeURIComponent(assunto)}&body=${encodeURIComponent(corpo)}`;
     window.open(mailtoUrl, '_blank');
@@ -1625,7 +1625,7 @@ export class PrintService {
     const baseUrl = typeof window !== 'undefined' && window.location.origin ? window.location.origin : '';
     const idRecibo = pedido.id || pedido.numero_pedido;
     const urlReciboOficial = idRecibo ? `${baseUrl}/recibo/${idRecibo}` : '';
-    const nomeLoja = loja.nome_fantasia || 'HUBI';
+    const nomeLoja = loja.nome_fantasia || 'Rubi';
     const avisoPesagem = pedido.status_pagamento === 'aguardando_pesagem'
       ? '\n⚖️ Seu pedido contém itens por quilo e está em pesagem/separação. Avisaremos assim que os valores exatos forem confirmados!\n'
       : '';
@@ -1697,7 +1697,7 @@ Agradecemos a sua preferência! ✨`;
       const pageWidth = isA4 ? '210mm' : is58 ? '58mm' : '80mm';
       const maxCssWidth = isA4 ? '680px' : is58 ? '320px' : '400px';
 
-      const nomeLoja = loja?.nome_fantasia || 'HUBI GESTÃO & PDV';
+      const nomeLoja = loja?.nome_fantasia || 'Rubi Gestão & PDV';
       const razaoSocial = loja?.razao_social && loja.razao_social !== nomeLoja ? loja.razao_social : '';
       const docLoja = loja?.numero_documento || (loja as any)?.cnpj || (loja as any)?.cpf;
       const telLoja = loja?.whatsapp || loja?.telefone;
@@ -2120,7 +2120,7 @@ Agradecemos a sua preferência! ✨`;
             ">
               <div>Emitido em: ${new Date().toLocaleString('pt-BR')}</div>
               <div style="font-weight: 600; color: #0f172a; margin-top: 1px;">
-                HUBI • Sistema de Gestão & PDV
+                Rubi • Sistema de Gestão & PDV • rubi.ia.br
               </div>
             </div>
           </div>

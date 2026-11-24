@@ -172,10 +172,10 @@ export const CadastroPdv: React.FC = () => {
         {/* ========================================================================= */}
         <div className="lg:col-span-5 bg-slate-900 p-6 sm:p-10 flex flex-col justify-between border-b lg:border-b-0 lg:border-r border-slate-800 z-10">
           <div className="space-y-6 max-w-sm mx-auto w-full">
-            {/* Logo Marca HUBI (Estilo Box do Kyte) */}
+            {/* Logo Marca Rubi */}
             <div className="flex items-center justify-center pt-2">
-              <div className="w-14 h-14 rounded-2xl bg-emerald-500 text-white flex items-center justify-center font-black text-2xl shadow-lg shadow-emerald-500/25 tracking-wider">
-                HUBI
+              <div className="w-14 h-14 rounded-2xl bg-emerald-500 text-white flex items-center justify-center font-black text-xl shadow-lg shadow-emerald-500/25 tracking-wider">
+                Rubi
               </div>
             </div>
 
@@ -274,7 +274,7 @@ export const CadastroPdv: React.FC = () => {
                       <span>Criando sua conta...</span>
                     </>
                   ) : (
-                    <span>Criar nova conta HUBI</span>
+                    <span>Criar nova conta Rubi</span>
                   )}
                 </button>
 
@@ -390,7 +390,7 @@ export const CadastroPdv: React.FC = () => {
                       <span>Entrando...</span>
                     </>
                   ) : (
-                    <span>Entrar no HUBI</span>
+                    <span>Entrar na Rubi</span>
                   )}
                 </button>
 
@@ -418,7 +418,7 @@ export const CadastroPdv: React.FC = () => {
               <Globe className="w-3.5 h-3.5 text-slate-500" />
               <span>PT</span>
             </span>
-            <span>HUBI v2.0</span>
+            <span>Rubi IA v2.0</span>
           </div>
         </div>
 
@@ -467,7 +467,7 @@ export const CadastroPdv: React.FC = () => {
                   <div className="bg-emerald-950/60 border border-emerald-500/30 rounded-2xl p-3 text-xs text-emerald-300 ml-auto max-w-[90%] space-y-1">
                     <p>Claro, tudo organizado aqui! Acesse o nosso catálogo online:</p>
                     <span className="text-emerald-400 font-bold underline block">
-                      https://hubi.site/catalogo-online
+                      https://rubi.ia.br/catalogo-online
                     </span>
                   </div>
                 </div>
@@ -499,7 +499,7 @@ export const CadastroPdv: React.FC = () => {
                 <div className="bg-white text-slate-900 rounded-2xl p-5 shadow-2xl w-64 space-y-3 font-mono text-[11px] rotate-[-2deg]">
                   <div className="text-center border-b border-dashed border-slate-300 pb-2">
                     <span className="font-black text-xs block">RECIBO #01-2374</span>
-                    <span className="text-[10px] text-slate-500">CAFÉ & DOCERIA HUBI</span>
+                    <span className="text-[10px] text-slate-500">CAFÉ & DOCERIA RUBI</span>
                   </div>
                   <div className="space-y-1 text-[10px] border-b border-dashed border-slate-300 pb-2">
                     <div className="flex justify-between font-bold">

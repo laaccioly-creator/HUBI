@@ -929,7 +929,7 @@ export const caixaService = {
 
     return [
       `━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━`,
-      `🏢 *${(nomeLoja || 'HUBI GESTÃO & PDV').toUpperCase()}*`,
+      `🏢 *${(nomeLoja || 'RUBI GESTÃO & PDV').toUpperCase()}*`,
       `📑 *COMPROVANTE DE FECHAMENTO DE CAIXA*`,
       `━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━`,
       `🖥️ *Terminal:* ${sessao.terminal_id} | *Status:* ${(sessao.status || 'FECHADO').toUpperCase()}`,
@@ -962,7 +962,7 @@ export const caixaService = {
       `━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━`,
       sessao.observacoes_fechamento ? `📝 *Obs:* ${sessao.observacoes_fechamento}\n────────────────────────────────────` : '',
       `📅 *Emitido em:* ${new Date().toLocaleString('pt-BR')}`,
-      `HUBI • Sistema de Gestão & PDV`,
+      `Rubi • Sistema de Gestão & PDV • rubi.ia.br`,
       `━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━`
     ].filter(Boolean).join('\n');
   }

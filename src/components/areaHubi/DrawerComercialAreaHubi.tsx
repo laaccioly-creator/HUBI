@@ -196,7 +196,7 @@ export const DrawerComercialAreaHubi: React.FC<DrawerComercialAreaHubiProps> = (
         >
           <div className="min-w-0">
             <h2 className={`text-base font-black truncate ${isDark ? 'text-white' : 'text-black'}`}>
-              {tituloContexto || 'Carteira Comercial HUBI'}
+              {tituloContexto || 'Carteira Comercial Rubi'}
             </h2>
             <p className={`text-xs truncate ${isDark ? 'text-slate-400' : 'text-slate-700 font-medium'}`}>
               {lojas.length} lojas registradas na plataforma • Segmentação em tempo real

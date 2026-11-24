@@ -1542,7 +1542,7 @@ export const ShippingSettingsScreen: React.FC = () => {
                   className="w-full px-4 py-2.5 rounded-xl text-sm border border-slate-700 bg-slate-800 text-black dark:text-white placeholder:text-slate-500 dark:placeholder:text-slate-400 focus:ring-2 focus:ring-purple-500 outline-none font-mono"
                 />
                 <p className="text-sm leading-relaxed font-medium text-black dark:text-purple-300 mt-1">
-                  💡 Use <code className="bg-purple-100 text-purple-900 dark:bg-purple-950 px-1 py-0.5 rounded dark:text-white">{'{{codigo}}'}</code> no lugar do código. O HUBI criará o link de rastreio com um clique.
+                  💡 Use <code className="bg-purple-100 text-purple-900 dark:bg-purple-950 px-1 py-0.5 rounded dark:text-white">{'{{codigo}}'}</code> no lugar do código. A Rubi criará o link de rastreio com um clique.
                 </p>
               </div>
 

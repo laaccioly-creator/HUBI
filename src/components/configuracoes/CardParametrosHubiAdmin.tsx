@@ -254,7 +254,7 @@ export const CardParametrosHubiAdmin: React.FC<CardParametrosHubiAdminProps> = (
           <div>
             <div className="flex items-center gap-2">
               <h3 className={`font-black text-sm sm:text-base ${isDark ? 'text-white' : 'text-slate-900'}`}>
-                ⚙️ Parâmetros Globais HUBI
+                ⚙️ Parâmetros Globais Rubi
               </h3>
               <span className="text-[10px] bg-emerald-500/10 border border-emerald-500/30 text-emerald-600 dark:text-emerald-400 font-black px-2 py-0.5 rounded-full uppercase tracking-wider">
                 Super Admin
@@ -599,7 +599,7 @@ export const CardParametrosHubiAdmin: React.FC<CardParametrosHubiAdminProps> = (
             </span>
           </div>
           <p className="text-sm leading-relaxed text-black dark:text-slate-300 mb-3">
-            Credenciais exclusivas da conta HUBI para recebimento de assinaturas anuais do sistema e recargas da carteira WhatsApp (totalmente isoladas do Mercado Pago das lojas).
+            Credenciais exclusivas da conta Rubi para recebimento de assinaturas anuais do sistema e recargas da carteira WhatsApp (totalmente isoladas do Mercado Pago das lojas).
           </p>
 
           <div
@@ -1162,7 +1162,7 @@ export const CardParametrosHubiAdmin: React.FC<CardParametrosHubiAdminProps> = (
         >
           <div className="text-sm font-medium text-black dark:text-slate-300 flex items-center gap-1.5">
             <CheckCircle2 className="w-3.5 h-3.5 text-emerald-500" />
-            <span>As mudanças refletirão imediatamente em toda a infraestrutura e checkouts do HUBI.</span>
+            <span>As mudanças refletirão imediatamente em toda a infraestrutura e checkouts da Rubi.</span>
           </div>
 
           <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2.5 w-full sm:w-auto">
@@ -1177,7 +1177,7 @@ export const CardParametrosHubiAdmin: React.FC<CardParametrosHubiAdminProps> = (
                 }`}
               >
                 <Gauge className="w-3.5 h-3.5" />
-                <span>Área HUBI</span>
+                <span>Área Rubi</span>
               </button>
             )}
 

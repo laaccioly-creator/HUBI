@@ -662,7 +662,7 @@ export class UberDirectService {
 
     const payload = {
       ...(quoteIdFinal ? { quote_id: quoteIdFinal } : {}),
-      pickup_name: loja.nome_fantasia || 'HUBI PDV',
+      pickup_name: loja.nome_fantasia || 'Rubi PDV',
       pickup_address: pickupAddressObj,
       pickup_phone_number: pickupPhone,
       dropoff_name: clienteNome || 'Cliente',

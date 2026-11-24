@@ -868,7 +868,7 @@ input[type="checkbox"]:not(.sr-only):not(.hidden):focus {
    ========================================================================== */
 @media screen and (max-width: 900px) and (max-height: 520px) and (orientation: landscape) {
   body::after {
-    content: "📱 Por favor, gire o seu celular para a vertical (em pé) para continuar usando o HUBI.";
+    content: "📱 Por favor, gire o seu celular para a vertical (em pé) para continuar usando a Rubi.";
     position: fixed;
     inset: 0;
     z-index: 999999;

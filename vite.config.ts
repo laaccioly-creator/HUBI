@@ -347,9 +347,9 @@ export default defineConfig({
       injectRegister: 'auto',
       includeAssets: ['favicon.svg', 'apple-touch-icon.png', 'pwa-192x192.png', 'pwa-512x512.png', 'manifest.json'],
       manifest: {
-        name: 'HUBI - Gestão e Vendas',
-        short_name: 'HUBI',
-        description: 'Sistema completo de gestão e vendas para pequenos lojistas',
+        name: 'Rubi - Gestão & PDV Inteligente',
+        short_name: 'Rubi',
+        description: 'Plataforma completa de gestão, PDV e vendas com Rubi IA para lojistas e autônomos',
         theme_color: '#020617',
         background_color: '#020617',
         display: 'standalone',

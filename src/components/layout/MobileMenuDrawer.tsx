@@ -299,11 +299,11 @@ export const MobileMenuDrawer: React.FC<MobileMenuDrawerProps> = ({
               >
                 <div className="flex items-center gap-2.5 min-w-0">
                   <div className="w-9 h-9 rounded-xl bg-gradient-to-tr from-emerald-600 to-emerald-400 flex items-center justify-center font-black text-slate-950 text-sm shadow-sm shrink-0">
-                    {loja?.nome_fantasia ? loja.nome_fantasia.slice(0, 2).toUpperCase() : 'HB'}
+                    {loja?.nome_fantasia ? loja.nome_fantasia.slice(0, 2).toUpperCase() : 'RB'}
                   </div>
                   <div className="min-w-0">
                     <h3 className="font-bold text-xs text-slate-800 dark:text-slate-100 truncate">
-                      {loja?.nome_fantasia || 'HUBI PDV'}
+                      {loja?.nome_fantasia || 'Rubi PDV'}
                     </h3>
                     <p className="text-[10px] text-emerald-600 dark:text-emerald-400 font-semibold truncate">
                       {(usuario?.nome || usuario?.nome_completo || 'Operador').toUpperCase()}
@@ -360,11 +360,11 @@ export const MobileMenuDrawer: React.FC<MobileMenuDrawerProps> = ({
           ) : (
             <div className="flex items-center gap-2.5 min-w-0 p-2.5 rounded-2xl border border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-900/60">
               <div className="w-9 h-9 rounded-xl bg-gradient-to-tr from-emerald-600 to-emerald-400 flex items-center justify-center font-black text-slate-950 text-sm shadow-sm shrink-0">
-                {loja?.nome_fantasia ? loja.nome_fantasia.slice(0, 2).toUpperCase() : 'HB'}
+                {loja?.nome_fantasia ? loja.nome_fantasia.slice(0, 2).toUpperCase() : 'RB'}
               </div>
               <div className="min-w-0">
                 <h3 className="font-bold text-xs text-slate-800 dark:text-slate-100 truncate">
-                  {loja?.nome_fantasia || 'HUBI PDV'}
+                  {loja?.nome_fantasia || 'Rubi PDV'}
                 </h3>
                 <p className="text-[10px] text-emerald-600 dark:text-emerald-400 font-semibold truncate">
                   {(usuario?.nome || usuario?.nome_completo || 'Operador').toUpperCase()}

@@ -111,7 +111,7 @@ export const orderImportExportService = {
     ];
 
     XLSX.utils.book_append_sheet(wb, ws, 'Modelo_Pedidos');
-    XLSX.writeFile(wb, 'HUBI_Modelo_Importacao_Pedidos.xlsx');
+    XLSX.writeFile(wb, 'Rubi_Modelo_Importacao_Pedidos.xlsx');
   },
 
   downloadModeloCSV() {
@@ -139,7 +139,7 @@ export const orderImportExportService = {
     const url = URL.createObjectURL(blob);
     const link = document.createElement('a');
     link.setAttribute('href', url);
-    link.setAttribute('download', 'HUBI_Modelo_Importacao_Pedidos.csv');
+    link.setAttribute('download', 'Rubi_Modelo_Importacao_Pedidos.csv');
     document.body.appendChild(link);
     link.click();
     document.body.removeChild(link);
@@ -543,7 +543,7 @@ export const orderImportExportService = {
 
     XLSX.utils.book_append_sheet(wb, ws, 'Pedidos_Vendas');
     const timestamp = new Date().toISOString().slice(0, 10);
-    const safeNomeLoja = (nomeLoja || 'HUBI').replace(/[^a-zA-Z0-9_-]/g, '_');
+    const safeNomeLoja = (nomeLoja || 'Rubi').replace(/[^a-zA-Z0-9_-]/g, '_');
     XLSX.writeFile(wb, `${safeNomeLoja}_Pedidos_${timestamp}.xlsx`);
   },
 
@@ -592,7 +592,7 @@ export const orderImportExportService = {
     const url = URL.createObjectURL(blob);
     const link = document.createElement('a');
     const timestamp = new Date().toISOString().slice(0, 10);
-    const safeNomeLoja = (nomeLoja || 'HUBI').replace(/[^a-zA-Z0-9_-]/g, '_');
+    const safeNomeLoja = (nomeLoja || 'Rubi').replace(/[^a-zA-Z0-9_-]/g, '_');
     link.setAttribute('href', url);
     link.setAttribute('download', `${safeNomeLoja}_Pedidos_${timestamp}.csv`);
     document.body.appendChild(link);

@@ -199,23 +199,23 @@ export const productImportExportService = {
 
     // 2. Aba de Instruções e Dicas
     const instrucoes = [
-      { 'GUIA DE IMPORTAÇÃO DE PRODUTOS - HUBI': 'INSTRUÇÕES DE PREENCHIMENTO' },
-      { 'GUIA DE IMPORTAÇÃO DE PRODUTOS - HUBI': '1. Colunas com asterisco (*) são de preenchimento obrigatório: "Nome do Produto" e "Preço Venda / Varejo".' },
-      { 'GUIA DE IMPORTAÇÃO DE PRODUTOS - HUBI': '2. Categorias: Se a categoria informada não existir no sistema, ela será criada automaticamente na importação.' },
-      { 'GUIA DE IMPORTAÇÃO DE PRODUTOS - HUBI': '3. SKU / Código Interno Automático: Se deixar em branco, o sistema gerará automaticamente o código interno a partir da categoria (2 letras da categoria + 4 dígitos sequenciais, ex: Cosmético -> CO0001; Brinquedo Erótico -> BE0001).' },
-      { 'GUIA DE IMPORTAÇÃO DE PRODUTOS - HUBI': '4. Atualização de Produtos: Se o código de barras, SKU ou nome já existir na sua loja, os dados serão atualizados.' },
-      { 'GUIA DE IMPORTAÇÃO DE PRODUTOS - HUBI': '5. Novos Produtos: Se o produto não existir no sistema, um novo cadastro será criado com sucesso.' },
-      { 'GUIA DE IMPORTAÇÃO DE PRODUTOS - HUBI': '5. Preços: Utilize números decimais com ponto ou vírgula (Ex: 12.50 ou 12,50). Não use R$.' },
-      { 'GUIA DE IMPORTAÇÃO DE PRODUTOS - HUBI': '6. Unidades aceitas: UN, KG, G, L, ML, PCT, CX, FD, M, MT, DZ, PAR.' },
-      { 'GUIA DE IMPORTAÇÃO DE PRODUTOS - HUBI': '7. Catálogo: Preencha com SIM ou NÃO para controlar a visibilidade na loja online.' },
-      { 'GUIA DE IMPORTAÇÃO DE PRODUTOS - HUBI': '8. Status: Preencha com ATIVO ou INATIVO.' },
-      { 'GUIA DE IMPORTAÇÃO DE PRODUTOS - HUBI': '9. DICA: Você também pode usar a função de "Exportar Produtos" do HUBI para gerar a sua base real, editar no Excel e reimportar!' }
+      { 'GUIA DE IMPORTAÇÃO DE PRODUTOS - RUBI': 'INSTRUÇÕES DE PREENCHIMENTO' },
+      { 'GUIA DE IMPORTAÇÃO DE PRODUTOS - RUBI': '1. Colunas com asterisco (*) são de preenchimento obrigatório: "Nome do Produto" e "Preço Venda / Varejo".' },
+      { 'GUIA DE IMPORTAÇÃO DE PRODUTOS - RUBI': '2. Categorias: Se a categoria informada não existir no sistema, ela será criada automaticamente na importação.' },
+      { 'GUIA DE IMPORTAÇÃO DE PRODUTOS - RUBI': '3. SKU / Código Interno Automático: Se deixar em branco, o sistema gerará automaticamente o código interno a partir da categoria (2 letras da categoria + 4 dígitos sequenciais, ex: Cosmético -> CO0001; Brinquedo Erótico -> BE0001).' },
+      { 'GUIA DE IMPORTAÇÃO DE PRODUTOS - RUBI': '4. Atualização de Produtos: Se o código de barras, SKU ou nome já existir na sua loja, os dados serão atualizados.' },
+      { 'GUIA DE IMPORTAÇÃO DE PRODUTOS - RUBI': '5. Novos Produtos: Se o produto não existir no sistema, um novo cadastro será criado com sucesso.' },
+      { 'GUIA DE IMPORTAÇÃO DE PRODUTOS - RUBI': '5. Preços: Utilize números decimais com ponto ou vírgula (Ex: 12.50 ou 12,50). Não use R$.' },
+      { 'GUIA DE IMPORTAÇÃO DE PRODUTOS - RUBI': '6. Unidades aceitas: UN, KG, G, L, ML, PCT, CX, FD, M, MT, DZ, PAR.' },
+      { 'GUIA DE IMPORTAÇÃO DE PRODUTOS - RUBI': '7. Catálogo: Preencha com SIM ou NÃO para controlar a visibilidade na loja online.' },
+      { 'GUIA DE IMPORTAÇÃO DE PRODUTOS - RUBI': '8. Status: Preencha com ATIVO ou INATIVO.' },
+      { 'GUIA DE IMPORTAÇÃO DE PRODUTOS - RUBI': '9. DICA: Você também pode usar a função de "Exportar Produtos" da Rubi para gerar a sua base real, editar no Excel e reimportar!' }
     ];
     const wsInstrucoes = XLSX.utils.json_to_sheet(instrucoes);
     wsInstrucoes['!cols'] = [{ wch: 110 }];
     XLSX.utils.book_append_sheet(wb, wsInstrucoes, 'Como Preencher');
 
-    XLSX.writeFile(wb, 'HUBI_Modelo_Importacao_Produtos.xlsx');
+    XLSX.writeFile(wb, 'Rubi_Modelo_Importacao_Produtos.xlsx');
   },
 
   /**
@@ -248,7 +248,7 @@ export const productImportExportService = {
     const url = URL.createObjectURL(blob);
     const link = document.createElement('a');
     link.setAttribute('href', url);
-    link.setAttribute('download', 'HUBI_Modelo_Importacao_Produtos.csv');
+    link.setAttribute('download', 'Rubi_Modelo_Importacao_Produtos.csv');
     document.body.appendChild(link);
     link.click();
     document.body.removeChild(link);
@@ -306,7 +306,7 @@ export const productImportExportService = {
     XLSX.utils.book_append_sheet(wb, ws, 'Produtos');
 
     const timestamp = new Date().toISOString().slice(0, 10);
-    const safeNomeLoja = (nomeLoja || 'HUBI').replace(/[^a-zA-Z0-9_-]/g, '_');
+    const safeNomeLoja = (nomeLoja || 'Rubi').replace(/[^a-zA-Z0-9_-]/g, '_');
     XLSX.writeFile(wb, `${safeNomeLoja}_Produtos_${timestamp}.xlsx`);
   },
 
@@ -344,7 +344,7 @@ export const productImportExportService = {
     const url = URL.createObjectURL(blob);
     const link = document.createElement('a');
     const timestamp = new Date().toISOString().slice(0, 10);
-    const safeNomeLoja = (nomeLoja || 'HUBI').replace(/[^a-zA-Z0-9_-]/g, '_');
+    const safeNomeLoja = (nomeLoja || 'Rubi').replace(/[^a-zA-Z0-9_-]/g, '_');
     link.setAttribute('href', url);
     link.setAttribute('download', `${safeNomeLoja}_Produtos_${timestamp}.csv`);
     document.body.appendChild(link);

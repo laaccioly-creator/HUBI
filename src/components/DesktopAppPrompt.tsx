@@ -134,7 +134,7 @@ export const DesktopAppPrompt: React.FC = () => {
           </div>
           <div>
             <span className="font-bold text-white">
-              {jaInstalado ? 'HUBI App instalado no Desktop: ' : 'Instalar HUBI no Desktop: '}
+              {jaInstalado ? 'Rubi App instalado no Desktop: ' : 'Instalar Rubi no Desktop: '}
             </span>
             <span className="text-slate-300">
               {jaInstalado
@@ -203,7 +203,7 @@ export const DesktopAppPrompt: React.FC = () => {
             </div>
 
             <p className="text-xs text-slate-300 leading-relaxed">
-              Para colocar o ícone do <b>HUBI</b> diretamente na sua <b>Área de Trabalho do Windows</b> e abrir como um app dedicado sem barra de navegação:
+              Para colocar o ícone da <b>Rubi</b> diretamente na sua <b>Área de Trabalho do Windows</b> e abrir como um app dedicado sem barra de navegação:
             </p>
 
             <div className="space-y-2.5 text-xs text-slate-200">
@@ -217,7 +217,7 @@ export const DesktopAppPrompt: React.FC = () => {
               <div className="p-3 bg-slate-950 rounded-2xl border border-slate-800 flex items-start gap-2.5">
                 <span className="w-5 h-5 rounded-full bg-emerald-600 text-white font-bold text-[11px] flex items-center justify-center shrink-0">2</span>
                 <div>
-                  Vá em <b>Salvar e compartilhar</b> (ou <i>Transmitir, salvar e compartilhar</i>) e clique em <b>Criar atalho...</b> (ou <i>Instalar HUBI</i>).
+                  Vá em <b>Salvar e compartilhar</b> (ou <i>Transmitir, salvar e compartilhar</i>) e clique em <b>Criar atalho...</b> (ou <i>Instalar Rubi</i>).
                 </div>
               </div>
 
@@ -230,7 +230,7 @@ export const DesktopAppPrompt: React.FC = () => {
             </div>
 
             <div className="p-3 bg-emerald-950/40 border border-emerald-500/30 rounded-2xl text-[11px] text-emerald-300">
-              ✨ Pronto! O ícone do <b>HUBI</b> será criado na sua Área de Trabalho e o sistema abrirá em janela própria em tela cheia sem barras de navegação.
+              ✨ Pronto! O ícone da <b>Rubi</b> será criado na sua Área de Trabalho e o sistema abrirá em janela própria em tela cheia sem barras de navegação.
             </div>
 
             <button
@@ -302,7 +302,7 @@ export const DesktopInstallButton: React.FC = () => {
       type="button"
       onClick={handleClique}
       className="hidden md:flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-emerald-500/15 hover:bg-emerald-500/25 text-emerald-400 border border-emerald-500/30 text-xs font-bold transition shadow-sm cursor-pointer active:scale-95"
-      title={jaInstalado ? 'Mudar para o aplicativo dedicado' : 'Instalar o HUBI no Desktop'}
+      title={jaInstalado ? 'Mudar para o aplicativo dedicado' : 'Instalar a Rubi no Desktop'}
     >
       {jaInstalado ? <ExternalLink className="w-3.5 h-3.5" /> : <Download className="w-3.5 h-3.5" />}
       <span>{jaInstalado ? 'Mudar para o App' : 'Instalar App'}</span>

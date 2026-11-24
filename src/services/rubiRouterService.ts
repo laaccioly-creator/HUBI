@@ -44,7 +44,7 @@ export const rubiRouterService = {
     try {
       const perguntasJev = {
         intencao: typesafeService.criarChoice(
-          'Classifique estritamente a intenção desta mensagem de um operador ou lojista no sistema HUBI:',
+          'Classifique estritamente a intenção desta mensagem de um operador ou lojista na plataforma Rubi IA:',
           {
             CONSULTA_CAIXA: 'Saldo de caixa atual, abertura, fechamento, quebra, sangria, suprimento ou valores em dinheiro do turno',
             GIRO_ESTOQUE: 'Estoque baixo, produtos em falta, itens acabando, reposição ou produtos com estoque zerado',
@@ -121,7 +121,7 @@ export const rubiRouterService = {
             corpoVendas += `\n• **Acumulado do Mês:** R$ ${fatMes.toFixed(2)} (${qtdMes} vendas)`;
           }
 
-          return `📊 **Resumo de Vendas${dataLabel}:**\n\n${corpoVendas}\n\n✨ *Dados apurados em tempo real no seu HUBI.*`;
+          return `📊 **Resumo de Vendas${dataLabel}:**\n\n${corpoVendas}\n\n✨ *Dados apurados em tempo real na sua plataforma Rubi.*`;
         }
 
         // ROTA B: Estoque & Reposição (Busca APENAS produtos, sem tocar em pedidos nem clientes)
@@ -192,7 +192,7 @@ export const rubiRouterService = {
           const tutorial = encontrarTutorialMaisRelevante(textoLimpo);
           if (tutorial) {
             const nomeUsuario = primeiroNomeUsuario(usuario?.nome_completo);
-            return `Olá, **${nomeUsuario}**! 😊\n\nAqui está o passo a passo sobre **${tutorial.titulo}** no HUBI:\n\n${tutorial.conteudo}\n\n**Passo a passo prático:**\n${tutorial.passos.map((p, i) => `${i + 1}. ${p}`).join('\n')}\n\nSe precisar de mais detalhes ou tiver outra dúvida, conte comigo! 👍`;
+            return `Olá, **${nomeUsuario}**! 😊\n\nAqui está o passo a passo sobre **${tutorial.titulo}** na Rubi:\n\n${tutorial.conteudo}\n\n**Passo a passo prático:**\n${tutorial.passos.map((p, i) => `${i + 1}. ${p}`).join('\n')}\n\nSe precisar de mais detalhes ou tiver outra dúvida, conte comigo! 👍`;
           }
         }
 

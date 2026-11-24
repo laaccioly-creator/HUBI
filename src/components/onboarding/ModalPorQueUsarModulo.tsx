@@ -73,7 +73,7 @@ export const CONTEUDO_POR_QUE_USAR_ETAPAS: Record<EtapaOnboardingId, ConteudoPor
     titulo: 'Busca Automática de Fotos (Serper.dev)',
     subtitulo: 'Imagens profissionais em 1 clique e pesquisa de preços da concorrência',
     resumoPratico:
-      'Lojas com fotos nítidas vendem muito mais no Catálogo Online e no PDV. Com a chave gratuita do Serper.dev (2.500 consultas), o HUBI busca imagens direto pelo código de barras ou nome do produto e habilita o Radar de Preços.',
+      'Lojas com fotos nítidas vendem muito mais no Catálogo Online e no PDV. Com a chave gratuita do Serper.dev (2.500 consultas), a Rubi busca imagens direto pelo código de barras ou nome do produto e habilita o Radar de Preços.',
     problemasResolvidos: [
       'Produtos sem foto que derrubam a conversão e passam pouca confiança na vitrine.',
       'Perda de tempo baixando imagens manualmente no navegador e salvando pastas.',
@@ -113,7 +113,7 @@ export const CONTEUDO_POR_QUE_USAR_ETAPAS: Record<EtapaOnboardingId, ConteudoPor
     titulo: 'Tabelas de Preço e Tipos de Venda',
     subtitulo: 'Regras automáticas para Varejo, Atacado e Autoatacado / Distribuidor',
     resumoPratico:
-      'Defina exatamente quais modalidades comerciais sua loja opera. O motor de preços do HUBI aplica automaticamente os descontos progressivos ou valores de fardo fechado quando o carrinho atinge a quantidade ou valor mínimo configurado.',
+      'Defina exatamente quais modalidades comerciais sua loja opera. O motor de preços da Rubi aplica automaticamente os descontos progressivos ou valores de fardo fechado quando o carrinho atinge a quantidade ou valor mínimo configurado.',
     problemasResolvidos: [
       'Operador calculando desconto de atacado na calculadora e errando a margem.',
       'Exibir tabelas que a loja não usa, poluindo a tela do PDV e do catálogo.',
@@ -253,7 +253,7 @@ export const CONTEUDO_POR_QUE_USAR_ETAPAS: Record<EtapaOnboardingId, ConteudoPor
     titulo: 'Gateway de Pagamentos Online (Mercado Pago, Asaas e outros)',
     subtitulo: 'Pix dinâmico com confirmação automática e cartão direto no catálogo',
     resumoPratico:
-      'Ao integrar um gateway online, o cliente gera o QR Code Pix ou paga com cartão dentro do próprio Catálogo Online. Assim que o banco confirma o pagamento, o pedido é marcado como pago automaticamente no HUBI.',
+      'Ao integrar um gateway online, o cliente gera o QR Code Pix ou paga com cartão dentro do próprio Catálogo Online. Assim que o banco confirma o pagamento, o pedido é marcado como pago automaticamente na Rubi.',
     problemasResolvidos: [
       'Risco de comprovante falso ou tempo gasto conferindo extrato bancário a cada Pix.',
       'Clientes desistindo da compra por precisar esperar você mandar a chave e confirmar.',
@@ -273,7 +273,7 @@ export const CONTEUDO_POR_QUE_USAR_ETAPAS: Record<EtapaOnboardingId, ConteudoPor
     titulo: 'Cotação Automática Nacional (Melhor Envio)',
     subtitulo: 'Frete Correios e transportadoras calculado no carrinho com etiqueta em 1 clique',
     resumoPratico:
-      'Conecte sua conta do Melhor Envio para que o próprio cliente veja prazos e valores de PAC, SEDEX e Jadlog no fechamento do pedido. Depois, você gera a etiqueta e acompanha o rastreio sem sair do painel do HUBI.',
+      'Conecte sua conta do Melhor Envio para que o próprio cliente veja prazos e valores de PAC, SEDEX e Jadlog no fechamento do pedido. Depois, você gera a etiqueta e acompanha o rastreio sem sair do painel da Rubi.',
     problemasResolvidos: [
       'Demorar horas respondendo "quanto fica o frete para o CEP tal?" e perder a venda.',
       'Pagar frete de balcão mais caro nos Correios por falta de tabela negociada.',
@@ -293,7 +293,7 @@ export const CONTEUDO_POR_QUE_USAR_ETAPAS: Record<EtapaOnboardingId, ConteudoPor
     titulo: 'Entregas Expressas Locais (Uber Direct)',
     subtitulo: 'Chame entregadores sob demanda direto do pedido com rastreio ao vivo',
     resumoPratico:
-      'Com o Uber Direct, você oferece entrega expressa na mesma hora na sua cidade sem precisar manter motoboy fixo ocioso. O sistema calcula a corrida na hora e dispara o entregador direto do HUBI quando o pedido estiver embalado.',
+      'Com o Uber Direct, você oferece entrega expressa na mesma hora na sua cidade sem precisar manter motoboy fixo ocioso. O sistema calcula a corrida na hora e dispara o entregador direto da Rubi quando o pedido estiver embalado.',
     problemasResolvidos: [
       'Custo fixo alto com entregador próprio em horários de pouco movimento.',
       'Ficar abrindo vários aplicativos no celular e copiando endereço cliente por cliente.',
@@ -313,7 +313,7 @@ export const CONTEUDO_POR_QUE_USAR_ETAPAS: Record<EtapaOnboardingId, ConteudoPor
     titulo: 'Apps de Corrida Externos (99, Lalamove, etc.)',
     subtitulo: 'Organize entregas chamadas por fora registrando código e link no pedido',
     resumoPratico:
-      'Se você já utiliza 99 Entrega, Lalamove, Indrive ou mototáxi por aplicativo externo, esse módulo permite registrar o app utilizado, o código de retirada e o link de rastreio dentro do pedido do HUBI.',
+      'Se você já utiliza 99 Entrega, Lalamove, Indrive ou mototáxi por aplicativo externo, esse módulo permite registrar o app utilizado, o código de retirada e o link de rastreio dentro do pedido da Rubi.',
     problemasResolvidos: [
       'Perder o histórico de qual app ou motorista levou cada encomenda.',
       'Ficar procurando link de corrida no celular quando o cliente pede posição.',
@@ -353,7 +353,7 @@ export const CONTEUDO_POR_QUE_USAR_ETAPAS: Record<EtapaOnboardingId, ConteudoPor
     titulo: 'Notificações Automáticas no WhatsApp (Meta Cloud API)',
     subtitulo: 'Avisos automáticos de status de pedido, rastreio e lembretes de agenda',
     resumoPratico:
-      'Conecte a API oficial do WhatsApp (ou utilize a carteira pré-paga HUBI) para enviar notificações automáticas sempre que um pedido for confirmado, pesado, separado, despachado ou quando houver um agendamento próximo.',
+      'Conecte a API oficial do WhatsApp (ou utilize a carteira pré-paga Rubi) para enviar notificações automáticas sempre que um pedido for confirmado, pesado, separado, despachado ou quando houver um agendamento próximo.',
     problemasResolvidos: [
       'Atendentes sobrecarregados respondendo "meu pedido já saiu?" o dia inteiro.',
       'Faltas em serviços agendados por esquecimento do cliente.',
@@ -373,7 +373,7 @@ export const CONTEUDO_POR_QUE_USAR_ETAPAS: Record<EtapaOnboardingId, ConteudoPor
     titulo: 'Integração com Mercado Livre',
     subtitulo: 'Estoque unificado entre loja física, catálogo e anúncios do marketplace',
     resumoPratico:
-      'Vincule sua conta do Mercado Livre para sincronizar automaticamente o saldo de estoque dos produtos e importar pedidos e etiquetas de envio para dentro do mesmo fluxo operacional do HUBI.',
+      'Vincule sua conta do Mercado Livre para sincronizar automaticamente o saldo de estoque dos produtos e importar pedidos e etiquetas de envio para dentro do mesmo fluxo operacional da Rubi.',
     problemasResolvidos: [
       'Vender a última unidade no balcão e esquecer de pausar o anúncio no Mercado Livre.',
       'Alternar entre duas plataformas o dia todo para conferir pedidos e imprimir etiquetas.',
@@ -385,7 +385,7 @@ export const CONTEUDO_POR_QUE_USAR_ETAPAS: Record<EtapaOnboardingId, ConteudoPor
       'Mais segurança para escalar vendas online sem perder o controle do físico.',
     ],
     exemploPratico:
-      'Quando o último par de um produto é vendido no PDV da loja, o HUBI atualiza o anúncio vinculado no Mercado Livre automaticamente para evitar venda sem estoque.',
+      'Quando o último par de um produto é vendido no PDV da loja, a Rubi atualiza o anúncio vinculado no Mercado Livre automaticamente para evitar venda sem estoque.',
   },
   agendamento_servicos: {
     id: 'agendamento_servicos',

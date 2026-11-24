@@ -568,10 +568,11 @@ export const whatsappWalletService = {
       );
     }
 
+    const baseAppUrl = (import.meta.env?.VITE_APP_URL || 'https://rubi.ia.br').replace(/\/+$/, '');
     const backUrl =
       typeof window !== 'undefined'
         ? `${window.location.origin}/dashboard`
-        : 'https://hubi.app/dashboard';
+        : `${baseAppUrl}/dashboard`;
 
     const payloadInvoke = {
       loja_id: loja.id,
@@ -741,9 +742,9 @@ export const whatsappWalletService = {
       const { data: mpRpcData, error: mpRpcError } = await supabase.rpc('criar_pix_mercado_pago', {
         p_access_token: accessToken,
         p_valor: Number(valorRecarga.toFixed(2)),
-        p_descricao: `HUBI - Recarga Carteira WhatsApp (${loja.nome_fantasia})`,
+        p_descricao: `Rubi - Recarga Carteira WhatsApp (${loja.nome_fantasia})`,
         p_email: loja.email || `financeiro+${loja.id.slice(0, 8)}@hubi.app`,
-        p_nome_pagador: loja.nome_fantasia || 'Lojista HUBI',
+        p_nome_pagador: loja.nome_fantasia || 'Lojista Rubi',
       });
 
       if (!mpRpcError && mpRpcData) {
@@ -786,7 +787,7 @@ export const whatsappWalletService = {
 
     // Payload Pix EMV de contingência para homologação quando MERCADO_PAGO_ACCESS_TOKEN ainda não está configurado na Edge Function
     const valorFormatado = valorRecarga.toFixed(2);
-    const pixCopiaEColaContingencia = `00020126580014BR.GOV.BCB.PIX0136hubi-wallet-${transacaoId.slice(0, 12)}520400005303986540${valorFormatado.length}${valorFormatado}5802BR5913HUBI SISTEMAS6009SAO PAULO62070503***6304ABCD`;
+    const pixCopiaEColaContingencia = `00020126580014BR.GOV.BCB.PIX0136hubi-wallet-${transacaoId.slice(0, 12)}520400005303986540${valorFormatado.length}${valorFormatado}5802BR5913RUBI SISTEMAS6009SAO PAULO62070503***6304ABCD`;
 
     return {
       sucesso: true,
@@ -865,7 +866,7 @@ export const whatsappWalletService = {
 
     if (!lojaId || !telefoneDestino) return;
 
-    const mensagem = `Olá${nomeCliente ? `, *${nomeCliente}*` : ''}! 📦\nSeu pedido *#${numeroPedido}* na loja *${nomeLoja || 'HUBI'}* acabou de ser despachado via *${meioEnvio}*!${codigoRastreio ? `\n🔎 Código de Rastreio/Corrida: *${codigoRastreio}*` : ''}${linkRastreio ? `\n🔗 Acompanhe: ${linkRastreio}` : ''}`;
+    const mensagem = `Olá${nomeCliente ? `, *${nomeCliente}*` : ''}! 📦\nSeu pedido *#${numeroPedido}* na loja *${nomeLoja || 'Rubi'}* acabou de ser despachado via *${meioEnvio}*!${codigoRastreio ? `\n🔎 Código de Rastreio/Corrida: *${codigoRastreio}*` : ''}${linkRastreio ? `\n🔗 Acompanhe: ${linkRastreio}` : ''}`;
 
     this.dispararNotificacaoHibrida({
       lojaId,

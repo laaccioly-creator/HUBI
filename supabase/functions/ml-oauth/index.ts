@@ -22,7 +22,7 @@ Deno.serve(async (req: Request) => {
   const mlClientSecret = Deno.env.get("ML_CLIENT_SECRET") || "";
   const mlRedirectUri = Deno.env.get("ML_REDIRECT_URI") || "";
   const stateSecret = Deno.env.get("ML_STATE_HMAC_SECRET") || mlClientSecret || "hubi-ml-secret-salt";
-  const hubiFrontendUrl = Deno.env.get("FRONTEND_URL") || Deno.env.get("HUBI_FRONTEND_URL") || "https://hubi-studio.ai.studio";
+  const hubiFrontendUrl = Deno.env.get("APP_URL") || Deno.env.get("FRONTEND_URL") || Deno.env.get("HUBI_FRONTEND_URL") || "https://rubi.ia.br";
 
   const url = new URL(req.url);
 
@@ -172,7 +172,7 @@ Deno.serve(async (req: Request) => {
       const { data: { user }, error: erroUser } = await supabaseUserClient.auth.getUser();
       if (erroUser || !user) {
         return new Response(
-          JSON.stringify({ error: "Usuário não autenticado no HUBI." }),
+          JSON.stringify({ error: "Usuário não autenticado na Rubi." }),
           { status: 401, headers: { ...corsHeaders, "Content-Type": "application/json" } }
         );
       }
@@ -344,7 +344,7 @@ Deno.serve(async (req: Request) => {
       return new Response(
         JSON.stringify({
           sucesso: true,
-          mensagem: `Conta ${mlNickname} conectada com sucesso ao HUBI!`,
+          mensagem: `Conta ${mlNickname} conectada com sucesso à Rubi!`,
           conta: contaSalva,
         }),
         { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } }

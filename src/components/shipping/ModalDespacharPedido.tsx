@@ -575,7 +575,7 @@ export const ModalDespacharPedido: React.FC<ModalDespacharPedidoProps> = ({
         const mensagemDespacho = `Olá${
           clienteNomeFinal ? `, *${clienteNomeFinal}*` : ''
         }! 📦\nSeu pedido *#${numPed}* na loja *${
-          loja.nome_fantasia || 'HUBI'
+          loja.nome_fantasia || 'Rubi'
         }* acabou de ser despachado via *${detalheEnvio}*!${
           codRastreioOuCorrida ? `\n🔎 Código de Rastreio/Corrida: *${codRastreioOuCorrida}*` : ''
         }${dadosDespacho.linkRastreio ? `\n🔗 Acompanhe: ${dadosDespacho.linkRastreio}` : ''}`;

@@ -601,7 +601,7 @@ export const ModalRastreioPedido: React.FC<ModalRastreioPedidoProps> = ({
     {
       id: 'despacho_hubi',
       titulo: 'Despacho Registrado no Sistema',
-      descricao: `Envio registrado no HUBI via ${transportadora}`,
+      descricao: `Envio registrado na Rubi via ${transportadora}`,
       data: despachadoEm,
       concluido: true,
       ativo: false

@@ -1,7 +1,7 @@
 {
-  "name": "HUBI - Gestão e Vendas",
-  "short_name": "HUBI",
-  "description": "Sistema completo de gestão e vendas para pequenos lojistas",
+  "name": "Rubi - Gestão & PDV Inteligente",
+  "short_name": "Rubi",
+  "description": "Plataforma completa de gestão, PDV e vendas com Rubi IA para lojistas e autônomos",
   "start_url": "/",
   "scope": "/",
   "id": "/",

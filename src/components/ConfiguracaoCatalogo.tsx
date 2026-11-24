@@ -146,7 +146,7 @@ export const ConfiguracaoCatalogo: React.FC = () => {
   // URL pública do catálogo
   const catalogoUrl = typeof window !== 'undefined'
     ? `${window.location.origin}/catalog/${slugCatalogo || loja?.id || ''}`
-    : `https://hubi.app/catalog/${slugCatalogo || ''}`;
+    : `https://rubi.ia.br/catalog/${slugCatalogo || ''}`;
 
   const handleCopiarLink = async () => {
     try {
@@ -844,7 +844,7 @@ export const ConfiguracaoCatalogo: React.FC = () => {
                 <div className="space-y-0.5">
                   <span className={`font-bold text-sm block ${isDark ? 'text-white' : 'text-black'}`}>Receber resumo do pedido pelo WhatsApp</span>
                   <p className={`text-sm leading-relaxed font-medium ${isDark ? 'text-slate-300' : 'text-black'}`}>
-                    Além de ter seu pedido criado no HUBI, seus clientes serão direcionados para enviar o resumo do pedido para seu WhatsApp cadastrado.
+                    Além de ter seu pedido criado na Rubi, seus clientes serão direcionados para enviar o resumo do pedido para seu WhatsApp cadastrado.
                   </p>
                 </div>
 

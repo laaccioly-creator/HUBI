@@ -412,7 +412,7 @@ export const ReciboPedidoModal: React.FC<ReciboPedidoModalProps> = ({
               ) : (
                 <Store className="w-8 h-8 text-slate-500 mx-auto mb-1" />
               )}
-              <h4 className="font-bold text-sm text-slate-900 uppercase tracking-wider">{loja?.nome_fantasia || 'HUBI PDV'}</h4>
+              <h4 className="font-bold text-sm text-slate-900 uppercase tracking-wider">{loja?.nome_fantasia || 'Rubi PDV'}</h4>
               <p className="text-[11px] text-slate-800">{enderecoLojaFormatado}</p>
               <p className="text-[11px] text-slate-800">{loja?.whatsapp || loja?.telefone}</p>
             </div>

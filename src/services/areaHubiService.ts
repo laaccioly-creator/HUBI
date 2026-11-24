@@ -115,7 +115,7 @@ const sanitizarErroRpc = (erro: unknown, mensagemPadrao: string): string => {
   const raw = erro instanceof Error ? erro.message : typeof erro === 'object' && erro && 'message' in erro ? String((erro as { message: unknown }).message) : '';
   const lower = raw.toLowerCase();
   if (lower.includes('acesso negado')) {
-    return 'Acesso restrito ao Super Admin da plataforma HUBI.';
+    return 'Acesso restrito ao Super Admin da plataforma Rubi.';
   }
   if (lower.includes('obrigatório') || lower.includes('inválido') || lower.includes('não encontrada') || lower.includes('não localizada')) {
     return raw;
@@ -140,14 +140,14 @@ export const gerarMensagemWhatsappPorEstagio = (loja: LojaAreaHubi): string => {
   const nome = (loja.nome_fantasia || 'lojista').trim();
   switch (loja.estagio_comercial) {
     case 'trial_ativo':
-      return `Olá ${nome}, aqui é o Luiz do sistema HUBI! Vi que você está no período de teste. Como está sendo a experiência? Precisa de alguma ajuda para configurar sua loja ou tirar alguma dúvida?`;
+      return `Olá ${nome}, aqui é o Luiz do sistema Rubi! Vi que você está no período de teste. Como está sendo a experiência? Precisa de alguma ajuda para configurar sua loja ou tirar alguma dúvida?`;
     case 'trial_vencido':
-      return `Olá ${nome}, aqui é o Luiz do sistema HUBI! Notei que seu período de teste encerrou. Gostaria de saber o que achou e como posso te ajudar a ativar sua loja hoje!`;
+      return `Olá ${nome}, aqui é o Luiz do sistema Rubi! Notei que seu período de teste encerrou. Gostaria de saber o que achou e como posso te ajudar a ativar sua loja hoje!`;
     case 'churn_nao_renovado':
-      return `Olá ${nome}, aqui é o Luiz do sistema HUBI! Vi que a assinatura da sua loja venceu. Vamos renovar para você não perder o acesso ao sistema?`;
+      return `Olá ${nome}, aqui é o Luiz do sistema Rubi! Vi que a assinatura da sua loja venceu. Vamos renovar para você não perder o acesso ao sistema?`;
     case 'assinante_ativo':
     default:
-      return `Olá ${nome}, aqui é o Luiz do sistema HUBI! Passando para acompanhar como estão as vendas na loja e saber se precisa de algum suporte.`;
+      return `Olá ${nome}, aqui é o Luiz do sistema Rubi! Passando para acompanhar como estão as vendas na loja e saber se precisa de algum suporte.`;
   }
 };
 
@@ -172,7 +172,7 @@ export const areaHubiService = {
       throw new Error(
         sanitizarErroRpc(
           error,
-          'Não foi possível carregar os indicadores executivos da Área HUBI.'
+          'Não foi possível carregar os indicadores executivos da Área Rubi.'
         )
       );
     }

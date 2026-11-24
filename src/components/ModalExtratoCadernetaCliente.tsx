@@ -105,7 +105,7 @@ export const ModalExtratoCadernetaCliente: React.FC<ModalExtratoCadernetaCliente
       if (foneCli) {
         const msgComprovante =
           `Olá, *${cliente.nome}*! ✅\n` +
-          `Confirmamos o recebimento de *${formatarMoeda(lanc.valor)}* na sua Caderneta na loja *${loja.nome_fantasia || 'HUBI'}*.\n` +
+          `Confirmamos o recebimento de *${formatarMoeda(lanc.valor)}* na sua Caderneta na loja *${loja.nome_fantasia || 'Rubi'}*.\n` +
           `Seu limite já foi atualizado. Obrigado!`;
         whatsappWalletService
           .dispararNotificacaoHibrida({

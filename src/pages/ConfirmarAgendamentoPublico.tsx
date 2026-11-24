@@ -411,9 +411,9 @@ export const ConfirmarAgendamentoPublico: React.FC = () => {
       const icsContent = [
         'BEGIN:VCALENDAR',
         'VERSION:2.0',
-        'PRODID:-//HUBI//Agendamento Omnichannel//PT',
+        'PRODID:-//Rubi//Agendamento Omnichannel//PT',
         'BEGIN:VEVENT',
-        `UID:${agendamento.id}@hubi.com.br`,
+        `UID:${agendamento.id}@rubi.ia.br`,
         `DTSTAMP:${formatIsoUtc(new Date())}`,
         `DTSTART:${formatIsoUtc(dataInicio)}`,
         `DTEND:${formatIsoUtc(dataFim)}`,

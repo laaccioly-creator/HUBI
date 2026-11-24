@@ -67,7 +67,7 @@ export const AreaHubiCockpit: React.FC = () => {
   // Overlays / Drawer / Modais
   const [drawerAberto, setDrawerAberto] = useState<boolean>(false);
   const [abaDrawer, setAbaDrawer] = useState<EstagioComercialLoja>('trial_ativo');
-  const [tituloDrawer, setTituloDrawer] = useState<string>('Carteira Comercial HUBI');
+  const [tituloDrawer, setTituloDrawer] = useState<string>('Carteira Comercial Rubi');
   const [modalMetasAberto, setModalMetasAberto] = useState<boolean>(false);
   const [lojaParaEditar, setLojaParaEditar] = useState<LojaAreaHubi | null>(null);
   const [lojaParaAtivarManual, setLojaParaAtivarManual] = useState<LojaAreaHubi | null>(null);
@@ -92,7 +92,7 @@ export const AreaHubiCockpit: React.FC = () => {
       const msg =
         err instanceof Error
           ? err.message
-          : 'Não foi possível carregar os dados executivos da Área HUBI.';
+          : 'Não foi possível carregar os dados executivos da Área Rubi.';
       setErro(msg);
     } finally {
       setCarregando(false);
@@ -133,13 +133,13 @@ export const AreaHubiCockpit: React.FC = () => {
 
   const abrirDrawerNaAba = (aba: EstagioComercialLoja, titulo?: string) => {
     setAbaDrawer(aba);
-    setTituloDrawer(titulo || 'Carteira Comercial HUBI');
+    setTituloDrawer(titulo || 'Carteira Comercial Rubi');
     setDrawerAberto(true);
   };
 
   const handleSalvarMetas = async (novasMetas: MetasAreaHubi) => {
     await areaHubiService.salvarMetasHubi(novasMetas);
-    mostrarSucesso('Metas executivas da plataforma HUBI salvas com sucesso.', 'Metas Atualizadas');
+    mostrarSucesso('Metas executivas da plataforma Rubi salvas com sucesso.', 'Metas Atualizadas');
     await carregarDados();
   };
 
@@ -156,7 +156,7 @@ export const AreaHubiCockpit: React.FC = () => {
       {/* Header Mobile */}
       <div className="block md:hidden">
         <MobileHeader
-          titulo="Área HUBI"
+          titulo="Área Rubi"
           subtitulo="Super Admin SaaS"
           mostrarVoltar={true}
           onVoltar={() => navigate('/config')}
@@ -179,7 +179,7 @@ export const AreaHubiCockpit: React.FC = () => {
               <button
                 type="button"
                 onClick={() => setModalMetasAberto(true)}
-                title="Configurar Metas HUBI"
+                title="Configurar Metas Rubi"
                 className={`p-2 rounded-xl transition cursor-pointer shadow-2xs ${neutralBtnClass}`}
               >
                 <Settings className="w-4 h-4" />
@@ -222,7 +222,7 @@ export const AreaHubiCockpit: React.FC = () => {
             <div className="hidden md:block min-w-0">
               <div className="flex items-center gap-2">
                 <h1 className={`text-base sm:text-lg font-black truncate ${isDark ? 'text-white' : 'text-black'}`}>
-                  Área HUBI — Cockpit Executivo
+                  Área Rubi — Cockpit Executivo
                 </h1>
                 <span className="px-2 py-0.5 rounded-full text-[10px] font-black uppercase bg-emerald-50 text-emerald-900 border border-emerald-300 dark:bg-emerald-500/15 dark:text-emerald-300 dark:border-emerald-500/30">
                   Super Admin
@@ -339,7 +339,7 @@ export const AreaHubiCockpit: React.FC = () => {
 
             <button
               type="button"
-              onClick={() => abrirDrawerNaAba('trial_ativo', 'Carteira Comercial HUBI')}
+              onClick={() => abrirDrawerNaAba('trial_ativo', 'Carteira Comercial Rubi')}
               className="px-3.5 py-2 rounded-xl text-xs font-bold bg-emerald-600 hover:bg-emerald-700 text-white flex items-center gap-1.5 transition cursor-pointer shadow-xs"
             >
               <Users className="w-4 h-4" />
@@ -362,7 +362,7 @@ export const AreaHubiCockpit: React.FC = () => {
               className={`hidden md:inline-flex items-center gap-2 px-3.5 py-2 rounded-xl text-xs shadow-2xs transition cursor-pointer group ${neutralBtnClass}`}
             >
               <Settings className="w-4 h-4 group-hover:rotate-45 transition-transform duration-200" />
-              <span>Configurar Metas HUBI</span>
+              <span>Configurar Metas Rubi</span>
             </button>
           </div>
         </div>
@@ -388,16 +388,16 @@ export const AreaHubiCockpit: React.FC = () => {
 
         {/* Grid 2x3 — 6 Velocímetros F1 HUBI */}
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-5">
-          {/* 1. Faturamento Bruto HUBI */}
+          {/* 1. Faturamento Bruto Rubi */}
           <CockpitGaugeF1
-            titulo="Faturamento Bruto HUBI"
+            titulo="Faturamento Bruto Rubi"
             subtituloTag="Assinaturas + Recargas WhatsApp"
             valorRealizado={metricas.faturamento_bruto_hubi}
             valorMeta={metas.meta_hubi_faturamento}
             tipoFormato="moeda"
             isLoading={carregando && !payload}
             onClickDrillDown={() =>
-              abrirDrawerNaAba('assinante_ativo', 'Faturamento & Assinantes HUBI')
+              abrirDrawerNaAba('assinante_ativo', 'Faturamento & Assinantes Rubi')
             }
           />
 
@@ -577,7 +577,7 @@ export const AreaHubiCockpit: React.FC = () => {
         loja={lojaParaAtivarManual}
         onSucesso={async () => {
           mostrarSucesso(
-            'Assinatura ativada manualmente e contabilizada no Faturamento Bruto HUBI.',
+            'Assinatura ativada manualmente e contabilizada no Faturamento Bruto Rubi.',
             'Assinatura Ativada'
           );
           await carregarDados();

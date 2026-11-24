@@ -433,10 +433,11 @@ export function useAssinaturaStatus(): UseAssinaturaStatusReturn {
         setCarregandoCheckout(true);
         setErroCheckout(null);
 
+        const baseAppUrl = (import.meta.env?.VITE_APP_URL || 'https://rubi.ia.br').replace(/\/+$/, '');
         const backUrl =
           typeof window !== 'undefined'
             ? `${window.location.origin}/dashboard`
-            : 'https://hubi.app/dashboard';
+            : `${baseAppUrl}/dashboard`;
 
         const payloadInvoke = { loja_id: idLoja, back_url: backUrl };
 

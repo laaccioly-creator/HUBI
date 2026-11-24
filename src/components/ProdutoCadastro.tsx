@@ -424,7 +424,7 @@ export const pesquisarPrecosMercadoIA = async (
   const ofertasSerp = contextoJev.ofertasAprovadas;
 
   const blocoOfertasSerp = ofertasSerp.length > 0
-    ? `\nANÚNCIOS REAIS APROVADOS PELO HUBI JEV (SCORE >= 75% PARA O MODELO EXATO "${nomeOriginal}"):\n` +
+    ? `\nANÚNCIOS REAIS APROVADOS PELO RUBI JEV (SCORE >= 75% PARA O MODELO EXATO "${nomeOriginal}"):\n` +
       ofertasSerp
         .slice(0, 15)
         .map(
@@ -432,7 +432,7 @@ export const pesquisarPrecosMercadoIA = async (
             `${idx + 1}. [Score JEV: ${Math.round(it.scoreJev * 100)}%] Produto: "${it.titulo}" | Loja: "${it.loja}" | Preço: R$ ${it.preco.toFixed(2)}${it.url ? ` | URL: ${it.url}` : ''}`
         )
         .join('\n') +
-      `\n\nINSTRUÇÃO CRÍTICA: Calcule a média e liste as lojas com base nos anúncios aprovados pelo score do HUBI JEV acima para o modelo exato ("${nomeOriginal}"), preservando os preços e URLs reais. NUNCA inclua versões diferentes (Plus, Pro, Combo, CFS, Max, Mini, Kit, Peça) que não estejam no nome pesquisado.`
+      `\n\nINSTRUÇÃO CRÍTICA: Calcule a média e liste as lojas com base nos anúncios aprovados pelo score do RUBI JEV acima para o modelo exato ("${nomeOriginal}"), preservando os preços e URLs reais. NUNCA inclua versões diferentes (Plus, Pro, Combo, CFS, Max, Mini, Kit, Peça) que não estejam no nome pesquisado.`
     : '';
 
   const promptTexto = `
@@ -445,7 +445,7 @@ ${opcoesExtras?.precoCusto ? `PREÇO DE CUSTO: R$ ${opcoesExtras.precoCusto.toFi
 ${blocoOfertasSerp}
 
 REGRAS ESTRITAS:
-1. Priorize 100% os anúncios reais aprovados pelo score do HUBI JEV (>= 75%) listados acima, mantendo lojas distintas (sem repetir a mesma loja).
+1. Priorize 100% os anúncios reais aprovados pelo score do RUBI JEV (>= 75%) listados acima, mantendo lojas distintas (sem repetir a mesma loja).
 2. Exija correspondência exata com o modelo "${nomeOriginal || termoCanônico}". NUNCA misture versões diferentes (ex: Plus, Pro, Combo, CFS, Max, Mini) nem acessórios/kits/peças.
 3. Priorize o preço à vista atual em BRL (R$) e mantenha a URL real no campo "url".
 
@@ -3914,7 +3914,7 @@ export const ProdutoCadastro: React.FC = () => {
                     <span>6. Dimensões e Peso para Envio (Melhor Envio / Correios / Jadlog)</span>
                   </h2>
                   <p className="text-sm leading-relaxed text-black dark:text-slate-300 mt-1">
-                    Preenchido automaticamente pela IA do HUBI. Usado para cotação exata de frete e emissão de etiquetas.
+                    Preenchido automaticamente pela Rubi IA. Usado para cotação exata de frete e emissão de etiquetas.
                   </p>
                 </div>
                 <button
@@ -4079,7 +4079,7 @@ export const ProdutoCadastro: React.FC = () => {
             {salvando ? (
               <>
                 <Loader2 className="w-5 h-5 animate-spin" />
-                <span>{ehEdicao ? 'Salvando Alterações no HUBI...' : (tipoItem === 'servico' ? 'Cadastrando Serviço no HUBI...' : 'Cadastrando Produto no HUBI...')}</span>
+                <span>{ehEdicao ? 'Salvando Alterações na Rubi...' : (tipoItem === 'servico' ? 'Cadastrando Serviço na Rubi...' : 'Cadastrando Produto na Rubi...')}</span>
               </>
             ) : (
               <>
