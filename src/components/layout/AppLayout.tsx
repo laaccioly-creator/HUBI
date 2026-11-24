@@ -471,13 +471,11 @@ export const AppLayout: React.FC = () => {
   if (carregando && (loja || lojasDisponiveis.length === 0)) {
     return (
       <div className={`h-screen w-screen flex flex-col items-center justify-center space-y-4 ${isDark ? 'bg-slate-950' : 'bg-slate-50'}`}>
-        <div className={`w-16 h-16 rounded-3xl border flex items-center justify-center shadow-2xl ${
-          isDark
-            ? 'bg-emerald-500/10 border-emerald-500/30 text-emerald-400'
-            : 'bg-white border-slate-200 text-slate-900'
-        }`}>
-          <Store className={`w-8 h-8 animate-pulse ${isDark ? 'text-emerald-400' : 'text-slate-900'}`} />
-        </div>
+        <img
+          src="/logo.png?v=2"
+          alt="Rubi"
+          className="w-16 h-16 rounded-2xl object-contain animate-pulse drop-shadow-2xl"
+        />
         <div className={`flex items-center gap-2 text-sm ${isDark ? 'text-slate-400' : 'text-slate-900 font-medium'}`}>
           <Loader2 className={`w-4 h-4 animate-spin ${isDark ? 'text-emerald-400' : 'text-slate-900'}`} />
           <span>Carregando Sistema Rubi...</span>
@@ -769,11 +767,21 @@ export const AppLayout: React.FC = () => {
               }`}
               title={podeTrocarLoja ? "Clique para alternar de filial / loja" : (loja?.nome_fantasia || "Rubi PDV")}
             >
-              <div className={`w-9 h-9 rounded-xl bg-gradient-to-tr from-emerald-600 to-emerald-400 flex items-center justify-center font-black text-white shadow-lg shadow-emerald-500/20 text-sm shrink-0 transition ${
-                podeTrocarLoja ? 'group-hover:scale-105' : ''
-              }`}>
-                {loja?.nome_fantasia ? loja.nome_fantasia.slice(0, 2).toUpperCase() : 'RB'}
-              </div>
+              {loja?.nome_fantasia ? (
+                <div className={`w-9 h-9 rounded-xl bg-gradient-to-tr from-emerald-600 to-emerald-400 flex items-center justify-center font-black text-white shadow-lg shadow-emerald-500/20 text-sm shrink-0 transition ${
+                  podeTrocarLoja ? 'group-hover:scale-105' : ''
+                }`}>
+                  {loja.nome_fantasia.slice(0, 2).toUpperCase()}
+                </div>
+              ) : (
+                <img
+                  src="/logo.png?v=2"
+                  alt="Rubi"
+                  className={`w-9 h-9 rounded-xl object-contain shrink-0 transition ${
+                    podeTrocarLoja ? 'group-hover:scale-105' : ''
+                  }`}
+                />
+              )}
               <div className="hidden sm:block min-w-0 flex-1">
                 <div className="flex items-center gap-1.5">
                   <h1 className={`font-bold text-xs lg:text-sm truncate max-w-[130px] lg:max-w-[160px] leading-tight transition ${

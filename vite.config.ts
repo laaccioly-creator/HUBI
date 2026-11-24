@@ -345,13 +345,13 @@ export default defineConfig({
     VitePWA({
       registerType: 'prompt',
       injectRegister: 'auto',
-      includeAssets: ['favicon.svg', 'apple-touch-icon.png', 'pwa-192x192.png', 'pwa-512x512.png', 'manifest.json'],
+      includeAssets: ['favicon.ico', 'favicon.svg', 'logo.png', 'apple-touch-icon.png', 'pwa-192x192.png', 'pwa-512x512.png', 'manifest.json'],
       manifest: {
         name: 'Rubi - Gestão & PDV Inteligente',
         short_name: 'Rubi',
         description: 'Plataforma completa de gestão, PDV e vendas com Rubi IA para lojistas e autônomos',
-        theme_color: '#020617',
-        background_color: '#020617',
+        theme_color: '#B91C1C',
+        background_color: '#0B0F17',
         display: 'standalone',
         display_override: ['fullscreen', 'standalone', 'minimal-ui'],
         orientation: 'portrait',

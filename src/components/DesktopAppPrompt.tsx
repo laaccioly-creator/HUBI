@@ -1,6 +1,5 @@
 import React, { useState, useEffect } from 'react';
 import {
-  Monitor,
   Download,
   ExternalLink,
   X,
@@ -129,9 +128,11 @@ export const DesktopAppPrompt: React.FC = () => {
     <>
       <div className="bg-gradient-to-r from-emerald-950 via-slate-900 to-indigo-950 border-b border-emerald-500/40 px-4 py-2 flex items-center justify-between text-xs text-slate-200 z-30 shadow-md select-none">
         <div className="flex items-center gap-2.5">
-          <div className="p-1.5 rounded-lg bg-emerald-500/20 text-emerald-400 border border-emerald-500/30">
-            <Monitor className="w-4 h-4" />
-          </div>
+          <img
+            src="/logo.png?v=2"
+            alt="Rubi"
+            className="w-7 h-7 rounded-lg object-contain shrink-0"
+          />
           <div>
             <span className="font-bold text-white">
               {jaInstalado ? 'Rubi App instalado no Desktop: ' : 'Instalar Rubi no Desktop: '}
@@ -184,9 +185,11 @@ export const DesktopAppPrompt: React.FC = () => {
           <div className="w-full max-w-md bg-slate-900 border border-slate-800 rounded-3xl p-6 shadow-2xl space-y-4 text-slate-100">
             <div className="flex items-center justify-between border-b border-slate-800 pb-3">
               <div className="flex items-center gap-2">
-                <div className="p-2 rounded-xl bg-emerald-500/20 text-emerald-400">
-                  <Monitor className="w-5 h-5" />
-                </div>
+                <img
+                  src="/logo.png?v=2"
+                  alt="Rubi"
+                  className="w-8 h-8 rounded-lg object-contain shrink-0"
+                />
                 <h3 className="text-sm font-bold text-slate-100">Criar Ícone na Área de Trabalho</h3>
               </div>
               <button

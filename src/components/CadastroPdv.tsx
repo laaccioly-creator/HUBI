@@ -174,9 +174,11 @@ export const CadastroPdv: React.FC = () => {
           <div className="space-y-6 max-w-sm mx-auto w-full">
             {/* Logo Marca Rubi */}
             <div className="flex items-center justify-center pt-2">
-              <div className="w-14 h-14 rounded-2xl bg-emerald-500 text-white flex items-center justify-center font-black text-xl shadow-lg shadow-emerald-500/25 tracking-wider">
-                Rubi
-              </div>
+              <img
+                src="/logo.png?v=2"
+                alt="Rubi"
+                className="w-16 h-16 rounded-2xl object-contain shadow-lg shadow-red-950/40"
+              />
             </div>
 
             {/* Mensagem de Erro (telas gerais) */}
