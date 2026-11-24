@@ -2313,7 +2313,7 @@ export const ConfiguracoesLoja: React.FC<ConfiguracoesLojaProps> = ({ subTelaIni
 
           {/* SUBTELA GERAL MOBILE */}
           {subTela === 'geral' && (
-            <div className="space-y-3">
+            <div className="space-y-3 pb-6 overflow-x-hidden">
               {/* Controlar Estoque */}
               <div className="bg-white border border-slate-200 rounded-2xl p-4 shadow-xs flex items-center justify-between">
                 <div className="space-y-1 max-w-[75%]">
@@ -2501,6 +2501,16 @@ export const ConfiguracoesLoja: React.FC<ConfiguracoesLojaProps> = ({ subTelaIni
                   ))}
                 </div>
               </div>
+
+              {/* CARD EXCLUSIVO DE PARÂMETROS GLOBAIS (SUPER ADMIN) */}
+              {permissions.ehSuperAdmin && (
+                <div className="pt-2">
+                  <CardParametrosHubiAdmin
+                    emailLogado={session?.user?.email || usuario?.email || loja?.email || '5585997374372@hubi.app'}
+                    lojaId={loja?.id}
+                  />
+                </div>
+              )}
             </div>
           )}
 
