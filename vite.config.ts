@@ -350,7 +350,7 @@ export default defineConfig({
         name: 'Rubi - Gestão & PDV Inteligente',
         short_name: 'Rubi',
         description: 'Plataforma completa de gestão, PDV e vendas com Rubi IA para lojistas e autônomos',
-        theme_color: '#B91C1C',
+        theme_color: '#FFFFFF',
         background_color: '#0B0F17',
         display: 'standalone',
         display_override: ['fullscreen', 'standalone', 'minimal-ui'],
@@ -359,13 +359,13 @@ export default defineConfig({
         scope: '/',
         icons: [
           {
-            src: '/pwa-192x192.png',
+            src: '/pwa-192x192.png?v=3',
             sizes: '192x192',
             type: 'image/png',
             purpose: 'any maskable'
           },
           {
-            src: '/pwa-512x512.png',
+            src: '/pwa-512x512.png?v=3',
             sizes: '512x512',
             type: 'image/png',
             purpose: 'any maskable'
@@ -373,7 +373,10 @@ export default defineConfig({
         ]
       },
       workbox: {
-        maximumFileSizeToCacheInBytes: 6 * 1024 * 1024
+        maximumFileSizeToCacheInBytes: 6 * 1024 * 1024,
+        cleanupOutdatedCaches: true,
+        clientsClaim: true,
+        ignoreURLParametersMatching: [/^v$/]
       }
     }),
     {
