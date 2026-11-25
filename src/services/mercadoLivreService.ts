@@ -371,6 +371,11 @@ export const mercadoLivreService = {
       console.warn('[mercadoLivreService] Aviso ao renovar sessão antes de publicar:', errSession);
     }
 
+    const gtinSomenteDigitos =
+      !params.semGtin && typeof params.gtin === 'string'
+        ? params.gtin.replace(/\D/g, '').trim()
+        : '';
+
     const { data, error } = await supabase.functions.invoke('ml-estoque-sync', {
       body: {
         action: 'create_listing',
@@ -381,8 +386,8 @@ export const mercadoLivreService = {
         margem_sobrepreco: params.margemSobrepreco,
         marca: params.marca,
         modelo: params.modelo,
-        gtin: params.gtin,
-        sem_gtin: params.semGtin,
+        gtin: gtinSomenteDigitos || null,
+        sem_gtin: Boolean(params.semGtin),
         category_id: params.categoryId,
         atributos_extras: params.atributosExtras,
       },

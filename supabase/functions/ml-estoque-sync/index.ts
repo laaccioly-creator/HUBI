@@ -1003,6 +1003,9 @@ serve(async (req: Request) => {
       const nomeFamiliaLimpo = sanitizarTextoMl(familiaOriginal || tituloOriginal || "Produto", 60);
       const tituloLimpo = sanitizarTextoMl(tituloOriginal || nomeFamiliaLimpo, 60);
 
+      const gtinInformadoLimpo = typeof gtin === "string" ? gtin.replace(/\D/g, "").trim() : "";
+      const semGtinFlag = sem_gtin === true;
+
       let atributosBase = aplicarAtributoGtinOuIsencao(
         garantirAtributosObrigatorios(
           Array.isArray(restantePayload.attributes) ? restantePayload.attributes : [],
@@ -1011,11 +1014,27 @@ serve(async (req: Request) => {
           Array.isArray(atributos_extras) ? atributos_extras : []
         ),
         {
-          gtinInformado: typeof gtin === "string" ? gtin : null,
-          semGtin: sem_gtin === true,
+          gtinInformado: gtinInformadoLimpo || null,
+          semGtin: semGtinFlag,
           codigoBarrasBanco: resVarDb?.data?.codigo_barras || resProdDb?.data?.codigo_barras || null,
         }
       );
+
+      // Remove qualquer entrada duplicada de GTIN/EMPTY_GTIN_REASON nas variações do payload, se existirem
+      const gtinResolvido = atributosBase.find((a) => a.id === "GTIN")?.value_name || null;
+      if (Array.isArray(restantePayload.variations)) {
+        restantePayload.variations = restantePayload.variations.map((variacao: any) => {
+          if (!variacao || !Array.isArray(variacao.attributes)) return variacao;
+          return {
+            ...variacao,
+            attributes: aplicarAtributoGtinOuIsencao(variacao.attributes, {
+              gtinInformado: gtinResolvido,
+              semGtin: semGtinFlag || !gtinResolvido,
+              codigoBarrasBanco: null,
+            }),
+          };
+        });
+      }
 
       // Bloqueio estrito do fallback para "Outros" (MLB3530 / MLB1953)
       const categoriaAlvo = await resolverCategoriaAlvoUnica(
@@ -1152,7 +1171,10 @@ serve(async (req: Request) => {
       }
 
       if (!respPostOk || !dadosCriado) {
-        console.error("[ml-estoque-sync] Erro definitivo ao criar item no ML:", ultimoErroMl);
+        console.error(
+          `[ml-estoque-sync] Erro definitivo ao criar item no ML (${categoriaAlvo}):`,
+          JSON.stringify(ultimoErroMl?.cause ?? ultimoErroMl, null, 2)
+        );
         const detalhe = ultimoErroMl?.cause?.[0]?.message || ultimoErroMl?.message || "Erro desconhecido na API do Mercado Livre.";
 
         let camposFaltantes: string[] = [];
@@ -1189,6 +1211,25 @@ serve(async (req: Request) => {
           }),
           { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
         );
+      }
+
+      // Enriquece produtos.codigo_barras (e variação, se aplicável) quando GTIN válido foi enviado e estava vazio no banco
+      const gtinFinalEnviado = atributosBase.find((a) => a.id === "GTIN")?.value_name || "";
+      if (/^\d{8,14}$/.test(gtinFinalEnviado)) {
+        if (!(resProdDb?.data?.codigo_barras || "").trim()) {
+          await supabaseAdmin
+            .from("produtos")
+            .update({ codigo_barras: gtinFinalEnviado })
+            .eq("id", produto_id)
+            .eq("loja_id", loja_id);
+        }
+        if (variacao_id && !(resVarDb?.data?.codigo_barras || "").trim()) {
+          await supabaseAdmin
+            .from("variacoes_produto")
+            .update({ codigo_barras: gtinFinalEnviado })
+            .eq("id", variacao_id)
+            .eq("loja_id", loja_id);
+        }
       }
 
       // Envia descrição separadamente (recomendado no modelo User Products)

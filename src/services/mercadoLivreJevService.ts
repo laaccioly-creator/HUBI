@@ -48,6 +48,7 @@ export interface ResultadoPreenchimentoAtributosMl {
 export interface ResultadoGeminiFichaMl {
   marca?: string;
   modelo?: string;
+  gtin?: string;
   atributos: Record<string, ValorAtributoPreenchidoMl>;
 }
 
@@ -716,6 +717,31 @@ function normalizarModeloIa(valorRaw: unknown, codigoInternoFallback?: string | 
   return limpo.slice(0, 50).trim();
 }
 
+function validarChecksumGs1(digitos: string): boolean {
+  if (!/^\d{8,14}$/.test(digitos)) return false;
+  if (![8, 12, 13, 14].includes(digitos.length)) return true;
+
+  let soma = 0;
+  for (let i = digitos.length - 2; i >= 0; i--) {
+    const num = Number(digitos[i]);
+    const posDaDireita = digitos.length - 2 - i;
+    soma += num * (posDaDireita % 2 === 0 ? 3 : 1);
+  }
+  const digitoVerificadorEsperado = (10 - (soma % 10)) % 10;
+  return digitoVerificadorEsperado === Number(digitos[digitos.length - 1]);
+}
+
+function normalizarGtinIa(valorRaw: unknown): string | undefined {
+  if (typeof valorRaw !== 'string' && typeof valorRaw !== 'number') {
+    return undefined;
+  }
+  const digitos = String(valorRaw).replace(/\D/g, '').trim();
+  if (!/^\d{8,14}$/.test(digitos)) return undefined;
+  if (/^(\d)\1+$/.test(digitos)) return undefined;
+  if (!validarChecksumGs1(digitos)) return undefined;
+  return digitos;
+}
+
 function extrairTextoRespostaGemini(data: unknown): string {
   if (!ehRegistroObjeto(data)) return '';
   const candidates = data.candidates;
@@ -1065,13 +1091,18 @@ export const mercadoLivreJevService = {
     fichaProduto: FichaProdutoMlHubi;
     marcaAtual?: string;
     modeloAtual?: string;
+    gtinAtual?: string;
     atributosPendentes: MlAtributoObrigatorioCategoria[];
   }): Promise<ResultadoGeminiFichaMl> {
-    const { lojaId, categoryId, fichaProduto, marcaAtual, modeloAtual, atributosPendentes } = params;
+    const { lojaId, categoryId, fichaProduto, marcaAtual, modeloAtual, gtinAtual, atributosPendentes } = params;
     const precisaMarca = !marcaAtual?.trim();
     const precisaModelo = !modeloAtual?.trim();
+    const gtinExistenteDigitos =
+      (gtinAtual || '').replace(/\D/g, '').trim() ||
+      (fichaProduto.codigoBarras || '').replace(/\D/g, '').trim();
+    const precisaGtin = !/^\d{8,14}$/.test(gtinExistenteDigitos);
 
-    if (!lojaId || (atributosPendentes.length === 0 && !precisaMarca && !precisaModelo)) {
+    if (!lojaId || (atributosPendentes.length === 0 && !precisaMarca && !precisaModelo && !precisaGtin)) {
       return { atributos: {} };
     }
 
@@ -1081,7 +1112,7 @@ export const mercadoLivreJevService = {
       atributos: {},
     };
 
-    const chaveCache = `${fichaProduto.produtoId}::${fichaProduto.variacaoId || 'base'}::${categoryId}::${normalizarTextoComparacao(fichaProduto.nome).slice(0, 60)}::${precisaMarca ? 'M' : '0'}${precisaModelo ? 'D' : '0'}`;
+    const chaveCache = `${fichaProduto.produtoId}::${fichaProduto.variacaoId || 'base'}::${categoryId}::${normalizarTextoComparacao(fichaProduto.nome).slice(0, 60)}::${precisaMarca ? 'M' : '0'}${precisaModelo ? 'D' : '0'}${precisaGtin ? 'G' : '0'}`;
     const emCache = obterCacheTtl(cacheGeminiTextoLivre, chaveCache);
     if (emCache) return emCache;
 
@@ -1119,24 +1150,34 @@ export const mercadoLivreJevService = {
       '1. Responda exclusivamente com um objeto JSON plano.',
     ];
 
+    let proximoPasso = 2;
+
     if (precisaMarca) {
       instrucoesCampos.push(
-        '2. Inclua "marca": identifique a marca real do produto pelo título, descrição ou EAN (ex.: para "Monitor Aoc 15.6\\" Portátil Fhd Ips 60hz 4m Usb-c 16t20e2", retorne "AOC"). Se não houver marca explícita ou for produto sem marca, retorne "Genérico".'
+        `${proximoPasso}. Inclua "marca": identifique a marca real do produto pelo título, descrição ou EAN (ex.: para "Monitor Aoc 15.6\\" Portátil Fhd Ips 60hz 4m Usb-c 16t20e2", retorne "AOC"). Se não houver marca explícita ou for produto sem marca, retorne "Genérico".`
       );
+      proximoPasso++;
     }
 
     if (precisaModelo) {
       instrucoesCampos.push(
-        `${precisaMarca ? '3' : '2'}. Inclua "modelo": extraia o código/nome do modelo pelo título, descrição ou SKU (ex.: "16T20E2"). Se não houver código explícito, use o codigo_interno (se informado) ou "Padrão".`
+        `${proximoPasso}. Inclua "modelo": extraia o código/nome do modelo pelo título, descrição ou SKU (ex.: "16T20E2"). Se não houver código explícito, use o codigo_interno (se informado) ou "Padrão".`
       );
+      proximoPasso++;
+    }
+
+    if (precisaGtin) {
+      instrucoesCampos.push(
+        `${proximoPasso}. Inclua "gtin": informe o código de barras EAN-13 / GTIN oficial do produto comercial identificado pelo título/marca/modelo (somente 8 a 14 dígitos numéricos com dígito verificador GS1 válido). Se for produto artesanal/genérico ou não houver certeza absoluta do EAN oficial exato, retorne "".`
+      );
+      proximoPasso++;
     }
 
     if (camposSolicitados.length > 0) {
-      const idxBase = 2 + (precisaMarca ? 1 : 0) + (precisaModelo ? 1 : 0);
       instrucoesCampos.push(
-        `${idxBase}. Para cada item em "Atributos solicitados", inclua "ATTR_ID": "valor curto" | null (se não houver evidência clara na ficha, retorne null).`,
-        `${idxBase + 1}. Se o atributo tiver "opcoes_permitidas", retorne EXATAMENTE uma das opções listadas (ou null). Se tipo === "boolean", retorne "Sim" ou "Não".`,
-        `${idxBase + 2}. Para tipo "number" ou "number_unit" com unidade_padrao informada, retorne apenas o número (ex.: "500").`
+        `${proximoPasso}. Para cada item em "Atributos solicitados", inclua "ATTR_ID": "valor curto" | null (se não houver evidência clara na ficha, retorne null).`,
+        `${proximoPasso + 1}. Se o atributo tiver "opcoes_permitidas", retorne EXATAMENTE uma das opções listadas (ou null). Se tipo === "boolean", retorne "Sim" ou "Não".`,
+        `${proximoPasso + 2}. Para tipo "number" ou "number_unit" com unidade_padrao informada, retorne apenas o número (ex.: "500").`
       );
     }
 
@@ -1187,6 +1228,9 @@ export const mercadoLivreJevService = {
         : undefined;
       const modeloExtraido = precisaModelo
         ? normalizarModeloIa(parsed.modelo ?? parsed.model ?? parsed.MODEL, fichaProduto.codigoInterno)
+        : undefined;
+      const gtinExtraido = precisaGtin
+        ? normalizarGtinIa(parsed.gtin ?? parsed.GTIN ?? parsed.ean ?? parsed.EAN)
         : undefined;
 
       const atributos: Record<string, ValorAtributoPreenchidoMl> = {};
@@ -1241,6 +1285,7 @@ export const mercadoLivreJevService = {
       const resultado: ResultadoGeminiFichaMl = {
         marca: marcaExtraida,
         modelo: modeloExtraido,
+        gtin: gtinExtraido,
         atributos,
       };
 

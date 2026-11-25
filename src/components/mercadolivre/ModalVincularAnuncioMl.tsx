@@ -13,6 +13,7 @@ import {
   RefreshCw
 } from 'lucide-react';
 import { Produto, VariacaoProduto } from '../../types';
+import { supabase } from '../../lib/supabase';
 import {
   mercadoLivreService,
   MlAtributoObrigatorioCategoria,
@@ -133,11 +134,13 @@ export const ModalVincularAnuncioMl: React.FC<ModalVincularAnuncioMlProps> = ({
   const requisicaoCategoriaSeqRef = useRef<number>(0);
   const marcaRef = useRef<string>('');
   const modeloRef = useRef<string>('');
+  const gtinRef = useRef<string>('');
   const valoresAtributosExtrasRef = useRef<Record<string, ValorAtributoPreenchidoMl>>({});
   const fichaProdutoRef = useRef<FichaProdutoMlHubi | null>(null);
 
   marcaRef.current = marca;
   modeloRef.current = modelo;
+  gtinRef.current = gtin;
   valoresAtributosExtrasRef.current = valoresAtributosExtras;
 
   const variacaoAtual: VariacaoProduto | null =
@@ -199,6 +202,7 @@ export const ModalVincularAnuncioMl: React.FC<ModalVincularAnuncioMlProps> = ({
       .replace(/\D/g, '')
       .trim()
       .slice(0, 14);
+    gtinRef.current = codigoInicial;
     setGtin(codigoInicial);
     setSemGtin(!codigoInicial);
   }, [aberto, produto?.id, variacaoSelecionadaId]);
@@ -268,9 +272,17 @@ export const ModalVincularAnuncioMl: React.FC<ModalVincularAnuncioMlProps> = ({
 
         const marcaEfetiva = marcaRef.current.trim() || preenchimento.marca?.trim() || '';
         const modeloEfetivo = modeloRef.current.trim() || preenchimento.modelo?.trim() || '';
+        const gtinAtualLimpo =
+          gtinRef.current.replace(/\D/g, '').trim() ||
+          (fichaConsulta.codigoBarras || '').replace(/\D/g, '').trim();
 
-        // Chamada única não-bloqueante via gemini-proxy para preencher marca, modelo e atributos de texto livre pendentes
-        if (preenchimento.atributosTextoLivrePendentes.length > 0 || !marcaEfetiva || !modeloEfetivo) {
+        // Chamada única não-bloqueante via gemini-proxy para preencher marca, modelo, GTIN e atributos de texto livre pendentes
+        if (
+          preenchimento.atributosTextoLivrePendentes.length > 0 ||
+          !marcaEfetiva ||
+          !modeloEfetivo ||
+          !gtinAtualLimpo
+        ) {
           void mercadoLivreJevService
             .preencherAtributosTextoLivreViaGemini({
               lojaId,
@@ -278,6 +290,7 @@ export const ModalVincularAnuncioMl: React.FC<ModalVincularAnuncioMlProps> = ({
               fichaProduto: fichaConsulta,
               marcaAtual: marcaEfetiva || undefined,
               modeloAtual: modeloEfetivo || undefined,
+              gtinAtual: gtinAtualLimpo || undefined,
               atributosPendentes: preenchimento.atributosTextoLivrePendentes,
             })
             .then((resultadoGemini) => {
@@ -288,6 +301,13 @@ export const ModalVincularAnuncioMl: React.FC<ModalVincularAnuncioMlProps> = ({
               }
               if (resultadoGemini.modelo) {
                 setModelo((prev) => (prev.trim() ? prev : resultadoGemini.modelo || prev));
+              }
+              if (resultadoGemini.gtin && /^\d{8,14}$/.test(resultadoGemini.gtin)) {
+                if (!gtinRef.current.replace(/\D/g, '').trim()) {
+                  gtinRef.current = resultadoGemini.gtin;
+                  setGtin(resultadoGemini.gtin);
+                  setSemGtin(false);
+                }
               }
 
               const chaves = Object.keys(resultadoGemini.atributos);
@@ -497,6 +517,28 @@ export const ModalVincularAnuncioMl: React.FC<ModalVincularAnuncioMlProps> = ({
         categoryId: categoriaSelecionadaId,
         atributosExtras,
       });
+
+      // Enriquece o cadastro local no Rubi caso codigo_barras estivesse vazio e um GTIN válido tenha sido informado
+      if (!semGtin && /^\d{8,14}$/.test(gtinLimpo)) {
+        try {
+          if (!(produto.codigo_barras || '').trim()) {
+            await supabase
+              .from('produtos')
+              .update({ codigo_barras: gtinLimpo })
+              .eq('id', produto.id)
+              .eq('loja_id', lojaId);
+          }
+          if (variacaoAtual && !(variacaoAtual.codigo_barras || '').trim()) {
+            await supabase
+              .from('variacoes_produto')
+              .update({ codigo_barras: gtinLimpo })
+              .eq('id', variacaoAtual.id)
+              .eq('loja_id', lojaId);
+          }
+        } catch (errGtinDb) {
+          console.warn('[ModalVincularAnuncioMl] Aviso ao persistir codigo_barras no produto:', errGtinDb);
+        }
+      }
 
       mostrarSucesso(res.mensagem, 'Anúncio Publicado');
       if (onSucesso) onSucesso();
