@@ -504,19 +504,37 @@ export const ModalVincularAnuncioMl: React.FC<ModalVincularAnuncioMlProps> = ({
 
       const payloadMl = converterGdmParaPayloadApiMl(gdmCanonico, produto.descricao || undefined);
 
-      const res = await mercadoLivreService.criarAnuncio({
-        lojaId,
+      console.group('[ML-DEBUG] Publicação de Novo Anúncio');
+      console.log('[ML-DEBUG] Dados do formulário:', {
         produtoId: produto.id,
-        variacaoId: variacaoSelecionadaId || null,
-        payloadMl,
-        margemSobrepreco: margemComissao,
+        categoriaId: categoriaSelecionadaId,
+        titulo: payloadMl.title || payloadMl.family_name || produto.nome,
+        preco: payloadMl.price,
         marca: marca.trim(),
         modelo: modelo.trim(),
-        gtin: semGtin ? null : gtinLimpo,
-        semGtin,
-        categoryId: categoriaSelecionadaId,
-        atributosExtras,
+        gtin: semGtin ? null : gtinLimpo || null,
+        sem_gtin: semGtin,
+        atributosFichaTecnica: atributosExtras,
       });
+
+      let res: { sucesso: boolean; mensagem: string; item: any };
+      try {
+        res = await mercadoLivreService.criarAnuncio({
+          lojaId,
+          produtoId: produto.id,
+          variacaoId: variacaoSelecionadaId || null,
+          payloadMl,
+          margemSobrepreco: margemComissao,
+          marca: marca.trim(),
+          modelo: modelo.trim(),
+          gtin: semGtin ? null : gtinLimpo,
+          semGtin,
+          categoryId: categoriaSelecionadaId,
+          atributosExtras,
+        });
+      } finally {
+        console.groupEnd();
+      }
 
       // Enriquece o cadastro local no Rubi caso codigo_barras estivesse vazio e um GTIN válido tenha sido informado
       if (!semGtin && /^\d{8,14}$/.test(gtinLimpo)) {

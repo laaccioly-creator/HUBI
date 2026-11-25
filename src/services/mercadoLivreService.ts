@@ -376,25 +376,48 @@ export const mercadoLivreService = {
         ? params.gtin.replace(/\D/g, '').trim()
         : '';
 
+    const bodyEnvio = {
+      action: 'create_listing',
+      loja_id: params.lojaId,
+      produto_id: params.produtoId,
+      variacao_id: params.variacaoId,
+      payload_ml: params.payloadMl,
+      margem_sobrepreco: params.margemSobrepreco,
+      marca: params.marca,
+      modelo: params.modelo,
+      gtin: gtinSomenteDigitos || null,
+      sem_gtin: Boolean(params.semGtin),
+      category_id: params.categoryId,
+      atributos_extras: params.atributosExtras,
+    };
+
+    console.log('[ML-DEBUG] Body enviado para ml-estoque-sync:', bodyEnvio);
+
     const { data, error } = await supabase.functions.invoke('ml-estoque-sync', {
-      body: {
-        action: 'create_listing',
-        loja_id: params.lojaId,
-        produto_id: params.produtoId,
-        variacao_id: params.variacaoId,
-        payload_ml: params.payloadMl,
-        margem_sobrepreco: params.margemSobrepreco,
-        marca: params.marca,
-        modelo: params.modelo,
-        gtin: gtinSomenteDigitos || null,
-        sem_gtin: Boolean(params.semGtin),
-        category_id: params.categoryId,
-        atributos_extras: params.atributosExtras,
-      },
+      body: bodyEnvio,
+    });
+
+    let erroBodyJson: any = null;
+    if (!data && error && typeof error === 'object') {
+      const ctx = (error as any).context;
+      if (ctx && typeof ctx.clone === 'function') {
+        try {
+          erroBodyJson = await ctx.clone().json();
+        } catch {
+          erroBodyJson = null;
+        }
+      }
+    }
+
+    const dadosResposta = data ?? erroBodyJson ?? null;
+    console.log('[ML-DEBUG] Resposta ml-estoque-sync:', {
+      data: dadosResposta,
+      error: error ?? null,
+      debug_ml: dadosResposta?.debug_ml ?? null,
     });
 
     if (error || !data?.sucesso) {
-      const msgErro = await extrairMensagemErroEdgeFunction(error, data);
+      const msgErro = await extrairMensagemErroEdgeFunction(error, dadosResposta);
       throw new Error(msgErro);
     }
 

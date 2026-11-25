@@ -958,6 +958,8 @@ serve(async (req: Request) => {
     // AÇÃO 3: CRIAR NOVO ANÚNCIO NO MERCADO LIVRE VIA GDM (create_listing)
     // =========================================================================
     if (action === "create_listing") {
+      console.log("[ML-SYNC] Body recebido do frontend:", JSON.stringify(corpo, null, 2));
+
       const {
         payload_ml,
         produto_id,
@@ -1065,6 +1067,8 @@ serve(async (req: Request) => {
       let respPostOk = false;
       let dadosCriado: any = null;
       let ultimoErroMl: any = null;
+      let ultimoPayloadEnviado: Record<string, any> | null = null;
+      let ultimoStatusHttpMl: number | null = null;
 
       for (let idxModo = 0; idxModo < modosParaTentar.length; idxModo++) {
         const modo = modosParaTentar[idxModo];
@@ -1091,6 +1095,25 @@ serve(async (req: Request) => {
             payloadTentativa.title = tituloLimpo;
           }
 
+          ultimoPayloadEnviado = payloadTentativa;
+          console.log(
+            "[ML-SYNC] Payload final enviado para POST /items:",
+            JSON.stringify(
+              {
+                modo,
+                category_id: payloadTentativa.category_id,
+                listing_type_id: payloadTentativa.listing_type_id,
+                price: payloadTentativa.price,
+                available_quantity: payloadTentativa.available_quantity,
+                title: payloadTentativa.title,
+                family_name: payloadTentativa.family_name,
+                attributes: payloadTentativa.attributes,
+              },
+              null,
+              2
+            )
+          );
+
           const respPost = await fetch("https://api.mercadolibre.com/items", {
             method: "POST",
             headers: {
@@ -1102,6 +1125,25 @@ serve(async (req: Request) => {
           });
 
           const jsonResp = await respPost.json().catch(() => ({}));
+          ultimoStatusHttpMl = respPost.status;
+
+          (respPost.ok ? console.log : console.error)(
+            "[ML-SYNC] Resposta HTTP do Mercado Livre:",
+            JSON.stringify(
+              {
+                status: respPost.status,
+                ok: respPost.ok,
+                modo,
+                category_id: categoriaAlvo,
+                message: jsonResp?.message ?? null,
+                error: jsonResp?.error ?? null,
+                cause: jsonResp?.cause ?? null,
+                resposta_completa: jsonResp,
+              },
+              null,
+              2
+            )
+          );
 
           if (respPost.ok) {
             respPostOk = true;
@@ -1208,6 +1250,12 @@ serve(async (req: Request) => {
             category_id: categoriaAlvo,
             detail_raw: detalhe,
             ml_cause: ultimoErroMl?.cause || null,
+            debug_ml: {
+              status_http_ml: ultimoStatusHttpMl,
+              category_id: categoriaAlvo,
+              atributos_enviados: ultimoPayloadEnviado?.attributes ?? atributosBase,
+              resposta_bruta_ml: ultimoErroMl ?? null,
+            },
           }),
           { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
         );
