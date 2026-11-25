@@ -1,14 +1,11 @@
 import React, { useEffect, useState } from 'react';
-import { useLocation, useNavigate } from 'react-router-dom';
-import { ShoppingBag, Loader2, CheckCircle2, Maximize2, X } from 'lucide-react';
+import { ShoppingBag, Loader2, CheckCircle2, Maximize2, X, ClipboardList } from 'lucide-react';
 import {
   EstadoPublicacaoMassaMl,
   mercadoLivrePublicacaoMassaService,
 } from '../../services/mercadoLivrePublicacaoMassaService';
 
 export const BarraProgressoPublicacaoMassaMl: React.FC = () => {
-  const navigate = useNavigate();
-  const location = useLocation();
   const [estado, setEstado] = useState<EstadoPublicacaoMassaMl>(() =>
     mercadoLivrePublicacaoMassaService.getEstado()
   );
@@ -27,11 +24,12 @@ export const BarraProgressoPublicacaoMassaMl: React.FC = () => {
   const percentual =
     estado.total > 0 ? Math.round((estado.processados / estado.total) * 100) : 0;
 
-  const handleExpandir = () => {
-    mercadoLivrePublicacaoMassaService.restaurar();
-    if (!location.pathname.startsWith('/products')) {
-      navigate('/products');
+  const handleAcao = () => {
+    if (emExecucao) {
+      mercadoLivrePublicacaoMassaService.restaurar();
+      return;
     }
+    mercadoLivrePublicacaoMassaService.abrirRelatorios(estado.loteAtualId);
   };
 
   return (
@@ -93,15 +91,24 @@ export const BarraProgressoPublicacaoMassaMl: React.FC = () => {
 
         <button
           type="button"
-          onClick={handleExpandir}
+          onClick={handleAcao}
           className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-black transition cursor-pointer ${
             emExecucao
               ? 'bg-slate-100 hover:bg-slate-200 border border-slate-300 text-black'
               : 'bg-emerald-300 hover:bg-emerald-400 text-black shadow-xs'
           }`}
         >
-          <Maximize2 className="w-3.5 h-3.5 text-black" />
-          <span>{emExecucao ? 'Expandir' : 'Ver Resumo'}</span>
+          {emExecucao ? (
+            <>
+              <Maximize2 className="w-3.5 h-3.5 text-black" />
+              <span>Expandir</span>
+            </>
+          ) : (
+            <>
+              <ClipboardList className="w-3.5 h-3.5 text-black" />
+              <span>Ver Relatório do Lote</span>
+            </>
+          )}
         </button>
       </div>
     </div>

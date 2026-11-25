@@ -1085,7 +1085,8 @@ export const mercadoLivreJevService = {
     const gtinExistenteDigitos =
       (gtinAtual || '').replace(/\D/g, '').trim() ||
       (fichaProduto.codigoBarras || '').replace(/\D/g, '').trim();
-    const precisaGtin = !/^\d{8,14}$/.test(gtinExistenteDigitos);
+    const gtinExistenteValido = validarGtinGs1(gtinExistenteDigitos);
+    const precisaGtin = !gtinExistenteValido;
 
     if (!lojaId || (atributosPendentes.length === 0 && !precisaMarca && !precisaModelo && !precisaGtin)) {
       return { atributos: {} };
@@ -1107,7 +1108,7 @@ export const mercadoLivreJevService = {
       categoria_local: [fichaProduto.categoriaLocal, fichaProduto.subcategoriaLocal].filter(Boolean).join(' > ') || null,
       marca: marcaAtual?.trim() || fichaProduto.marca || null,
       modelo: modeloAtual?.trim() || fichaProduto.modelo || null,
-      codigo_barras: fichaProduto.codigoBarras || null,
+      codigo_barras: gtinExistenteValido ? gtinExistenteDigitos : null,
       codigo_interno: fichaProduto.codigoInterno || null,
       variacao: fichaProduto.variacaoNome || null,
     };

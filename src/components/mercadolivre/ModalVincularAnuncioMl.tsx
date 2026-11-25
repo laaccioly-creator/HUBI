@@ -90,10 +90,15 @@ interface ModalVincularAnuncioMlProps {
   produto: Produto | null;
   lojaId: string;
   isDark?: boolean;
+  abaInicial?: 'vincular' | 'publicar';
   onSucesso?: (info?: {
     gtinSincronizado?: string | null;
     permalink?: string | null;
     variacaoId?: string | null;
+    mlItemId?: string | null;
+    mlCategoryId?: string | null;
+    semGtin?: boolean;
+    precoCalculado?: number | null;
   }) => void;
 }
 
@@ -103,12 +108,13 @@ export const ModalVincularAnuncioMl: React.FC<ModalVincularAnuncioMlProps> = ({
   produto,
   lojaId,
   isDark: _isDark = true,
+  abaInicial = 'vincular',
   onSucesso,
 }) => {
   const { mostrarErro, mostrarSucesso, mostrarAviso } = useFeedbackModal();
   const { isDark } = useTheme();
   useRegisterOverlay(aberto, onFechar, 'modal-vincular-anuncio-ml', 'modal');
-  const [abaAtiva, setAbaAtiva] = useState<'vincular' | 'publicar'>('vincular');
+  const [abaAtiva, setAbaAtiva] = useState<'vincular' | 'publicar'>(abaInicial);
   const [salvando, setSalvando] = useState<boolean>(false);
 
   // Estados da Aba 1: Vincular Anúncio Existente
@@ -183,6 +189,7 @@ export const ModalVincularAnuncioMl: React.FC<ModalVincularAnuncioMlProps> = ({
     requisicaoCategoriaSeqRef.current += 1;
     setCarregandoCategoria(false);
     if (!aberto || !produto) return;
+    setAbaAtiva(abaInicial);
     setVariacaoSelecionadaId('');
     setMlItemIdInput('');
     setMarca('');
@@ -197,7 +204,7 @@ export const ModalVincularAnuncioMl: React.FC<ModalVincularAnuncioMlProps> = ({
     setAtributosCategoria([]);
     setValoresAtributosExtras({});
     setErroCategoria(null);
-  }, [aberto, produto?.id]);
+  }, [aberto, produto?.id, abaInicial]);
 
   // Sincroniza o código universal (EAN/GTIN) automaticamente com o cadastro do produto/variação
   useEffect(() => {
@@ -450,6 +457,15 @@ export const ModalVincularAnuncioMl: React.FC<ModalVincularAnuncioMlProps> = ({
           gtinSincronizado: res.gtin_sincronizado || null,
           permalink: res.permalink || null,
           variacaoId: variacaoSelecionadaId || null,
+          mlItemId: res.anuncio?.ml_item_id || itemLimpo,
+          mlCategoryId: res.anuncio?.ml_category_id || null,
+          semGtin: !res.gtin_sincronizado,
+          precoCalculado:
+            typeof res.anuncio?.preco_anuncio === 'number'
+              ? res.anuncio.preco_anuncio
+              : typeof res.anuncio?.price === 'number'
+              ? res.anuncio.price
+              : null,
         });
       }
       onFechar();
@@ -581,6 +597,15 @@ export const ModalVincularAnuncioMl: React.FC<ModalVincularAnuncioMlProps> = ({
           gtinSincronizado: gtinSincronizadoFinal,
           permalink: res.permalink || res.item?.permalink || null,
           variacaoId: variacaoAtual?.id || null,
+          mlItemId: String(res.item?.id || '').trim() || null,
+          mlCategoryId: res.item?.category_id || categoriaSelecionadaId || null,
+          semGtin: Boolean(semGtin),
+          precoCalculado:
+            typeof res.item?.price === 'number'
+              ? res.item.price
+              : typeof payloadMl?.price === 'number'
+              ? payloadMl.price
+              : null,
         });
       }
       onFechar();

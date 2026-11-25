@@ -34,7 +34,6 @@ import { ModalEntradaEstoque } from './ModalEntradaEstoque';
 import { ModalDetalhesProduto } from './ModalDetalhesProduto';
 import { ModalVincularAnuncioMl } from './mercadolivre/ModalVincularAnuncioMl';
 import { ModalConectarMercadoLivre } from './mercadolivre/ModalConectarMercadoLivre';
-import { ModalPublicarMassaMl } from './mercadolivre/ModalPublicarMassaMl';
 import { mercadoLivreService } from '../services/mercadoLivreService';
 import { mercadoLivrePublicacaoMassaService } from '../services/mercadoLivrePublicacaoMassaService';
 import { obterPermalinkAnuncioMl } from '../utils/gdmMercadoLivreMapper';
@@ -1262,13 +1261,6 @@ export const ProdutosEstoque: React.FC = () => {
         onFechar={() => setModalConectarMlAberto(false)}
         lojaId={loja?.id || ''}
         nomeLoja={loja?.nome_fantasia}
-      />
-
-      <ModalPublicarMassaMl
-        lojaId={loja?.id || ''}
-        produtos={produtos}
-        categorias={categorias}
-        mapaAnunciosMl={mapaAnunciosMl}
       />
 
       {/* Modal de Filtros de Produtos & Estoque */}

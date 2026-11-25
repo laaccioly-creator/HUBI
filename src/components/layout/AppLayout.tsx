@@ -54,6 +54,7 @@ import { TelaBloqueioAssinatura } from '../assinatura/TelaBloqueioAssinatura';
 import { useAssinaturaStatus } from '../../hooks/useAssinaturaStatus';
 import { useSystemBillingConfig } from '../../hooks/useSystemBillingConfig';
 import { BarraProgressoPublicacaoMassaMl } from '../mercadolivre/BarraProgressoPublicacaoMassaMl';
+import { ModalPublicarMassaMl } from '../mercadolivre/ModalPublicarMassaMl';
 import { ErrorBoundary } from '../common/ErrorBoundary';
 import { logger } from '../../services/loggerService';
 import { UsuarioLoja } from '../../types';
@@ -1425,6 +1426,7 @@ export const AppLayout: React.FC = () => {
         />
       )}
       <BarraProgressoPublicacaoMassaMl />
+      <ModalPublicarMassaMl />
       <div className="hidden"
 
       />

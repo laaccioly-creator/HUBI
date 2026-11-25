@@ -3,6 +3,7 @@
 // Governança: supabase-rls-guard (filtro estrito por loja_id) e pii-leak-detector
 
 import { supabase, supabaseFunctionsBaseUrl } from '../lib/supabase';
+import { validarGtinGs1 } from '../utils/gdmMercadoLivreMapper';
 
 export interface MarketplaceContaLoja {
   id: string;
@@ -398,6 +399,7 @@ export const mercadoLivreService = {
       !params.semGtin && typeof params.gtin === 'string'
         ? params.gtin.replace(/\D/g, '').trim()
         : '';
+    const gtinValido = gtinSomenteDigitos && validarGtinGs1(gtinSomenteDigitos) ? gtinSomenteDigitos : '';
 
     const bodyEnvio = {
       action: 'create_listing',
@@ -408,8 +410,8 @@ export const mercadoLivreService = {
       margem_sobrepreco: params.margemSobrepreco,
       marca: params.marca,
       modelo: params.modelo,
-      gtin: gtinSomenteDigitos || null,
-      sem_gtin: Boolean(params.semGtin),
+      gtin: gtinValido || null,
+      sem_gtin: Boolean(params.semGtin || !gtinValido),
       category_id: params.categoryId,
       atributos_extras: params.atributosExtras,
     };
@@ -445,6 +447,38 @@ export const mercadoLivreService = {
     }
 
     return data;
+  },
+
+  /**
+   * Atualiza o código de barras (EAN/GTIN) no cadastro interno após validação GS1 e publicação bem-sucedida.
+   */
+  async sincronizarCodigoBarrasPosPublicacao(params: {
+    lojaId: string;
+    produtoId: string;
+    variacaoId?: string | null;
+    gtin: string;
+    codigoBarrasAtualProduto?: string | null;
+  }): Promise<void> {
+    const gtinLimpo = String(params.gtin || '').replace(/\D/g, '').trim();
+    if (!params.lojaId || !params.produtoId || !validarGtinGs1(gtinLimpo)) {
+      return;
+    }
+
+    if (params.variacaoId) {
+      await supabase
+        .from('variacoes_produto')
+        .update({ codigo_barras: gtinLimpo })
+        .eq('id', params.variacaoId)
+        .eq('loja_id', params.lojaId);
+    }
+
+    if (!params.variacaoId || (params.codigoBarrasAtualProduto || '').trim() !== gtinLimpo) {
+      await supabase
+        .from('produtos')
+        .update({ codigo_barras: gtinLimpo })
+        .eq('id', params.produtoId)
+        .eq('loja_id', params.lojaId);
+    }
   },
 
   /**

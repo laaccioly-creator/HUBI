@@ -10,9 +10,11 @@ import {
   Percent,
   Layers,
   HelpCircle,
-  ArrowRight
+  ArrowRight,
+  ClipboardList
 } from 'lucide-react';
 import { mercadoLivreService, MarketplaceContaLoja } from '../../services/mercadoLivreService';
+import { mercadoLivrePublicacaoMassaService } from '../../services/mercadoLivrePublicacaoMassaService';
 import { useFeedbackModal } from '../../contexts/FeedbackContext';
 import { formatarDataHoraLocal } from '../../utils/dateTime';
 
@@ -224,7 +226,18 @@ export const CardConexaoMercadoLivre: React.FC<CardConexaoMercadoLivreProps> = (
         </div>
 
         {/* BOTÃO PRINCIPAL DE AÇÃO */}
-        <div className="flex items-center gap-2 self-start sm:self-auto">
+        <div className="flex items-center gap-2 flex-wrap self-start sm:self-auto">
+          {!carregando && (
+            <button
+              type="button"
+              onClick={() => mercadoLivrePublicacaoMassaService.abrirRelatorios()}
+              className="hubi-btn-neutral px-3 py-2 rounded-xl border border-slate-300 bg-slate-100 hover:bg-slate-200 text-black text-xs font-bold transition flex items-center gap-1.5 cursor-pointer shadow-xs"
+              title="Consultar histórico e relatórios das publicações em massa"
+            >
+              <ClipboardList className="w-3.5 h-3.5 text-black" />
+              <span>Relatórios de Publicação</span>
+            </button>
+          )}
           {carregando ? (
             <div className={`flex items-center gap-2 text-sm font-medium ${isDark ? 'text-slate-300' : 'text-black'}`}>
               <Loader2 className="w-4 h-4 animate-spin text-emerald-500" />
