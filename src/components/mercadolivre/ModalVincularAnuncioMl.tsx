@@ -492,7 +492,8 @@ export const ModalVincularAnuncioMl: React.FC<ModalVincularAnuncioMlProps> = ({
           attr.value_type === 'number_unit' &&
           attr.default_unit &&
           valorLimpo &&
-          !/[a-zA-Z]/.test(valorLimpo)
+          !valorLimpo.includes(attr.default_unit) &&
+          !/[a-zA-Z"°%]/.test(valorLimpo)
         ) {
           valorLimpo = `${valorLimpo} ${attr.default_unit}`;
         }

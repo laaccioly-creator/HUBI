@@ -97,7 +97,13 @@ function garantirAtributosObrigatorios(
 }
 
 const USER_AGENT_NAVEGADOR =
-  "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/126.0.0.0 Safari/537.36";
+  "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36";
+
+function normalizarUrlImagemMl(url: string): string {
+  return String(url || "")
+    .trim()
+    .replace(/(%7Bw%7Dx%7Bh%7D|\{w\}x\{h\})/gi, "1000x1000");
+}
 
 type MlPictureEntrada = { id: string } | { source: string };
 
@@ -166,40 +172,50 @@ async function fazerUploadUnicaFotoMl(
   token: string,
   indice: number
 ): Promise<MlPictureEntrada> {
+  const urlNormalizada = normalizarUrlImagemMl(url);
   const controllerImg = new AbortController();
-  const timerImg = setTimeout(() => controllerImg.abort(), 10000);
+  const timerImg = setTimeout(() => controllerImg.abort(), 12000);
+
+  let refererOrigem: string | undefined;
+  try {
+    refererOrigem = `${new URL(urlNormalizada).origin}/`;
+  } catch {
+    refererOrigem = undefined;
+  }
 
   try {
-    const respImg = await fetch(url, {
+    const respImg = await fetch(urlNormalizada, {
       method: "GET",
       redirect: "follow",
       headers: {
         "User-Agent": USER_AGENT_NAVEGADOR,
         "Accept": "image/avif,image/webp,image/apng,image/*,*/*;q=0.8",
+        "Accept-Language": "pt-BR,pt;q=0.9,en-US;q=0.8,en;q=0.7",
+        ...(refererOrigem ? { "Referer": refererOrigem } : {}),
       },
       signal: controllerImg.signal,
     });
 
     if (!respImg.ok) {
       console.warn(`[ml-estoque-sync] Download da foto ${indice + 1} retornou HTTP ${respImg.status}; usando fallback { source }.`);
-      return { source: url };
+      return { source: urlNormalizada };
     }
 
     const arrayBuffer = await respImg.arrayBuffer();
     if (!arrayBuffer || arrayBuffer.byteLength === 0) {
       console.warn(`[ml-estoque-sync] Foto ${indice + 1} veio vazia; usando fallback { source }.`);
-      return { source: url };
+      return { source: urlNormalizada };
     }
 
     const infoImg = inferirMimeEExtensaoImagem(
       respImg.headers.get("content-type"),
-      url,
+      urlNormalizada,
       new Uint8Array(arrayBuffer)
     );
 
     if (!infoImg) {
       console.warn(`[ml-estoque-sync] Content-Type inválido para foto ${indice + 1}; usando fallback { source }.`);
-      return { source: url };
+      return { source: urlNormalizada };
     }
 
     const blob = new Blob([arrayBuffer], { type: infoImg.mime });
@@ -226,14 +242,14 @@ async function fazerUploadUnicaFotoMl(
       }
 
       console.warn(`[ml-estoque-sync] Upload binário da foto ${indice + 1} falhou (HTTP ${respUpload.status}); usando fallback { source }.`);
-      return { source: url };
+      return { source: urlNormalizada };
     } finally {
       clearTimeout(timerUpload);
     }
   } catch (errFoto) {
     const msgFoto = errFoto instanceof Error ? errFoto.message : "Erro ao processar imagem";
     console.warn(`[ml-estoque-sync] Falha no upload binário da foto ${indice + 1} (${msgFoto}); usando fallback { source }.`);
-    return { source: url };
+    return { source: urlNormalizada };
   } finally {
     clearTimeout(timerImg);
   }
@@ -250,7 +266,7 @@ async function prepararPicturesBinariasMl(
   if (Array.isArray(fotosUrlsBanco)) {
     for (const urlRaw of fotosUrlsBanco) {
       if (entradas.length >= 10) break;
-      const urlLimpa = typeof urlRaw === "string" ? urlRaw.trim() : "";
+      const urlLimpa = typeof urlRaw === "string" ? normalizarUrlImagemMl(urlRaw) : "";
       if (/^https?:\/\//i.test(urlLimpa) && !urlsVistas.has(urlLimpa)) {
         urlsVistas.add(urlLimpa);
         entradas.push({ source: urlLimpa });
@@ -267,7 +283,7 @@ async function prepararPicturesBinariasMl(
         entradas.push({ id: idPic });
         continue;
       }
-      const sourcePic = typeof (pic as any).source === "string" ? (pic as any).source.trim() : "";
+      const sourcePic = typeof (pic as any).source === "string" ? normalizarUrlImagemMl((pic as any).source) : "";
       if (/^https?:\/\//i.test(sourcePic) && !urlsVistas.has(sourcePic)) {
         urlsVistas.add(sourcePic);
         entradas.push({ source: sourcePic });
@@ -1133,8 +1149,8 @@ serve(async (req: Request) => {
         token
       );
 
-      type ModoTituloMl = "only_family_name" | "both" | "only_title";
-      const modosParaTentar: ModoTituloMl[] = ["only_family_name", "both", "only_title"];
+      type ModoTituloMl = "only_title" | "only_family_name" | "both";
+      const modosParaTentar: ModoTituloMl[] = ["only_title", "only_family_name", "both"];
       let respPostOk = false;
       let dadosCriado: any = null;
       let ultimoErroMl: any = null;
@@ -1155,15 +1171,15 @@ serve(async (req: Request) => {
             attributes: atributosBase,
           };
 
-          if (modo === "only_family_name") {
-            delete payloadTentativa.title;
-            payloadTentativa.family_name = nomeFamiliaLimpo;
-          } else if (modo === "both") {
-            payloadTentativa.family_name = nomeFamiliaLimpo;
-            payloadTentativa.title = tituloLimpo;
-          } else {
+          if (modo === "only_title") {
             delete payloadTentativa.family_name;
             payloadTentativa.title = tituloLimpo;
+          } else if (modo === "only_family_name") {
+            delete payloadTentativa.title;
+            payloadTentativa.family_name = nomeFamiliaLimpo;
+          } else {
+            payloadTentativa.title = tituloLimpo;
+            payloadTentativa.family_name = nomeFamiliaLimpo;
           }
 
           ultimoPayloadEnviado = payloadTentativa;
@@ -1259,10 +1275,10 @@ serve(async (req: Request) => {
             break;
           }
 
-          if (modo === "only_family_name") {
-            const rejeitouFamilyName = /family_name.*not.*allowed|not_allowed.*family_name|invalid.*family_name|cannot.*family_name/i.test(textoErro);
-            if (rejeitouFamilyName && !/\btitle\b/i.test(textoErro)) {
-              // Pula direto para only_title
+          if (modo === "only_title") {
+            const rejeitouTitlePedeBoth = /\btitle\b.*family_name|family_name.*\btitle\b/i.test(textoErro);
+            if (rejeitouTitlePedeBoth && !/title.*not.*allowed|not_allowed.*title/i.test(textoErro)) {
+              // Pula direto para both quando a categoria exige explicitamente os dois juntos
               idxModo = 1;
             }
           }

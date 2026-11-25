@@ -598,7 +598,7 @@ export const ProdutosEstoque: React.FC = () => {
                 type="button"
                 disabled={verificandoConexaoMl}
                 onClick={() => handleAbrirPublicarMassaMl()}
-                className="hubi-btn-neutral inline-flex items-center gap-1.5 px-3.5 py-2.5 rounded-xl bg-slate-100 hover:bg-slate-200 border border-slate-300 text-black text-xs font-bold transition cursor-pointer shadow-sm disabled:opacity-50"
+                className="inline-flex items-center gap-1.5 px-3.5 py-2.5 rounded-xl bg-[#FFE600] hover:bg-[#F5DC00] border border-amber-400/70 text-black text-xs font-semibold transition cursor-pointer shadow-sm disabled:opacity-50"
                 title="Publicar vários produtos em lote no Mercado Livre"
               >
                 <ShoppingBag className="w-4 h-4 text-black" />

@@ -6505,7 +6505,7 @@ export const ProdutosMobile: React.FC<ProdutosMobileProps> = ({
                 )?.id || null;
               onAbrirPublicarMassaMl(catInicial);
             }}
-            className="hubi-btn-neutral inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-slate-100 hover:bg-slate-200 border border-slate-300 text-black text-xs font-bold transition cursor-pointer shadow-2xs"
+            className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-[#FFE600] hover:bg-[#F5DC00] border border-amber-400/70 text-black text-xs font-semibold transition cursor-pointer shadow-sm"
           >
             <ShoppingBag className="w-3.5 h-3.5 text-black" />
             <span>Publicar em Massa no ML</span>

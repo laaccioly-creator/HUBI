@@ -74,7 +74,7 @@ const LIMITE_ITENS_CACHE = 200;
 const TIMEOUT_ML_API_MS = 2500;
 const TIMEOUT_JEV_CATEGORIA_MS = 900;
 const TIMEOUT_JEV_ATRIBUTOS_MS = 850;
-const TIMEOUT_GEMINI_FALLBACK_MS = 4000;
+const TIMEOUT_GEMINI_FALLBACK_MS = 12000;
 const MAX_OPCOES_CHOICE_JEV = 19;
 const MAX_PERGUNTAS_LOTE_JEV = 15;
 
@@ -532,10 +532,82 @@ function extrairValorNumericoPorUnidade(
   return match[1].replace(',', '.');
 }
 
+function extrairTamanhoTelaPolegadas(
+  texto: string,
+  attr: MlAtributoObrigatorioCategoria
+): ValorAtributoPreenchidoMl | null {
+  const match = texto.match(/(\d{1,2}(?:[.,]\d{1,2})?)\s*(?:"|''|'|″|pol(?:egadas?)?\b)/i);
+  if (!match || !match[1]) return null;
+
+  const numero = match[1].replace(',', '.');
+  const unidade = attr.default_unit || '"';
+  const formatado = `${numero} ${unidade}`;
+
+  if (attr.values.length > 0) {
+    const opcao =
+      resolverOpcaoPermitida(attr.values, formatado) ||
+      resolverOpcaoPermitida(attr.values, `${numero}"`) ||
+      resolverOpcaoPermitida(attr.values, numero);
+    if (opcao) {
+      return { value_id: opcao.id, value_name: opcao.name };
+    }
+  }
+
+  return { value_name: formatado };
+}
+
+function normalizarCandidatosResolucao(texto: string): string[] {
+  const limpo = String(texto || '');
+  if (/\b(4k|uhd|ultra\s*hd|2160p|3840\s*x\s*2160)\b/i.test(limpo)) {
+    return ['4K', 'Ultra HD', 'UHD'];
+  }
+  if (/\b(wqhd|qhd|quad\s*hd|2k|1440p|2560\s*x\s*1440)\b/i.test(limpo)) {
+    return ['Quad HD', 'QHD', 'WQHD', '2K'];
+  }
+  if (/\b(fhd|full\s*hd|1080p|1920\s*x\s*1080)\b/i.test(limpo)) {
+    return ['Full HD', 'FHD'];
+  }
+  if (/\b(hd|720p|1280\s*x\s*720|1366\s*x\s*768)\b/i.test(limpo)) {
+    return ['HD'];
+  }
+  return [];
+}
+
+function extrairTipoResolucao(
+  texto: string,
+  attr: MlAtributoObrigatorioCategoria
+): ValorAtributoPreenchidoMl | null {
+  const candidatos = normalizarCandidatosResolucao(texto);
+  if (candidatos.length === 0) return null;
+
+  if (attr.values.length > 0) {
+    for (const cand of candidatos) {
+      const opcao = resolverOpcaoPermitida(attr.values, cand);
+      if (opcao) {
+        return { value_id: opcao.id, value_name: opcao.name };
+      }
+    }
+  }
+
+  return { value_name: candidatos[0] };
+}
+
 function extrairAtributoDinamicoDeterministico(
   attr: MlAtributoObrigatorioCategoria,
   ficha: FichaProdutoMlHubi
 ): ValorAtributoPreenchidoMl | null {
+  const textoCombinado = `${ficha.nome} ${ficha.descricao || ''} ${ficha.variacaoNome || ''}`;
+
+  if (attr.id === 'DISPLAY_SIZE') {
+    const tamTela = extrairTamanhoTelaPolegadas(textoCombinado, attr);
+    if (tamTela) return tamTela;
+  }
+
+  if (attr.id === 'RESOLUTION_TYPE') {
+    const tipoRes = extrairTipoResolucao(textoCombinado, attr);
+    if (tipoRes) return tipoRes;
+  }
+
   // Booleanos nunca devem ser forçados via texto solto se houver dúvida; deixamos ao Jev
   if (attr.value_type !== 'boolean') {
     let valorBruto: string | null = null;
@@ -1163,7 +1235,8 @@ export const mercadoLivreJevService = {
       instrucoesCampos.push(
         `${proximoPasso}. Para cada item em "Atributos solicitados", inclua "ATTR_ID": "valor curto" | null (se não houver evidência clara na ficha, retorne null).`,
         `${proximoPasso + 1}. Se o atributo tiver "opcoes_permitidas", retorne EXATAMENTE uma das opções listadas (ou null). Se tipo === "boolean", retorne "Sim" ou "Não".`,
-        `${proximoPasso + 2}. Para tipo "number" ou "number_unit" com unidade_padrao informada, retorne apenas o número (ex.: "500").`
+        `${proximoPasso + 2}. Para tipo "number" ou "number_unit" com unidade_padrao informada, retorne apenas o número (ex.: "500" ou para DISPLAY_SIZE em polegadas: "23.8 \\"").`,
+        `${proximoPasso + 3}. Para RESOLUTION_TYPE, mapeie exatamente para o padrão ML: WQHD/QHD/2K -> "Quad HD", FHD/1080p -> "Full HD", UHD/4K -> "4K", HD/720p -> "HD".`
       );
     }
 
@@ -1200,7 +1273,10 @@ export const mercadoLivreJevService = {
       );
 
       const { data, error } = await Promise.race([requisicao, timeoutPromise]);
-      if (error) return resultadoFallback;
+      if (error) {
+        console.warn('[mercadoLivreJevService] Erro ao consultar gemini-proxy:', error.message || error);
+        return resultadoFallback;
+      }
 
       const textoJson = extrairTextoRespostaGemini(data);
       if (!textoJson.trim()) return resultadoFallback;
@@ -1228,6 +1304,37 @@ export const mercadoLivreJevService = {
 
         let valorStr = String(valorRaw).trim();
         if (!valorStr || /^(null|undefined|n\/a|nao informado|não informado)$/i.test(valorStr)) continue;
+
+        if (attr.id === 'DISPLAY_SIZE') {
+          const telaNormalizada = extrairTamanhoTelaPolegadas(valorStr, attr);
+          if (telaNormalizada) {
+            atributos[attr.id] = telaNormalizada;
+            continue;
+          }
+          const matchNumTela = valorStr.replace(',', '.').match(/\d{1,2}(?:\.\d{1,2})?/);
+          if (matchNumTela) {
+            const unidadeTela = attr.default_unit || '"';
+            const formatadoTela = `${matchNumTela[0]} ${unidadeTela}`;
+            const opcaoTela = attr.values.length > 0 ? resolverOpcaoPermitida(attr.values, formatadoTela) : null;
+            atributos[attr.id] = opcaoTela
+              ? { value_id: opcaoTela.id, value_name: opcaoTela.name }
+              : { value_name: formatadoTela };
+            continue;
+          }
+        }
+
+        if (attr.id === 'RESOLUTION_TYPE') {
+          const opcaoDireta = attr.values.length > 0 ? resolverOpcaoPermitida(attr.values, valorStr) : null;
+          if (opcaoDireta) {
+            atributos[attr.id] = { value_id: opcaoDireta.id, value_name: opcaoDireta.name };
+            continue;
+          }
+          const resNormalizada = extrairTipoResolucao(valorStr, attr);
+          if (resNormalizada) {
+            atributos[attr.id] = resNormalizada;
+            continue;
+          }
+        }
 
         if (attr.value_type === 'boolean') {
           const normBool = normalizarTextoComparacao(valorStr);
@@ -1265,6 +1372,10 @@ export const mercadoLivreJevService = {
           valorStr = matchNum[0];
         }
 
+        if (attr.value_type === 'number_unit' && attr.default_unit && !valorStr.includes(attr.default_unit) && !/[a-zA-Z"°%]/.test(valorStr)) {
+          valorStr = `${valorStr} ${attr.default_unit}`;
+        }
+
         atributos[attr.id] = { value_name: valorStr.slice(0, 60) };
       }
 
@@ -1277,7 +1388,8 @@ export const mercadoLivreJevService = {
 
       salvarCacheTtl(cacheGeminiTextoLivre, chaveCache, resultado);
       return resultado;
-    } catch {
+    } catch (errGemini) {
+      console.warn('[mercadoLivreJevService] Fallback Gemini indisponível ou timeout:', errGemini);
       return resultadoFallback;
     }
   },
