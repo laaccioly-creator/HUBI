@@ -78,6 +78,7 @@ import { formatarNomeTransportadora } from '../utils/shippingDisplay';
 import { audioService } from '../services/audioService';
 import { EstoquePedidoService, STATUS_QUE_BAIXAM_ESTOQUE } from '../services/estoquePedidoService';
 import { obterDataOperacaoISO } from '../utils/dataOperacao';
+import { formatarDataLocal, formatarDataHoraLocal } from '../utils/dateTime';
 import { useFeedbackModal } from '../contexts/FeedbackContext';
 import { ModalNovoCliente } from './ModalNovoCliente';
 import { ModalAlterarStatusPedido, getStatusBadgeElement } from './ModalAlterarStatusPedido';
@@ -3187,8 +3188,7 @@ export const PedidosLista: React.FC = () => {
 
   const formatarData = (dataStr: string) => {
     try {
-      const d = new Date(dataStr);
-      return d.toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit', year: 'numeric' });
+      return formatarDataLocal(dataStr, { day: '2-digit', month: '2-digit', year: 'numeric' });
     } catch {
       return dataStr;
     }
@@ -3736,7 +3736,7 @@ export const PedidosLista: React.FC = () => {
                       {despachadoEm && (
                         <div className="flex justify-between items-center pt-1 border-t border-slate-800/60">
                           <span className="text-slate-400">Despachado em:</span>
-                          <span className="text-slate-300">{new Date(despachadoEm).toLocaleString('pt-BR')}</span>
+                          <span className="text-slate-300">{formatarDataHoraLocal(despachadoEm)}</span>
                         </div>
                       )}
 

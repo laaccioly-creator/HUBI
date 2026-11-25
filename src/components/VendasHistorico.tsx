@@ -52,6 +52,7 @@ import { VendasHistoricoMobile } from './VendasHistoricoMobile';
 import { ReciboPedidoModal } from './pedidos/ReciboPedidoModal';
 import { obterInfoVencimentoFiado } from '../utils/statusPedidoUtils';
 import { obterDataOperacao } from '../utils/dataOperacao';
+import { obterInicioDiaISO, obterFimDiaISO } from '../utils/dateTime';
 import { useFeedbackModal } from '../contexts/FeedbackContext';
 import { useRegisterOverlay } from '../hooks/useRegisterOverlay';
 import { EstoquePedidoService } from '../services/estoquePedidoService';
@@ -437,11 +438,11 @@ export const VendasHistorico: React.FC = () => {
           if (dataVenda < inicioAnoPassado || dataVenda > fimAnoPassado) return false;
         } else if (periodoSelecionado === 'custom' || (dataInicial && dataFinal)) {
           if (dataInicial) {
-            const dtIni = new Date(dataInicial + 'T00:00:00');
+            const dtIni = new Date(obterInicioDiaISO(dataInicial));
             if (dataVenda < dtIni) return false;
           }
           if (dataFinal) {
-            const dtFim = new Date(dataFinal + 'T23:59:59');
+            const dtFim = new Date(obterFimDiaISO(dataFinal));
             if (dataVenda > dtFim) return false;
           }
         }

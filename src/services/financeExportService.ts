@@ -1,4 +1,5 @@
 import * as XLSX from 'xlsx';
+import { formatarDataLocal, formatarDataHoraLocal, obterDataLocalYYYYMMDD } from '../utils/dateTime';
 
 export interface ItemTransacaoExportacao {
   id?: string;
@@ -16,14 +17,14 @@ function formatarDataHoraBR(dataStr?: string): string {
   if (!dataStr) return '';
   const d = new Date(dataStr);
   if (isNaN(d.getTime())) return dataStr;
-  return d.toLocaleString('pt-BR');
+  return formatarDataHoraLocal(d);
 }
 
 function formatarDataBR(dataStr?: string): string {
   if (!dataStr) return '';
   const d = new Date(dataStr);
   if (isNaN(d.getTime())) return dataStr;
-  return d.toLocaleDateString('pt-BR');
+  return formatarDataLocal(d);
 }
 
 function limparDescricao(desc?: string): string {
@@ -36,7 +37,7 @@ function sanitizarNomeLoja(nomeLoja?: string): string {
 }
 
 function obterTimestamp(): string {
-  return new Date().toISOString().slice(0, 10);
+  return obterDataLocalYYYYMMDD();
 }
 
 export const financeExportService = {

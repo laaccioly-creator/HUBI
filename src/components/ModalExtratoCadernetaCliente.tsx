@@ -25,6 +25,7 @@ import { ModalPagamentoFechamentoCatalogo } from './catalogo/ModalPagamentoFecha
 import { ReciboPedidoModal } from './pedidos/ReciboPedidoModal';
 import { whatsappWalletService } from '../services/whatsappWalletService';
 import { formatarResumoCicloCaderneta, obterConfigCicloCliente } from '../utils/cadernetaCiclo';
+import { formatarDataLocal, formatarHoraLocal, formatarDataHoraLocal } from '../utils/dateTime';
 
 interface ModalExtratoCadernetaClienteProps {
   isOpen: boolean;
@@ -161,7 +162,7 @@ export const ModalExtratoCadernetaCliente: React.FC<ModalExtratoCadernetaCliente
       `💰 *Saldo Devedor Atual:* ${formatarMoeda(resumo.saldoDevedor)}\n` +
       `🟢 *Limite Disponível:* ${formatarMoeda(resumo.limiteDisponivel)} (de ${formatarMoeda(resumo.limiteTotal)})\n` +
       `📅 *Fechamento da Caderneta:* ${resumoCicloTexto}\n` +
-      `🗓️ *Próximo Vencimento:* ${new Date(resumo.proximoVencimento + 'T12:00:00').toLocaleDateString('pt-BR')}\n\n` +
+      `🗓️ *Próximo Vencimento:* ${formatarDataLocal(resumo.proximoVencimento)}\n\n` +
       `Agradecemos pela preferência! ✨`;
 
     const resHibrido = await whatsappWalletService.dispararNotificacaoHibrida({
@@ -262,7 +263,7 @@ export const ModalExtratoCadernetaCliente: React.FC<ModalExtratoCadernetaCliente
                 }`}>
                   <span className={`text-xs font-bold block uppercase ${isDark ? 'text-slate-300' : 'text-black'}`}>Vencimento</span>
                   <span className="text-xs sm:text-sm font-black block truncate">
-                    {resumo?.proximoVencimento ? new Date(resumo.proximoVencimento + 'T12:00:00').toLocaleDateString('pt-BR') : '--'}
+                    {resumo?.proximoVencimento ? formatarDataLocal(resumo.proximoVencimento) : '--'}
                   </span>
                   <span className={`text-sm leading-relaxed font-semibold block ${isDark ? 'text-slate-300' : 'text-black'}`}>
                     {resumo?.resumoCiclo || formatarResumoCicloCaderneta(obterConfigCicloCliente(cliente, loja))}
@@ -304,7 +305,7 @@ export const ModalExtratoCadernetaCliente: React.FC<ModalExtratoCadernetaCliente
                               <span className="font-bold">{descLimpa}</span>
                             </div>
                             <span className={`text-sm leading-relaxed block ${isDark ? 'text-slate-300' : 'text-black'}`}>
-                              Enviado em {new Date(pend.criado_em || Date.now()).toLocaleString('pt-BR')}
+                              Enviado em {formatarDataHoraLocal(pend.criado_em || Date.now())}
                             </span>
                           </div>
 
@@ -417,7 +418,7 @@ export const ModalExtratoCadernetaCliente: React.FC<ModalExtratoCadernetaCliente
                       const numeroPedidoExibicao = (lanc.pedido as any)?.numero_pedido
                         ? `Pedido #${(lanc.pedido as any).numero_pedido}`
                         : (lanc.descricao?.replace(/^Compra ref\.\s*/i, '').replace('[PENDENTE_CONFERENCIA]', '').replace('[RECUSADO]', '').trim() || 'Lançamento');
-                      const dataHoraExibicao = `${new Date(lanc.criado_em || Date.now()).toLocaleDateString('pt-BR')} ${new Date(lanc.criado_em || Date.now()).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })}`;
+                      const dataHoraExibicao = `${formatarDataLocal(lanc.criado_em || Date.now())} ${formatarHoraLocal(lanc.criado_em || Date.now(), { hour: '2-digit', minute: '2-digit' })}`;
 
                       return (
                         <div

@@ -4,6 +4,7 @@
  */
 
 import { Loja, Produto, Pedido, Cliente, ItemPedido } from '../types';
+import { obterDataLocalYYYYMMDD } from '../utils/dateTime';
 
 class FeedExportService {
   /**
@@ -100,7 +101,7 @@ ${itemsXml}
     let nomeArquivo = '';
 
     const dInicioStr = dataInicio ? dataInicio.replace(/-/g, '') : '20260101';
-    const dFimStr = dataFim ? dataFim.replace(/-/g, '') : new Date().toISOString().split('T')[0].replace(/-/g, '');
+    const dFimStr = dataFim ? dataFim.replace(/-/g, '') : obterDataLocalYYYYMMDD().replace(/-/g, '');
 
     if (tipo === 'vendas') {
       nomeArquivo = `Sales_${dInicioStr}_${dFimStr}.csv`;

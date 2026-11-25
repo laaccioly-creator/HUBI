@@ -1,6 +1,13 @@
 import { supabase } from '../lib/supabase';
 import { LojaMetas, MetricasCockpit } from '../types';
 import { obterDataOperacao } from '../utils/dataOperacao';
+import {
+  formatarDataLocal,
+  obterDataLocalYYYYMMDD,
+  obterInicioDiaISO,
+  obterFimDiaISO,
+  obterOffsetISOLocal
+} from '../utils/dateTime';
 
 export type TipoPeriodoDashboard =
   | 'hoje'
@@ -53,6 +60,13 @@ export const METAS_PADRAO_LOJA: Omit<LojaMetas, 'id' | 'loja_id'> = {
   meta_saude_estoque_max_ruptura: 0.0
 };
 
+function formatarYmdUTC(d: Date): string {
+  const ano = d.getUTCFullYear();
+  const mes = String(d.getUTCMonth() + 1).padStart(2, '0');
+  const dia = String(d.getUTCDate()).padStart(2, '0');
+  return `${ano}-${mes}-${dia}`;
+}
+
 /**
  * Resolve o intervalo exato com base na data operacional (suportando data simulada/retroativa)
  */
@@ -70,14 +84,16 @@ export function resolverIntervaloPeriodo(
   diasIntervalo: number;
 } {
   const agora = obterDataOperacao();
+  const hojeYmd = obterDataLocalYYYYMMDD(agora);
+  const [anoHoje, mesHoje, diaHoje] = hojeYmd.split('-').map(Number);
 
   if (tipoPeriodo === 'personalizado') {
-    const inicio = dataInicioCustom
-      ? new Date(`${dataInicioCustom}T00:00:00`)
-      : new Date(agora.getFullYear(), agora.getMonth(), 1, 0, 0, 0, 0);
-    const fim = dataFimCustom
-      ? new Date(`${dataFimCustom}T23:59:59.999`)
-      : new Date(agora.getFullYear(), agora.getMonth(), agora.getDate(), 23, 59, 59, 999);
+    const ymdInicio = dataInicioCustom || `${anoHoje}-${String(mesHoje).padStart(2, '0')}-01`;
+    const ymdFim = dataFimCustom || hojeYmd;
+    const dataInicioIso = obterInicioDiaISO(ymdInicio);
+    const dataFimIso = obterFimDiaISO(ymdFim);
+    const inicio = new Date(dataInicioIso);
+    const fim = new Date(dataFimIso);
 
     const diffMs = Math.max(0, fim.getTime() - inicio.getTime());
     const dias = Math.max(1, Math.round(diffMs / (1000 * 60 * 60 * 24)));
@@ -85,115 +101,116 @@ export function resolverIntervaloPeriodo(
     return {
       dataInicio: inicio,
       dataFim: fim,
-      dataInicioIso: inicio.toISOString(),
-      dataFimIso: fim.toISOString(),
+      dataInicioIso,
+      dataFimIso,
       label: 'Personalizado',
       diasIntervalo: dias
     };
   }
 
   if (tipoPeriodo === 'hoje') {
-    const ref = new Date(agora);
-    ref.setDate(ref.getDate() + periodoOffset);
-    const inicio = new Date(ref.getFullYear(), ref.getMonth(), ref.getDate(), 0, 0, 0, 0);
-    const fim = new Date(ref.getFullYear(), ref.getMonth(), ref.getDate(), 23, 59, 59, 999);
-    const label = periodoOffset === 0 ? 'Hoje' : periodoOffset === -1 ? 'Ontem' : ref.toLocaleDateString('pt-BR');
+    const ref = new Date(Date.UTC(anoHoje, mesHoje - 1, diaHoje + periodoOffset, 12, 0, 0));
+    const ymd = formatarYmdUTC(ref);
+    const dataInicioIso = obterInicioDiaISO(ymd);
+    const dataFimIso = obterFimDiaISO(ymd);
+    const label = periodoOffset === 0 ? 'Hoje' : periodoOffset === -1 ? 'Ontem' : formatarDataLocal(ymd);
     return {
-      dataInicio: inicio,
-      dataFim: fim,
-      dataInicioIso: inicio.toISOString(),
-      dataFimIso: fim.toISOString(),
+      dataInicio: new Date(dataInicioIso),
+      dataFim: new Date(dataFimIso),
+      dataInicioIso,
+      dataFimIso,
       label,
       diasIntervalo: 1
     };
   }
 
   if (tipoPeriodo === 'ontem') {
-    const ref = new Date(agora);
-    ref.setDate(ref.getDate() - 1 + periodoOffset);
-    const inicio = new Date(ref.getFullYear(), ref.getMonth(), ref.getDate(), 0, 0, 0, 0);
-    const fim = new Date(ref.getFullYear(), ref.getMonth(), ref.getDate(), 23, 59, 59, 999);
+    const ref = new Date(Date.UTC(anoHoje, mesHoje - 1, diaHoje - 1 + periodoOffset, 12, 0, 0));
+    const ymd = formatarYmdUTC(ref);
+    const dataInicioIso = obterInicioDiaISO(ymd);
+    const dataFimIso = obterFimDiaISO(ymd);
     return {
-      dataInicio: inicio,
-      dataFim: fim,
-      dataInicioIso: inicio.toISOString(),
-      dataFimIso: fim.toISOString(),
+      dataInicio: new Date(dataInicioIso),
+      dataFim: new Date(dataFimIso),
+      dataInicioIso,
+      dataFimIso,
       label: 'Ontem',
       diasIntervalo: 1
     };
   }
 
   if (tipoPeriodo === 'esta_semana' || tipoPeriodo === 'semana_passada') {
-    const ref = new Date(agora);
     const baseOffset = tipoPeriodo === 'semana_passada' ? -7 : 0;
-    ref.setDate(ref.getDate() + baseOffset + (periodoOffset * 7));
+    const ref = new Date(Date.UTC(anoHoje, mesHoje - 1, diaHoje + baseOffset + (periodoOffset * 7), 12, 0, 0));
 
-    const dayOfWeek = ref.getDay();
+    const dayOfWeek = ref.getUTCDay();
     const diffToMonday = (dayOfWeek + 6) % 7;
 
-    const inicio = new Date(ref.getFullYear(), ref.getMonth(), ref.getDate() - diffToMonday, 0, 0, 0, 0);
-    const fim = new Date(inicio.getFullYear(), inicio.getMonth(), inicio.getDate() + 6, 23, 59, 59, 999);
+    const refIni = new Date(Date.UTC(ref.getUTCFullYear(), ref.getUTCMonth(), ref.getUTCDate() - diffToMonday, 12, 0, 0));
+    const refFim = new Date(Date.UTC(refIni.getUTCFullYear(), refIni.getUTCMonth(), refIni.getUTCDate() + 6, 12, 0, 0));
+    const dataInicioIso = obterInicioDiaISO(formatarYmdUTC(refIni));
+    const dataFimIso = obterFimDiaISO(formatarYmdUTC(refFim));
     const label = tipoPeriodo === 'semana_passada' ? 'Semana Passada' : 'Esta Semana';
     return {
-      dataInicio: inicio,
-      dataFim: fim,
-      dataInicioIso: inicio.toISOString(),
-      dataFimIso: fim.toISOString(),
+      dataInicio: new Date(dataInicioIso),
+      dataFim: new Date(dataFimIso),
+      dataInicioIso,
+      dataFimIso,
       label,
       diasIntervalo: 7
     };
   }
 
   if (tipoPeriodo === 'este_mes' || tipoPeriodo === 'mes_passado') {
-    const ref = new Date(agora);
     const baseOffset = tipoPeriodo === 'mes_passado' ? -1 : 0;
-    ref.setMonth(ref.getMonth() + baseOffset + periodoOffset);
-
-    const inicio = new Date(ref.getFullYear(), ref.getMonth(), 1, 0, 0, 0, 0);
-    const fim = new Date(ref.getFullYear(), ref.getMonth() + 1, 0, 23, 59, 59, 999);
-    const label = `${MESES_COMPLETOS[ref.getMonth()]} de ${ref.getFullYear()}`;
-    const dias = new Date(ref.getFullYear(), ref.getMonth() + 1, 0).getDate();
+    const ref = new Date(Date.UTC(anoHoje, mesHoje - 1 + baseOffset + periodoOffset, 1, 12, 0, 0));
+    const ano = ref.getUTCFullYear();
+    const mes = ref.getUTCMonth();
+    const dias = new Date(Date.UTC(ano, mes + 1, 0)).getUTCDate();
+    const ymdInicio = `${ano}-${String(mes + 1).padStart(2, '0')}-01`;
+    const ymdFim = `${ano}-${String(mes + 1).padStart(2, '0')}-${String(dias).padStart(2, '0')}`;
+    const dataInicioIso = obterInicioDiaISO(ymdInicio);
+    const dataFimIso = obterFimDiaISO(ymdFim);
+    const label = `${MESES_COMPLETOS[mes]} de ${ano}`;
     return {
-      dataInicio: inicio,
-      dataFim: fim,
-      dataInicioIso: inicio.toISOString(),
-      dataFimIso: fim.toISOString(),
+      dataInicio: new Date(dataInicioIso),
+      dataFim: new Date(dataFimIso),
+      dataInicioIso,
+      dataFimIso,
       label,
       diasIntervalo: dias
     };
   }
 
   if (tipoPeriodo === 'este_ano' || tipoPeriodo === 'ano_passado') {
-    const ref = new Date(agora);
     const baseOffset = tipoPeriodo === 'ano_passado' ? -1 : 0;
-    ref.setFullYear(ref.getFullYear() + baseOffset + periodoOffset);
-
-    const inicio = new Date(ref.getFullYear(), 0, 1, 0, 0, 0, 0);
-    const fim = new Date(ref.getFullYear(), 11, 31, 23, 59, 59, 999);
+    const ano = anoHoje + baseOffset + periodoOffset;
+    const dataInicioIso = obterInicioDiaISO(`${ano}-01-01`);
+    const dataFimIso = obterFimDiaISO(`${ano}-12-31`);
     const label = tipoPeriodo === 'ano_passado' && periodoOffset === 0
-      ? `Ano Passado (${ref.getFullYear()})`
-      : `Ano ${ref.getFullYear()}`;
+      ? `Ano Passado (${ano})`
+      : `Ano ${ano}`;
     return {
-      dataInicio: inicio,
-      dataFim: fim,
-      dataInicioIso: inicio.toISOString(),
-      dataFimIso: fim.toISOString(),
+      dataInicio: new Date(dataInicioIso),
+      dataFim: new Date(dataFimIso),
+      dataInicioIso,
+      dataFimIso,
       label,
       diasIntervalo: 365
     };
   }
 
   // Fallback padrão: este mês
-  const padraoInicio = new Date(agora.getFullYear(), agora.getMonth(), 1, 0, 0, 0, 0);
-  const padraoFim = new Date(agora.getFullYear(), agora.getMonth() + 1, 0, 23, 59, 59, 999);
-  const dias = new Date(agora.getFullYear(), agora.getMonth() + 1, 0).getDate();
+  const diasPadrao = new Date(Date.UTC(anoHoje, mesHoje, 0)).getUTCDate();
+  const padraoInicioIso = obterInicioDiaISO(`${anoHoje}-${String(mesHoje).padStart(2, '0')}-01`);
+  const padraoFimIso = obterFimDiaISO(`${anoHoje}-${String(mesHoje).padStart(2, '0')}-${String(diasPadrao).padStart(2, '0')}`);
   return {
-    dataInicio: padraoInicio,
-    dataFim: padraoFim,
-    dataInicioIso: padraoInicio.toISOString(),
-    dataFimIso: padraoFim.toISOString(),
+    dataInicio: new Date(padraoInicioIso),
+    dataFim: new Date(padraoFimIso),
+    dataInicioIso: padraoInicioIso,
+    dataFimIso: padraoFimIso,
     label: 'Este mês',
-    diasIntervalo: dias
+    diasIntervalo: diasPadrao
   };
 }
 
@@ -631,7 +648,7 @@ async function obterMetricasCockpitFallback(
           if (!raw) return false;
           const trimmed = String(raw).trim();
           const dt = /^\d{4}-\d{2}-\d{2}$/.test(trimmed)
-            ? new Date(`${trimmed}T12:00:00`)
+            ? new Date(`${trimmed}T12:00:00${obterOffsetISOLocal(trimmed)}`)
             : new Date(trimmed);
           if (Number.isNaN(dt.getTime())) return false;
           return dt >= dInicio && dt <= dFim;

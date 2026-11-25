@@ -1,4 +1,5 @@
 import { supabase } from '../lib/supabase';
+import { obterDataLocalYYYYMMDD } from './dateTime';
 
 const CHAVE_DATA_SIMULADA = '@hubi:data_operacao_simulada';
 const CHAVE_HORA_SIMULADA = '@hubi:hora_operacao_simulada';
@@ -223,10 +224,7 @@ export function obterDataOperacaoISO(): string {
  */
 export function obterDataOperacaoYMD(): string {
   const d = obterDataOperacao();
-  const ano = d.getFullYear();
-  const mes = String(d.getMonth() + 1).padStart(2, '0');
-  const dia = String(d.getDate()).padStart(2, '0');
-  return `${ano}-${mes}-${dia}`;
+  return obterDataLocalYYYYMMDD(d);
 }
 
 /**
@@ -242,18 +240,10 @@ export function formatarDataLocalYMD(dataIsoOuDate?: string | Date | null): stri
     if (/^\d{4}-\d{2}-\d{2}$/.test(trimmed)) {
       return trimmed;
     }
-    const d = new Date(trimmed);
-    if (isNaN(d.getTime())) return trimmed.slice(0, 10);
-    const ano = d.getFullYear();
-    const mes = String(d.getMonth() + 1).padStart(2, '0');
-    const dia = String(d.getDate()).padStart(2, '0');
-    return `${ano}-${mes}-${dia}`;
+    const convertido = obterDataLocalYYYYMMDD(trimmed);
+    return convertido || trimmed.slice(0, 10);
   } else if (dataIsoOuDate instanceof Date) {
-    if (isNaN(dataIsoOuDate.getTime())) return '';
-    const ano = dataIsoOuDate.getFullYear();
-    const mes = String(dataIsoOuDate.getMonth() + 1).padStart(2, '0');
-    const dia = String(dataIsoOuDate.getDate()).padStart(2, '0');
-    return `${ano}-${mes}-${dia}`;
+    return obterDataLocalYYYYMMDD(dataIsoOuDate);
   }
   return '';
 }

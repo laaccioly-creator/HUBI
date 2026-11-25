@@ -26,6 +26,7 @@ import {
   resolverDadosReciboPedido
 } from '../utils/reciboServicoHelper';
 import { filtrarAgendamentosVigentesDoPedido } from '../services/agendamentoService';
+import { formatarDataLocal } from '../utils/dateTime';
 import { useTheme } from '../contexts/ThemeContext';
 
 export interface ModalReciboPedidoProps {
@@ -208,8 +209,7 @@ export const ModalReciboPedido: React.FC<ModalReciboPedidoProps> = ({
   const formatarData = (iso?: string) => {
     if (!iso) return '';
     try {
-      const d = new Date(iso);
-      return d.toLocaleDateString('pt-BR', {
+      return formatarDataLocal(iso, {
         day: '2-digit',
         month: '2-digit',
         year: 'numeric'

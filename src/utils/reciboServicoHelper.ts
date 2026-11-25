@@ -5,6 +5,7 @@ import {
   filtrarAgendamentosVigentesDoPedido,
   type ItemPedidoFiltroAgendamentoInput
 } from '../services/agendamentoService';
+import { formatarDataLocal } from './dateTime';
 
 export interface ItemPedidoReciboInput extends Partial<ItemPedido> {
   tipo_item?: string | null;
@@ -163,7 +164,7 @@ const formatarDataAgendamentoRecibo = (dataStr?: string | null): string => {
   if (match) return `${match[3]}/${match[2]}/${match[1]}`;
   const dt = new Date(dataStr);
   if (!Number.isNaN(dt.getTime())) {
-    return dt.toLocaleDateString('pt-BR');
+    return formatarDataLocal(dt);
   }
   return dataStr;
 };

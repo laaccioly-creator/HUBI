@@ -78,6 +78,7 @@ import {
 import { PrintService } from '../services/printService';
 import { feedExportService } from '../services/feedExportService';
 import { paymentGatewayService } from '../services/paymentGatewayService';
+import { obterDataLocalYYYYMMDD, obterInicioDiaISO, obterFimDiaISO } from '../utils/dateTime';
 import { configuracoesPlataformaService } from '../services/configuracoesPlataformaService';
 import { ImportarExportarProdutos } from './ImportarExportarProdutos';
 import { CentralImportarExportar } from './CentralImportarExportar';
@@ -987,10 +988,12 @@ export const ConfiguracoesLoja: React.FC<ConfiguracoesLojaProps> = ({ subTelaIni
   const [abaterTaxaDomicilioAoFechar, setAbaterTaxaDomicilioAoFechar] = useState<boolean>(false);
 
   // 7. EXPORTAÇÃO DE RELATÓRIOS
-  const [dataInicioExport, setDataInicioExport] = useState<string>(
-    new Date(new Date().setDate(new Date().getDate() - 30)).toISOString().split('T')[0]
-  );
-  const [dataFimExport, setDataFimExport] = useState<string>(new Date().toISOString().split('T')[0]);
+  const [dataInicioExport, setDataInicioExport] = useState<string>(() => {
+    const d = new Date();
+    d.setDate(d.getDate() - 30);
+    return obterDataLocalYYYYMMDD(d);
+  });
+  const [dataFimExport, setDataFimExport] = useState<string>(() => obterDataLocalYYYYMMDD());
   const [exportarVendas, setExportarVendas] = useState<boolean>(true);
   const [exportarProdutos, setExportarProdutos] = useState<boolean>(false);
   const [exportarClientes, setExportarClientes] = useState<boolean>(false);
@@ -1877,8 +1880,8 @@ export const ConfiguracoesLoja: React.FC<ConfiguracoesLojaProps> = ({ subTelaIni
           .from('pedidos')
           .select('*, cliente:clientes(*), forma_pagamento:formas_pagamento(*), itens:itens_pedido(*, produto:produtos(*))')
           .eq('loja_id', loja.id)
-          .gte('data_venda', `${dataInicioExport}T00:00:00`)
-          .lte('data_venda', `${dataFimExport}T23:59:59`);
+          .gte('data_venda', obterInicioDiaISO(dataInicioExport))
+          .lte('data_venda', obterFimDiaISO(dataFimExport));
         if (vendas) feedExportService.exportarCsvRelatorio('vendas', vendas, dataInicioExport, dataFimExport);
       }
 

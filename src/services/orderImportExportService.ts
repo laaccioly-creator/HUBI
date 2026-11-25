@@ -2,6 +2,7 @@ import * as XLSX from 'xlsx';
 import { supabase } from '../lib/supabase';
 import { Pedido, Cliente, Produto, FormaPagamento, StatusPedido, OrigemVenda } from '../types';
 import { extrairObservacaoLimpa } from '../utils/formatters';
+import { formatarDataHoraLocal, obterDataLocalYYYYMMDD } from '../utils/dateTime';
 
 export interface ItemPedidoImportacao {
   linha: number;
@@ -508,7 +509,7 @@ export const orderImportExportService = {
       return {
         'Número do Pedido': p.numero_pedido || '',
         'Status': (p.status || '').toUpperCase(),
-        'Data / Hora': p.data_venda ? new Date(p.data_venda).toLocaleString('pt-BR') : '',
+        'Data / Hora': p.data_venda ? formatarDataHoraLocal(p.data_venda) : '',
         'Total Itens': totalQtdItens,
         'Itens': descriItens,
         'Subtotal (R$)': Number(p.subtotal || 0),
@@ -542,7 +543,7 @@ export const orderImportExportService = {
     ];
 
     XLSX.utils.book_append_sheet(wb, ws, 'Pedidos_Vendas');
-    const timestamp = new Date().toISOString().slice(0, 10);
+    const timestamp = obterDataLocalYYYYMMDD();
     const safeNomeLoja = (nomeLoja || 'Rubi').replace(/[^a-zA-Z0-9_-]/g, '_');
     XLSX.writeFile(wb, `${safeNomeLoja}_Pedidos_${timestamp}.xlsx`);
   },
@@ -573,7 +574,7 @@ export const orderImportExportService = {
       return [
         this.formatarCampoCsv(p.numero_pedido || ''),
         this.formatarCampoCsv((p.status || '').toUpperCase()),
-        this.formatarCampoCsv(p.data_venda ? new Date(p.data_venda).toLocaleString('pt-BR') : ''),
+        this.formatarCampoCsv(p.data_venda ? formatarDataHoraLocal(p.data_venda) : ''),
         this.formatarCampoCsv(descriItens),
         Number(p.subtotal || 0).toFixed(2).replace('.', ','),
         Number(p.valor_desconto || 0).toFixed(2).replace('.', ','),
@@ -591,7 +592,7 @@ export const orderImportExportService = {
     const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
     const url = URL.createObjectURL(blob);
     const link = document.createElement('a');
-    const timestamp = new Date().toISOString().slice(0, 10);
+    const timestamp = obterDataLocalYYYYMMDD();
     const safeNomeLoja = (nomeLoja || 'Rubi').replace(/[^a-zA-Z0-9_-]/g, '_');
     link.setAttribute('href', url);
     link.setAttribute('download', `${safeNomeLoja}_Pedidos_${timestamp}.csv`);

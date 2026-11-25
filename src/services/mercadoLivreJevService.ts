@@ -45,6 +45,12 @@ export interface ResultadoPreenchimentoAtributosMl {
   atributosTextoLivrePendentes: MlAtributoObrigatorioCategoria[];
 }
 
+export interface ResultadoGeminiFichaMl {
+  marca?: string;
+  modelo?: string;
+  atributos: Record<string, ValorAtributoPreenchidoMl>;
+}
+
 interface EntradaCacheTtl<T> {
   expiraEm: number;
   valor: T;
@@ -75,7 +81,7 @@ const cacheDetalhesCategoriaMl = new Map<string, EntradaCacheTtl<MlDetalhesCateg
 const emVooDetalhesCategoria = new Map<string, Promise<MlDetalhesCategoriaDireto>>();
 const cacheEscolhaCategoriaJev = new Map<string, EntradaCacheTtl<string>>();
 const cacheAtributosJev = new Map<string, EntradaCacheTtl<CacheAtributosResultadoBruto>>();
-const cacheGeminiTextoLivre = new Map<string, EntradaCacheTtl<Record<string, ValorAtributoPreenchidoMl>>>();
+const cacheGeminiTextoLivre = new Map<string, EntradaCacheTtl<ResultadoGeminiFichaMl>>();
 
 const IDS_PESO = new Set(['WEIGHT', 'NET_WEIGHT', 'PACKAGE_WEIGHT', 'UNIT_WEIGHT']);
 const IDS_ALTURA = new Set(['HEIGHT', 'PACKAGE_HEIGHT']);
@@ -668,6 +674,45 @@ function montarResultadoComValoresAtuais(
   };
 }
 
+function normalizarMarcaIa(valorRaw: unknown): string {
+  if (typeof valorRaw !== 'string' && typeof valorRaw !== 'number') {
+    return 'Genérico';
+  }
+  const limpo = String(valorRaw)
+    .replace(/^["'`]+|["'`]+$/g, '')
+    .replace(/\s+/g, ' ')
+    .trim();
+  const norm = normalizarTextoComparacao(limpo);
+  if (
+    !limpo ||
+    !norm ||
+    /^(null|undefined|n a|nao informado|sem marca|generico|generica|desconhecida|desconhecido|outro|outra|outros)$/.test(norm)
+  ) {
+    return 'Genérico';
+  }
+  return limpo.slice(0, 40).trim();
+}
+
+function normalizarModeloIa(valorRaw: unknown, codigoInternoFallback?: string | null): string {
+  const modeloFallback = codigoInternoFallback?.trim().slice(0, 50) || 'Padrão';
+  if (typeof valorRaw !== 'string' && typeof valorRaw !== 'number') {
+    return modeloFallback;
+  }
+  const limpo = String(valorRaw)
+    .replace(/^["'`]+|["'`]+$/g, '')
+    .replace(/\s+/g, ' ')
+    .trim();
+  const norm = normalizarTextoComparacao(limpo);
+  if (
+    !limpo ||
+    !norm ||
+    /^(null|undefined|n a|nao informado|desconhecido|desconhecida|sem modelo|nao se aplica)$/.test(norm)
+  ) {
+    return modeloFallback;
+  }
+  return limpo.slice(0, 50).trim();
+}
+
 function extrairTextoRespostaGemini(data: unknown): string {
   if (!ehRegistroObjeto(data)) return '';
   const candidates = data.candidates;
@@ -1008,8 +1053,8 @@ export const mercadoLivreJevService = {
   },
 
   /**
-   * Fallback restrito via `gemini-proxy` exclusivamente para atributos obrigatórios de texto livre/numérico
-   * que não puderam ser preenchidos pelos campos locais do HUBI nem pelas primitivas Jev.
+   * Fallback unificado via `gemini-proxy` para extração de marca, modelo e atributos obrigatórios
+   * de texto livre/numérico em chamada única sem duplicação de requisições.
    */
   async preencherAtributosTextoLivreViaGemini(params: {
     lojaId: string;
@@ -1018,11 +1063,22 @@ export const mercadoLivreJevService = {
     marcaAtual?: string;
     modeloAtual?: string;
     atributosPendentes: MlAtributoObrigatorioCategoria[];
-  }): Promise<Record<string, ValorAtributoPreenchidoMl>> {
+  }): Promise<ResultadoGeminiFichaMl> {
     const { lojaId, categoryId, fichaProduto, marcaAtual, modeloAtual, atributosPendentes } = params;
-    if (!lojaId || atributosPendentes.length === 0) return {};
+    const precisaMarca = !marcaAtual?.trim();
+    const precisaModelo = !modeloAtual?.trim();
 
-    const chaveCache = `${fichaProduto.produtoId}::${fichaProduto.variacaoId || 'base'}::${categoryId}`;
+    if (!lojaId || (atributosPendentes.length === 0 && !precisaMarca && !precisaModelo)) {
+      return { atributos: {} };
+    }
+
+    const resultadoFallback: ResultadoGeminiFichaMl = {
+      marca: precisaMarca ? 'Genérico' : undefined,
+      modelo: precisaModelo ? (fichaProduto.codigoInterno?.trim().slice(0, 50) || 'Padrão') : undefined,
+      atributos: {},
+    };
+
+    const chaveCache = `${fichaProduto.produtoId}::${fichaProduto.variacaoId || 'base'}::${categoryId}::${normalizarTextoComparacao(fichaProduto.nome).slice(0, 60)}::${precisaMarca ? 'M' : '0'}${precisaModelo ? 'D' : '0'}`;
     const emCache = obterCacheTtl(cacheGeminiTextoLivre, chaveCache);
     if (emCache) return emCache;
 
@@ -1033,6 +1089,7 @@ export const mercadoLivreJevService = {
       marca: marcaAtual?.trim() || fichaProduto.marca || null,
       modelo: modeloAtual?.trim() || fichaProduto.modelo || null,
       codigo_barras: fichaProduto.codigoBarras || null,
+      codigo_interno: fichaProduto.codigoInterno || null,
       variacao: fichaProduto.variacaoNome || null,
     };
 
@@ -1044,15 +1101,40 @@ export const mercadoLivreJevService = {
       dica: attr.hint || null,
     }));
 
-    const prompt = [
-      'Extraia APENAS os atributos técnicos de texto livre/numérico solicitados a partir da ficha do produto.',
+    const instrucoesCampos: string[] = [
+      'Extraia os campos solicitados a partir da ficha do produto (título, descrição, especificações, EAN/SKU).',
       'Regras estritas:',
-      '1. Responda exclusivamente com um objeto JSON plano no formato {"ATTR_ID": "valor curto" | null}.',
-      '2. Se não houver evidência clara na ficha do produto para preencher o atributo, retorne null.',
-      '3. Para tipo "number" ou "number_unit" com unidade_padrao informada, retorne apenas o número (ex: "500").',
+      '1. Responda exclusivamente com um objeto JSON plano.',
+    ];
+
+    if (precisaMarca) {
+      instrucoesCampos.push(
+        '2. Inclua "marca": identifique a marca real do produto pelo título, descrição ou EAN (ex.: para "Monitor Aoc 15.6\\" Portátil Fhd Ips 60hz 4m Usb-c 16t20e2", retorne "AOC"). Se não houver marca explícita ou for produto sem marca, retorne "Genérico".'
+      );
+    }
+
+    if (precisaModelo) {
+      instrucoesCampos.push(
+        `${precisaMarca ? '3' : '2'}. Inclua "modelo": extraia o código/nome do modelo pelo título, descrição ou SKU (ex.: "16T20E2"). Se não houver código explícito, use o codigo_interno (se informado) ou "Padrão".`
+      );
+    }
+
+    if (camposSolicitados.length > 0) {
+      const idxBase = 2 + (precisaMarca ? 1 : 0) + (precisaModelo ? 1 : 0);
+      instrucoesCampos.push(
+        `${idxBase}. Para cada item em "Atributos solicitados", inclua "ATTR_ID": "valor curto" | null (se não houver evidência clara na ficha, retorne null).`,
+        `${idxBase + 1}. Para tipo "number" ou "number_unit" com unidade_padrao informada, retorne apenas o número (ex.: "500").`
+      );
+    }
+
+    const prompt = [
+      ...instrucoesCampos,
       '',
+      `Categoria ML: ${categoryId}`,
       `Produto Rubi: ${JSON.stringify(contextoProduto)}`,
-      `Atributos solicitados: ${JSON.stringify(camposSolicitados)}`,
+      ...(camposSolicitados.length > 0
+        ? [`Atributos solicitados: ${JSON.stringify(camposSolicitados)}`]
+        : []),
     ].join('\n');
 
     try {
@@ -1065,7 +1147,7 @@ export const mercadoLivreJevService = {
             contents: [{ role: 'user', parts: [{ text: prompt }] }],
             generationConfig: {
               temperature: 0.1,
-              maxOutputTokens: 256,
+              maxOutputTokens: 384,
               responseMimeType: 'application/json',
               thinkingConfig: { thinkingBudget: 0 },
             },
@@ -1078,16 +1160,23 @@ export const mercadoLivreJevService = {
       );
 
       const { data, error } = await Promise.race([requisicao, timeoutPromise]);
-      if (error) return {};
+      if (error) return resultadoFallback;
 
       const textoJson = extrairTextoRespostaGemini(data);
-      if (!textoJson.trim()) return {};
+      if (!textoJson.trim()) return resultadoFallback;
 
       const jsonLimpo = textoJson.replace(/^```json\s*/i, '').replace(/```\s*$/i, '').trim();
       const parsed: unknown = JSON.parse(jsonLimpo);
-      if (!ehRegistroObjeto(parsed)) return {};
+      if (!ehRegistroObjeto(parsed)) return resultadoFallback;
 
-      const preenchidos: Record<string, ValorAtributoPreenchidoMl> = {};
+      const marcaExtraida = precisaMarca
+        ? normalizarMarcaIa(parsed.marca ?? parsed.brand ?? parsed.BRAND)
+        : undefined;
+      const modeloExtraido = precisaModelo
+        ? normalizarModeloIa(parsed.modelo ?? parsed.model ?? parsed.MODEL, fichaProduto.codigoInterno)
+        : undefined;
+
+      const atributos: Record<string, ValorAtributoPreenchidoMl> = {};
       for (const attr of atributosPendentes) {
         const valorRaw = parsed[attr.id];
         if (typeof valorRaw !== 'string' && typeof valorRaw !== 'number') continue;
@@ -1101,13 +1190,19 @@ export const mercadoLivreJevService = {
           valorStr = matchNum[0];
         }
 
-        preenchidos[attr.id] = { value_name: valorStr.slice(0, 60) };
+        atributos[attr.id] = { value_name: valorStr.slice(0, 60) };
       }
 
-      salvarCacheTtl(cacheGeminiTextoLivre, chaveCache, preenchidos);
-      return preenchidos;
+      const resultado: ResultadoGeminiFichaMl = {
+        marca: marcaExtraida,
+        modelo: modeloExtraido,
+        atributos,
+      };
+
+      salvarCacheTtl(cacheGeminiTextoLivre, chaveCache, resultado);
+      return resultado;
     } catch {
-      return {};
+      return resultadoFallback;
     }
   },
 };

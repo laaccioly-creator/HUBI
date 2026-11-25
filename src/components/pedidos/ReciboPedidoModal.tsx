@@ -16,6 +16,7 @@ import { detectarServicoPorCodigo } from '../../utils/correiosValidator';
 import { formatarNomeTransportadora } from '../../utils/shippingDisplay';
 import { useTheme } from '../../contexts/ThemeContext';
 import { useRegisterOverlay } from '../../hooks/useRegisterOverlay';
+import { formatarDataHoraLocal } from '../../utils/dateTime';
 import { ResultadoDisparoHibrido, whatsappWalletService } from '../../services/whatsappWalletService';
 
 export interface ReciboPedidoModalProps {
@@ -324,7 +325,7 @@ export const ReciboPedidoModal: React.FC<ReciboPedidoModalProps> = ({
     try {
       const d = new Date(dataStr);
       if (isNaN(d.getTime())) return '';
-      return d.toLocaleDateString('pt-BR', {
+      return formatarDataHoraLocal(d, {
         day: '2-digit',
         month: '2-digit',
         year: 'numeric',

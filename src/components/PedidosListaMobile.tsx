@@ -63,6 +63,13 @@ import { PedidoEntrega, Transportadora } from '../types/shipping';
 import { AgendamentoServico } from '../types/agendamento';
 import { agendamentoService, filtrarAgendamentosVigentesDoPedido } from '../services/agendamentoService';
 import { extrairObservacaoLimpa, formatarMoeda, normalizarTelefoneComDDI } from '../utils/formatters';
+import {
+  formatarDataLocal,
+  formatarDataHoraLocal,
+  obterDataLocalYYYYMMDD,
+  obterInicioDiaISO,
+  obterFimDiaISO
+} from '../utils/dateTime';
 import { extrairInfoVisitaPedido } from '../utils/taxaDomicilioUtils';
 import {
   calcularResumoFinanceiroPedido,
@@ -1111,12 +1118,12 @@ export const PedidosListaMobile: React.FC<PedidosListaMobileProps> = ({
       // 7. Filtro de Período (com fronteiras locais sem deslocamento UTC)
       if (dataInicio) {
         const dPed = new Date(p.data_venda || p.criado_em || '');
-        const dIni = new Date(`${dataInicio}T00:00:00`);
+        const dIni = new Date(obterInicioDiaISO(dataInicio));
         if (dPed < dIni) return false;
       }
       if (dataFim) {
         const dPed = new Date(p.data_venda || p.criado_em || '');
-        const dFim = new Date(`${dataFim}T23:59:59.999`);
+        const dFim = new Date(obterFimDiaISO(dataFim));
         if (dPed > dFim) return false;
       }
 
@@ -1127,19 +1134,22 @@ export const PedidosListaMobile: React.FC<PedidosListaMobileProps> = ({
   // Agrupamento por Data (ex: Hoje, Ontem, Sexta-feira 21 de Agosto...)
   const gruposPorData = useMemo(() => {
     const grupos: { [dataLabel: string]: { label: string; pedidos: Pedido[]; totalValor: number } } = {};
+    const hoje = new Date();
+    const ontem = new Date();
+    ontem.setDate(ontem.getDate() - 1);
+    const hojeYmd = obterDataLocalYYYYMMDD(hoje);
+    const ontemYmd = obterDataLocalYYYYMMDD(ontem);
 
     pedidosFiltrados.forEach(p => {
       const d = new Date(p.data_venda);
-      const hoje = new Date();
-      const ontem = new Date();
-      ontem.setDate(ontem.getDate() - 1);
+      const ymd = obterDataLocalYYYYMMDD(d);
 
-      let label = d.toLocaleDateString('pt-BR', { weekday: 'long', day: '2-digit', month: 'long', year: 'numeric' });
+      let label = formatarDataLocal(d, { weekday: 'long', day: '2-digit', month: 'long', year: 'numeric' });
       label = label.charAt(0).toUpperCase() + label.slice(1);
 
-      if (d.toDateString() === hoje.toDateString()) {
+      if (ymd === hojeYmd) {
         label = 'Hoje';
-      } else if (d.toDateString() === ontem.toDateString()) {
+      } else if (ymd === ontemYmd) {
         label = 'Ontem';
       }
 
@@ -1237,7 +1247,7 @@ export const PedidosListaMobile: React.FC<PedidosListaMobileProps> = ({
               <ChevronLeft className="w-6 h-6" />
             </button>
             <div className={`text-xs font-bold truncate ${isDark ? 'text-slate-300' : 'text-slate-800'}`}>
-              {new Date(pedidoSelecionado.data_venda).toLocaleDateString('pt-BR')}
+              {formatarDataLocal(pedidoSelecionado.data_venda)}
             </div>
           </div>
 
@@ -1594,7 +1604,7 @@ export const PedidosListaMobile: React.FC<PedidosListaMobileProps> = ({
                   <Clock className="w-4 h-4 text-emerald-600 dark:text-emerald-400" />
                 </div>
                 <span className={`text-[11px] block ${isDark ? 'text-slate-400' : 'text-slate-800 font-medium'}`}>
-                  {new Date(pedidoSelecionado.data_venda).toLocaleDateString('pt-BR')}
+                  {formatarDataLocal(pedidoSelecionado.data_venda)}
                 </span>
                 <div className={`pt-2 border-t flex flex-col gap-1.5 text-xs ${isDark ? 'border-slate-800' : 'border-slate-200'}`}>
                   <div className="flex items-center justify-between">
@@ -1838,7 +1848,7 @@ export const PedidosListaMobile: React.FC<PedidosListaMobileProps> = ({
                     {despachadoEm && (
                       <div className={`flex justify-between items-center pt-1.5 border-t ${isDark ? 'border-slate-800' : 'border-slate-200'}`}>
                         <span className={isDark ? 'text-slate-400' : 'text-slate-900 font-medium'}>Despachado em:</span>
-                        <span className={isDark ? 'text-slate-300' : 'text-black font-medium'}>{new Date(despachadoEm).toLocaleString('pt-BR')}</span>
+                        <span className={isDark ? 'text-slate-300' : 'text-black font-medium'}>{formatarDataHoraLocal(despachadoEm)}</span>
                       </div>
                     )}
 

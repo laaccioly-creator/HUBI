@@ -5,6 +5,7 @@ import { ClienteCatalogoService } from '../services/clienteCatalogoService';
 import { ReciboPedidoModal } from './pedidos/ReciboPedidoModal';
 import { ModalPagamentoFechamentoCatalogo } from './catalogo/ModalPagamentoFechamentoCatalogo';
 import { supabase } from '../lib/supabase';
+import { formatarDataHoraLocal } from '../utils/dateTime';
 
 interface ModalPedidosClienteProps {
   isOpen: boolean;
@@ -197,8 +198,7 @@ export const ModalPedidosCliente: React.FC<ModalPedidosClienteProps> = ({
   const formatarData = (iso?: string) => {
     if (!iso) return '';
     try {
-      const d = new Date(iso);
-      return d.toLocaleDateString('pt-BR', {
+      return formatarDataHoraLocal(iso, {
         day: '2-digit',
         month: '2-digit',
         year: 'numeric',

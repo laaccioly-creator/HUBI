@@ -6,6 +6,7 @@ import {
   formatarResumoCicloCaderneta,
   obterConfigCicloCliente,
 } from '../utils/cadernetaCiclo';
+import { obterDataLocalYYYYMMDD } from '../utils/dateTime';
 
 export interface ResumoCadernetaCliente {
   cliente: Cliente;
@@ -87,7 +88,7 @@ export class CadernetaService {
     const diaReal = Math.min(diaVencimento, ultimoDiaDoMes);
 
     const dataFinal = new Date(anoAlvo, mesAlvo, diaReal);
-    return dataFinal.toISOString().split('T')[0];
+    return obterDataLocalYYYYMMDD(dataFinal);
   }
 
   /**
@@ -148,7 +149,7 @@ export class CadernetaService {
       const proximoVencimento = calcularProximoVencimentoPorCiclo(configCiclo, new Date(), true);
       const resumoCiclo = formatarResumoCicloCaderneta(configCiclo);
 
-      const hojeYmd = new Date().toISOString().split('T')[0];
+      const hojeYmd = obterDataLocalYYYYMMDD();
       const estaVencido = saldoDevedor > 0 && hojeYmd > proximoVencimento;
 
       return {
@@ -464,7 +465,7 @@ export class CadernetaService {
           categoria: 'Recebimento de Caderneta',
           descricao: `Recebimento Caderneta - Cliente ${cliente.nome}`,
           valor: valorEfetivo,
-          data_vencimento: new Date().toISOString().split('T')[0],
+          data_vencimento: obterDataLocalYYYYMMDD(),
           data_pagamento: new Date().toISOString(),
           status: 'pago'
         });
@@ -683,7 +684,7 @@ export class CadernetaService {
           categoria: 'Recebimento de Caderneta',
           descricao: `Recebimento Caderneta (Conferido) - Cliente ${cliente.nome}`,
           valor: valorEfetivo,
-          data_vencimento: new Date().toISOString().split('T')[0],
+          data_vencimento: obterDataLocalYYYYMMDD(),
           data_pagamento: new Date().toISOString(),
           status: 'pago'
         });

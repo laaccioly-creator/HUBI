@@ -5,6 +5,7 @@ import { useRegisterOverlay } from '../../hooks/useRegisterOverlay';
 import { MoneyInput } from '../ui/MoneyInput';
 import { configuracoesPlataformaService } from '../../services/configuracoesPlataformaService';
 import { LojaAreaHubi, areaHubiService } from '../../services/areaHubiService';
+import { formatarDataLocal } from '../../utils/dateTime';
 
 interface ModalAtivarAssinaturaManualProps {
   isOpen: boolean;
@@ -126,7 +127,7 @@ export const ModalAtivarAssinaturaManual: React.FC<ModalAtivarAssinaturaManualPr
     return {
       dias,
       meses,
-      novaDataExibicao: novaData.toLocaleDateString('pt-BR'),
+      novaDataExibicao: formatarDataLocal(novaData),
     };
   };
 

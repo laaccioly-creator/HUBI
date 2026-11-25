@@ -15,6 +15,11 @@ import {
   formatarDataHoraSemDesvioUTC,
   isModoSimulacaoAtivo
 } from '../utils/dataOperacao';
+import {
+  formatarDataHoraLocal,
+  obterInicioDiaISO,
+  obterFimDiaISO
+} from '../utils/dateTime';
 
 export const caixaService = {
   /**
@@ -188,7 +193,7 @@ export const caixaService = {
     // 1. Bloqueio de Concorrência: verifica se já existe sessão aberta no terminal ou pelo operador
     const sessaoExistente = await this.obterSessaoAtiva(lojaId, term, usuarioId);
     if (sessaoExistente) {
-      const abertoEmStr = new Date(sessaoExistente.aberto_em).toLocaleString('pt-BR');
+      const abertoEmStr = formatarDataHoraLocal(sessaoExistente.aberto_em);
       throw new Error(
         `Bloqueio de Concorrência: Já existe uma sessão aberta no terminal "${sessaoExistente.terminal_id || term}" iniciada em ${abertoEmStr}. É obrigatório realizar o fechamento formal antes de abrir uma nova sessão.`
       );
@@ -765,11 +770,11 @@ export const caixaService = {
       }
 
       if (filtros?.dataInicio) {
-        query = query.gte('aberto_em', `${filtros.dataInicio}T00:00:00.000Z`);
+        query = query.gte('aberto_em', obterInicioDiaISO(filtros.dataInicio));
       }
 
       if (filtros?.dataFim) {
-        query = query.lte('aberto_em', `${filtros.dataFim}T23:59:59.999Z`);
+        query = query.lte('aberto_em', obterFimDiaISO(filtros.dataFim));
       }
 
       if (filtros?.limite) {
@@ -914,8 +919,8 @@ export const caixaService = {
    */
   gerarTextoComprovanteFechamento(resumo: ResumoSessaoCaixa, nomeLoja?: string): string {
     const { sessao } = resumo;
-    const abertoEm = new Date(sessao.aberto_em).toLocaleString('pt-BR');
-    const fechadoEm = sessao.fechado_em ? new Date(sessao.fechado_em).toLocaleString('pt-BR') : 'Em Aberto';
+    const abertoEm = formatarDataHoraLocal(sessao.aberto_em);
+    const fechadoEm = sessao.fechado_em ? formatarDataHoraLocal(sessao.fechado_em) : 'Em Aberto';
     const dif = Number(sessao.diferenca_dinheiro || 0);
 
     let statusDifText = '✅ *CAIXA CONCILIADO COM EXATIDÃO (R$ 0,00)*';
@@ -961,7 +966,7 @@ export const caixaService = {
       `💰 *FATURAMENTO BRUTO TOTAL:*    ${fmt(resumo.faturamentoTotalVendas ?? resumo.totalVendasGeral)}`,
       `━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━`,
       sessao.observacoes_fechamento ? `📝 *Obs:* ${sessao.observacoes_fechamento}\n────────────────────────────────────` : '',
-      `📅 *Emitido em:* ${new Date().toLocaleString('pt-BR')}`,
+      `📅 *Emitido em:* ${formatarDataHoraLocal(new Date())}`,
       `Rubi • Sistema de Gestão & PDV • rubi.ia.br`,
       `━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━`
     ].filter(Boolean).join('\n');

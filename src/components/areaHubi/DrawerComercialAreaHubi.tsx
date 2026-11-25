@@ -15,6 +15,7 @@ import { useTheme } from '../../contexts/ThemeContext';
 import { useFeedbackModal } from '../../contexts/FeedbackContext';
 import { useRegisterOverlay } from '../../hooks/useRegisterOverlay';
 import { formatarMoeda } from '../../utils/formatters';
+import { formatarDataLocal } from '../../utils/dateTime';
 import {
   EstagioComercialLoja,
   LojaAreaHubi,
@@ -42,7 +43,7 @@ const formatarDataBr = (iso?: string | null): string => {
   if (!iso) return '—';
   const d = new Date(iso);
   if (isNaN(d.getTime())) return '—';
-  return d.toLocaleDateString('pt-BR');
+  return formatarDataLocal(d);
 };
 
 export const DrawerComercialAreaHubi: React.FC<DrawerComercialAreaHubiProps> = ({

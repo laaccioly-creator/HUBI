@@ -41,6 +41,13 @@ import {
 import { useTheme } from '../contexts/ThemeContext';
 import { MobileHeader } from './layout/MobileHeader';
 import { obterDataOperacaoYMD } from '../utils/dataOperacao';
+import {
+  formatarDataLocal,
+  formatarHoraLocal,
+  formatarDataHoraLocal,
+  obterInicioDiaISO,
+  obterFimDiaISO
+} from '../utils/dateTime';
 
 export interface FinancasMobileProps {
   // Dados & Sessão
@@ -218,10 +225,10 @@ export const FinancasMobile: React.FC<FinancasMobileProps> = ({
       if (filtrosHistorico.usuarioId !== 'todos' && cx.aberto_por_usuario_id !== filtrosHistorico.usuarioId && cx.usuario_abertura?.id !== filtrosHistorico.usuarioId) {
         return false;
       }
-      if (filtrosHistorico.dataInicio && cx.aberto_em < filtrosHistorico.dataInicio) {
+      if (filtrosHistorico.dataInicio && new Date(cx.aberto_em).getTime() < new Date(obterInicioDiaISO(filtrosHistorico.dataInicio)).getTime()) {
         return false;
       }
-      if (filtrosHistorico.dataFim && cx.aberto_em > filtrosHistorico.dataFim + 'T23:59:59') {
+      if (filtrosHistorico.dataFim && new Date(cx.aberto_em).getTime() > new Date(obterFimDiaISO(filtrosHistorico.dataFim)).getTime()) {
         return false;
       }
       if (filtrosHistorico.statusDiferenca === 'com_diferenca') {
@@ -801,7 +808,7 @@ export const FinancasMobile: React.FC<FinancasMobileProps> = ({
                                       {m.tipo === 'DESPESA' && (m.descricao || 'Despesa de Gaveta')}
                                     </span>
                                     <span className={`text-sm leading-relaxed block truncate ${isDark ? 'text-slate-300' : 'text-black'}`}>
-                                      {new Date(m.criado_em).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })} • {m.metodo_pagamento || 'Dinheiro'}
+                                      {formatarHoraLocal(m.criado_em, { hour: '2-digit', minute: '2-digit' })} • {m.metodo_pagamento || 'Dinheiro'}
                                     </span>
                                   </div>
                                 </div>
@@ -841,7 +848,7 @@ export const FinancasMobile: React.FC<FinancasMobileProps> = ({
                                   Pedido #{p.numero_pedido || p.id.slice(0, 6)}
                                 </span>
                                 <span className={`text-sm leading-relaxed ${isDark ? 'text-slate-300' : 'text-black'}`}>
-                                  {p.cliente?.nome || p.cliente_nome_avulso || 'Consumidor Final'} • {p.criado_em ? new Date(p.criado_em).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' }) : ''}
+                                  {p.cliente?.nome || p.cliente_nome_avulso || 'Consumidor Final'} • {p.criado_em ? formatarHoraLocal(p.criado_em, { hour: '2-digit', minute: '2-digit' }) : ''}
                                 </span>
                               </div>
                               <span className="font-black text-base text-emerald-600 dark:text-emerald-400">
@@ -1008,7 +1015,7 @@ export const FinancasMobile: React.FC<FinancasMobileProps> = ({
                                 {t.descricao}
                               </span>
                               <span className={`text-sm leading-relaxed block font-medium ${isDark ? 'text-slate-300' : 'text-black'}`}>
-                                {t.categoria || 'Geral'} • {new Date(t.data_vencimento || (t as any).criado_em || (t as any).data || Date.now()).toLocaleDateString('pt-BR')}
+                                {t.categoria || 'Geral'} • {formatarDataLocal(t.data_vencimento || (t as any).criado_em || (t as any).data || Date.now())}
                               </span>
                             </div>
                             <span
@@ -1144,7 +1151,7 @@ export const FinancasMobile: React.FC<FinancasMobileProps> = ({
                                 {tr.descricao}
                               </span>
                               <span className={`text-sm leading-relaxed block font-medium ${isDark ? 'text-slate-300' : 'text-black'}`}>
-                                {tr.categoria || 'Geral'} • Vence em: {tr.data_vencimento ? new Date(tr.data_vencimento).toLocaleDateString('pt-BR') : 'Sem data'}
+                                {tr.categoria || 'Geral'} • Vence em: {tr.data_vencimento ? formatarDataLocal(tr.data_vencimento) : 'Sem data'}
                               </span>
                             </div>
                             <span className="font-black text-base text-amber-600 dark:text-amber-400 shrink-0">
@@ -1292,11 +1299,11 @@ export const FinancasMobile: React.FC<FinancasMobileProps> = ({
                                 Terminal {cx.terminal_id} • {cx.usuario_abertura?.nome_completo || 'Operador'}
                               </span>
                               <span className={`text-sm leading-relaxed block font-medium ${isDark ? 'text-slate-300' : 'text-black'}`}>
-                                Aberto: {new Date(cx.aberto_em).toLocaleString('pt-BR', { dateStyle: 'short', timeStyle: 'short' })}
+                                Aberto: {formatarDataHoraLocal(cx.aberto_em, { dateStyle: 'short', timeStyle: 'short' })}
                               </span>
                               {cx.fechado_em && (
                                 <span className={`text-sm leading-relaxed block font-medium ${isDark ? 'text-slate-300' : 'text-black'}`}>
-                                  Fechado: {new Date(cx.fechado_em).toLocaleString('pt-BR', { dateStyle: 'short', timeStyle: 'short' })}
+                                  Fechado: {formatarDataHoraLocal(cx.fechado_em, { dateStyle: 'short', timeStyle: 'short' })}
                                 </span>
                               )}
                             </div>

@@ -1,3 +1,5 @@
+import { formatarDataLocal, formatarDataHoraLocal } from './dateTime';
+
 export interface FormatarMoedaOpcoes {
   semSimbolo?: boolean;
 }
@@ -83,12 +85,12 @@ export const formatarValorBRL = (valor: number | string | null | undefined): str
 
 export const formatarData = (dataIso?: string | null): string => {
   if (!dataIso) return '-';
-  return new Date(dataIso).toLocaleDateString('pt-BR');
+  return formatarDataLocal(dataIso);
 };
 
 export const formatarDataHora = (dataIso?: string | null): string => {
   if (!dataIso) return '-';
-  return new Date(dataIso).toLocaleString('pt-BR');
+  return formatarDataHoraLocal(dataIso);
 };
 
 /**

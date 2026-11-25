@@ -1,5 +1,6 @@
 import { StatusPedido, Loja, Pedido } from '../types';
 import { obterDataOperacaoYMD } from './dataOperacao';
+import { formatarDataLocal } from './dateTime';
 import { formatarMoeda } from './formatters';
 import { calcularProximoVencimentoPorCiclo, obterConfigCicloCliente } from './cadernetaCiclo';
 
@@ -607,8 +608,7 @@ export function obterInfoVencimentoFiado(pedido: any, loja?: any): {
     if (ano && mes && dia) {
       formatada = `${dia}/${mes}/${ano}`;
     } else {
-      const d = new Date(dataVenc);
-      formatada = d.toLocaleDateString('pt-BR');
+      formatada = formatarDataLocal(dataVenc);
     }
   } catch {
     formatada = dataVenc;

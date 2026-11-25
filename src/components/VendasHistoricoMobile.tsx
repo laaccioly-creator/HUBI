@@ -31,6 +31,14 @@ import {
 import { Pedido, Cliente, UsuarioLoja } from '../types';
 import { PrintService, formatarDataRecibo, obterDadosPagamentoRecibo } from '../services/printService';
 import { extrairObservacaoLimpa } from '../utils/formatters';
+import {
+  formatarDataLocal,
+  formatarDataHoraLocal,
+  formatarHoraLocal,
+  obterDataLocalYYYYMMDD,
+  obterInicioDiaISO,
+  obterFimDiaISO
+} from '../utils/dateTime';
 import { useAuth } from '../contexts/AuthContext';
 import { useTheme } from '../contexts/ThemeContext';
 import { usePermissions } from '../hooks/usePermissions';
@@ -161,8 +169,8 @@ export const VendasHistoricoMobile: React.FC<VendasHistoricoMobileProps> = ({
           if (dtVenda < limite) return false;
         } else if (periodoFiltro === 'custom') {
           const rawData = venda.data_venda || venda.criado_em || '';
-          if (dataInicio && rawData && new Date(rawData) < new Date(dataInicio + 'T00:00:00')) return false;
-          if (dataFim && rawData && new Date(rawData) > new Date(dataFim + 'T23:59:59')) return false;
+          if (dataInicio && rawData && new Date(rawData) < new Date(obterInicioDiaISO(dataInicio))) return false;
+          if (dataFim && rawData && new Date(rawData) > new Date(obterFimDiaISO(dataFim))) return false;
         }
       }
 
@@ -176,14 +184,17 @@ export const VendasHistoricoMobile: React.FC<VendasHistoricoMobileProps> = ({
     const hoje = new Date();
     const ontem = new Date();
     ontem.setDate(ontem.getDate() - 1);
+    const hojeYmd = obterDataLocalYYYYMMDD(hoje);
+    const ontemYmd = obterDataLocalYYYYMMDD(ontem);
 
     vendasFiltradas.forEach((v) => {
       const d = new Date(v.data_venda || v.criado_em || Date.now());
-      let label = d.toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit', year: 'numeric' });
+      const ymd = obterDataLocalYYYYMMDD(d);
+      let label = formatarDataLocal(d);
 
-      if (d.toDateString() === hoje.toDateString()) {
+      if (ymd === hojeYmd) {
         label = 'Hoje';
-      } else if (d.toDateString() === ontem.toDateString()) {
+      } else if (ymd === ontemYmd) {
         label = 'Ontem';
       }
 
@@ -322,7 +333,7 @@ export const VendasHistoricoMobile: React.FC<VendasHistoricoMobileProps> = ({
                 Venda #{vendaDetalhes.numero_pedido}
               </h2>
               <span className={`text-[10px] ${isDark ? 'text-slate-300' : 'text-black font-semibold'}`}>
-                {new Date(vendaDetalhes.data_venda).toLocaleString('pt-BR')}
+                {formatarDataHoraLocal(vendaDetalhes.data_venda)}
               </span>
             </div>
           </div>
@@ -792,7 +803,7 @@ export const VendasHistoricoMobile: React.FC<VendasHistoricoMobileProps> = ({
                         </div>
 
                         <span className={`text-[10px] font-medium shrink-0 ${isDark ? 'text-slate-300' : 'text-black font-bold'}`}>
-                          {new Date(v.data_venda).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })}
+                          {formatarHoraLocal(v.data_venda, { hour: '2-digit', minute: '2-digit' })}
                         </span>
                       </div>
 

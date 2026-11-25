@@ -2,6 +2,7 @@ import React, { useEffect, useState } from 'react';
 import { X, Bell, Check, ExternalLink, Loader2, AlertCircle, CheckCheck } from 'lucide-react';
 import { ClienteNotificacao } from '../types';
 import { ClienteCatalogoService } from '../services/clienteCatalogoService';
+import { formatarDataHoraLocal } from '../utils/dateTime';
 
 interface ModalNotificacoesClienteProps {
   isOpen: boolean;
@@ -89,8 +90,7 @@ export const ModalNotificacoesCliente: React.FC<ModalNotificacoesClienteProps> =
   const formatarData = (iso?: string) => {
     if (!iso) return '';
     try {
-      const d = new Date(iso);
-      return d.toLocaleDateString('pt-BR', {
+      return formatarDataHoraLocal(iso, {
         day: '2-digit',
         month: '2-digit',
         hour: '2-digit',

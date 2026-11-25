@@ -42,6 +42,7 @@ import {
   OPCOES_COMPRESSAO_VISAO_IA,
   type PayloadBase64IA
 } from '../utils/imageCompressor';
+import { formatarDataLocal } from '../utils/dateTime';
 
 export {
   SerpApiQuotaError,
@@ -2075,7 +2076,7 @@ Campos obrigatórios do JSON:
           concorrentes: concorrentesRadar,
           menoresPrecos,
           maioresPrecos,
-          dataConsulta: new Date().toLocaleDateString('pt-BR')
+          dataConsulta: formatarDataLocal(new Date())
         }
       });
       localStorage.setItem(chaveRadar, payloadRadar);

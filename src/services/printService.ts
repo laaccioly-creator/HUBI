@@ -14,6 +14,7 @@ import { formatarNomeTransportadora } from '../utils/shippingDisplay';
 import { extrairInfoVisitaPedido } from '../utils/taxaDomicilioUtils';
 import { resolverDadosReciboPedido } from '../utils/reciboServicoHelper';
 import { filtrarAgendamentosVigentesDoPedido } from './agendamentoService';
+import { formatarDataLocal, formatarHoraLocal, formatarDataHoraLocal } from '../utils/dateTime';
 
 const obterDadosReciboComAgendamentosVigentes = (pedido: Pedido, loja?: Loja | null) => {
   const itensPedido = pedido.itens || pedido.itens_pedido || [];
@@ -32,16 +33,9 @@ export const formatarDataRecibo = (dataIso?: string | null): string => {
   try {
     const d = new Date(dataIso);
     if (isNaN(d.getTime())) return '';
-    const meses = [
-      'janeiro', 'fevereiro', 'março', 'abril', 'maio', 'junho',
-      'julho', 'agosto', 'setembro', 'outubro', 'novembro', 'dezembro'
-    ];
-    const dia = d.getDate();
-    const mes = meses[d.getMonth()];
-    const ano = d.getFullYear();
-    const hora = String(d.getHours()).padStart(2, '0');
-    const min = String(d.getMinutes()).padStart(2, '0');
-    return `${dia} de ${mes} de ${ano} às ${hora}:${min}`;
+    const dataExtenso = formatarDataLocal(d, { day: 'numeric', month: 'long', year: 'numeric' });
+    const horaMin = formatarHoraLocal(d, { hour: '2-digit', minute: '2-digit' });
+    return `${dataExtenso} às ${horaMin}`;
   } catch {
     return '';
   }
@@ -1718,8 +1712,8 @@ Agradecemos a sua preferência! ✨`;
       const statusSessao = String(sessao.status || dados.status || 'FECHADO').toUpperCase();
       const dtAberturaRaw = sessao.aberto_em || dados.aberto_em || dados.dataAbertura;
       const dtFechamentoRaw = sessao.fechado_em || dados.fechado_em || dados.dataFechamento;
-      const dtAbertura = dtAberturaRaw ? new Date(dtAberturaRaw).toLocaleString('pt-BR') : '-';
-      const dtFechamento = dtFechamentoRaw ? new Date(dtFechamentoRaw).toLocaleString('pt-BR') : new Date().toLocaleString('pt-BR');
+      const dtAbertura = dtAberturaRaw ? formatarDataHoraLocal(dtAberturaRaw) : '-';
+      const dtFechamento = dtFechamentoRaw ? formatarDataHoraLocal(dtFechamentoRaw) : formatarDataHoraLocal(new Date());
       const duracaoTexto = dados.duracaoTexto || dados.duracaoFormatada || dados.turno || 'Turno Normal';
       const operadorAbertura = sessao.aberto_por?.nome_completo || sessao.usuario_abertura?.nome_completo || dados.operadorAbertura || 'Operador PDV';
       const operadorFechamento = sessao.fechado_por?.nome_completo || sessao.usuario_fechamento?.nome_completo || dados.operadorNome || operadorAbertura;
@@ -2037,7 +2031,7 @@ Agradecemos a sua preferência! ✨`;
               </thead>
               <tbody>
                 ${movimentacoes.map(m => {
-                  const hora = m.criado_em ? new Date(m.criado_em).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' }) : '-';
+                  const hora = m.criado_em ? formatarHoraLocal(m.criado_em, { hour: '2-digit', minute: '2-digit' }) : '-';
                   const ehSaida = m.tipo === 'sangria' || m.tipo === 'despesa';
                   return `
                     <tr style="border-bottom: 1px dotted #f1f5f9;">
@@ -2118,7 +2112,7 @@ Agradecemos a sua preferência! ✨`;
               border-top: 1px solid #f1f5f9;
               padding-top: 6px;
             ">
-              <div>Emitido em: ${new Date().toLocaleString('pt-BR')}</div>
+              <div>Emitido em: ${formatarDataHoraLocal(new Date())}</div>
               <div style="font-weight: 600; color: #0f172a; margin-top: 1px;">
                 Rubi • Sistema de Gestão & PDV • rubi.ia.br
               </div>

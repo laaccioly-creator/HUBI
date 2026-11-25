@@ -24,6 +24,7 @@ import {
 import { supabase } from '../lib/supabase';
 import { Pedido, Loja, ItemPedido } from '../types';
 import { formatarDataPtBr } from '../services/agendamentoService';
+import { formatarDataLocal, formatarHoraLocal } from '../utils/dateTime';
 import {
   obterDadosPagamentoRecibo,
   obterInfoEntregaRecibo,
@@ -485,8 +486,8 @@ export const PedidoAndamentoPublico: React.FC = () => {
                   {tituloStatus}
                 </h3>
                 <span className={`text-xs ${isDark ? 'text-slate-400' : 'text-slate-500'}`}>
-                  {new Date(pedido.criado_em || Date.now()).toLocaleDateString('pt-BR')} às{' '}
-                  {new Date(pedido.criado_em || Date.now()).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })}
+                  {formatarDataLocal(pedido.criado_em || Date.now())} às{' '}
+                  {formatarHoraLocal(pedido.criado_em || Date.now(), { hour: '2-digit', minute: '2-digit' })}
                 </span>
               </div>
 
@@ -745,7 +746,7 @@ export const PedidoAndamentoPublico: React.FC = () => {
               {/* Número e Data */}
               <div className="flex justify-between items-center text-[11px] text-slate-600 border-b border-slate-200 border-dashed pb-2">
                 <span className="font-bold text-slate-900">RECIBO #{pedido.numero_pedido}</span>
-                <span>{new Date(pedido.criado_em || Date.now()).toLocaleDateString('pt-BR')} às {new Date(pedido.criado_em || Date.now()).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })}</span>
+                <span>{formatarDataLocal(pedido.criado_em || Date.now())} às {formatarHoraLocal(pedido.criado_em || Date.now(), { hour: '2-digit', minute: '2-digit' })}</span>
               </div>
 
               {/* Vendedor / Canal */}

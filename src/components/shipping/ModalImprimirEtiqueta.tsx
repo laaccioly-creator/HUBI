@@ -8,6 +8,7 @@ import { MelhorEnvioService } from '../../services/melhorEnvioService';
 import { useTheme } from '../../contexts/ThemeContext';
 import { useRegisterOverlay } from '../../hooks/useRegisterOverlay';
 import { supabase } from '../../lib/supabase';
+import { formatarDataLocal, formatarHoraLocal } from '../../utils/dateTime';
 
 interface ModalImprimirEtiquetaProps {
   isOpen: boolean;
@@ -484,7 +485,7 @@ export const ModalImprimirEtiqueta: React.FC<ModalImprimirEtiquetaProps> = ({
             </div>
 
             <div class="footer">
-              Rubi Plataforma de Gestão • rubi.ia.br • Impresso em ${new Date().toLocaleDateString('pt-BR')} ${new Date().toLocaleTimeString('pt-BR')}
+              Rubi Plataforma de Gestão • rubi.ia.br • Impresso em ${formatarDataLocal(new Date())} ${formatarHoraLocal(new Date())}
             </div>
           </div>
           <script>

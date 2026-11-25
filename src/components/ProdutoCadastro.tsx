@@ -51,6 +51,7 @@ import { useFeedbackModal } from '../contexts/FeedbackContext';
 import { ProdutoService } from '../services/produtoService';
 import { agendamentoService } from '../services/agendamentoService';
 import { logger } from '../services/loggerService';
+import { formatarDataLocal } from '../utils/dateTime';
 import {
   Categoria,
   Fornecedor,
@@ -251,7 +252,7 @@ const processarListaConcorrentes = (
       concorrentes: [],
       menoresPrecos: [],
       maioresPrecos: [],
-      dataConsulta: new Date().toLocaleDateString('pt-BR')
+      dataConsulta: formatarDataLocal(new Date())
     };
   }
 
@@ -316,7 +317,7 @@ const processarListaConcorrentes = (
     concorrentes: baseFinal,
     menoresPrecos,
     maioresPrecos,
-    dataConsulta: new Date().toLocaleDateString('pt-BR')
+    dataConsulta: formatarDataLocal(new Date())
   };
 };
 

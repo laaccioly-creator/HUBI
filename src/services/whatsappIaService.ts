@@ -2,6 +2,7 @@
 import { supabase } from '../lib/supabase';
 import { ConsumoWhatsApp, WhatsAppConfigForm } from '../types/whatsapp';
 import { configuracoesPlataformaService } from './configuracoesPlataformaService';
+import { obterAnoMesLocalYYYYMM } from '../utils/dateTime';
 
 import {
   testarChaveGemini,
@@ -101,7 +102,7 @@ export const carregarConsumoMesAtual = async (lojaId: string): Promise<ConsumoWh
   if (!lojaId) return null;
 
   try {
-    const mesAtual = new Date().toISOString().substring(0, 7); // '2026-10'
+    const mesAtual = obterAnoMesLocalYYYYMM(); // '2026-10'
     const { data, error } = await supabase
       .from('consumo_whatsapp')
       .select('*')

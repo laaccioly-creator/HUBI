@@ -14,6 +14,7 @@ import { useTheme } from '../../contexts/ThemeContext';
 import { useRegisterOverlay } from '../../hooks/useRegisterOverlay';
 import { StatusAssinaturaLoja, TipoDocumento } from '../../types';
 import { formatarMoeda } from '../../utils/formatters';
+import { formatarDataLocal } from '../../utils/dateTime';
 import {
   LojaAreaHubi,
   areaHubiService
@@ -47,7 +48,7 @@ const formatarDataBr = (iso?: string | null): string => {
   if (!iso) return '—';
   const d = new Date(iso);
   if (isNaN(d.getTime())) return '—';
-  return d.toLocaleDateString('pt-BR');
+  return formatarDataLocal(d);
 };
 
 export const ModalEditarLojaSuperAdmin: React.FC<ModalEditarLojaSuperAdminProps> = ({

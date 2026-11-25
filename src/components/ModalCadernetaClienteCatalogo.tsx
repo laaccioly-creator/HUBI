@@ -17,6 +17,7 @@ import { supabase } from '../lib/supabase';
 import { ModalPagamentoFechamentoCatalogo } from './catalogo/ModalPagamentoFechamentoCatalogo';
 import { ReciboPedidoModal } from './pedidos/ReciboPedidoModal';
 import { formatarResumoCicloCaderneta, obterConfigCicloCliente } from '../utils/cadernetaCiclo';
+import { formatarDataLocal, formatarHoraLocal } from '../utils/dateTime';
 
 interface ModalCadernetaClienteCatalogoProps {
   isOpen: boolean;
@@ -234,7 +235,7 @@ export const ModalCadernetaClienteCatalogo: React.FC<ModalCadernetaClienteCatalo
                 <div className="p-3 rounded-2xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800">
                   <span className="text-[10px] font-bold text-slate-500 dark:text-slate-400 block uppercase">Vencimento</span>
                   <span className="text-xs sm:text-sm font-black text-slate-900 dark:text-white block truncate">
-                    {resumo?.proximoVencimento ? new Date(resumo.proximoVencimento + 'T12:00:00').toLocaleDateString('pt-BR') : '--'}
+                    {resumo?.proximoVencimento ? formatarDataLocal(resumo.proximoVencimento) : '--'}
                   </span>
                   <span className="text-[9px] font-bold text-slate-500 dark:text-slate-400">
                     {resumo?.resumoCiclo || formatarResumoCicloCaderneta(obterConfigCicloCliente(resumo?.cliente || cliente, loja))}
@@ -266,7 +267,7 @@ export const ModalCadernetaClienteCatalogo: React.FC<ModalCadernetaClienteCatalo
                       const numeroPedidoExibicao = (lanc.pedido as any)?.numero_pedido
                         ? `Pedido #${(lanc.pedido as any).numero_pedido}`
                         : (lanc.descricao?.replace(/^Compra ref\.\s*/i, '').replace('[PENDENTE_CONFERENCIA]', '').replace('[RECUSADO]', '').trim() || 'Lançamento');
-                      const dataHoraExibicao = `${new Date(lanc.criado_em || Date.now()).toLocaleDateString('pt-BR')} ${new Date(lanc.criado_em || Date.now()).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })}`;
+                      const dataHoraExibicao = `${formatarDataLocal(lanc.criado_em || Date.now())} ${formatarHoraLocal(lanc.criado_em || Date.now(), { hour: '2-digit', minute: '2-digit' })}`;
 
                       return (
                         <div

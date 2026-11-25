@@ -23,6 +23,7 @@ import { ModalRecargaWhatsapp } from './ModalRecargaWhatsapp';
 import { PainelGatilhosWhatsapp } from './PainelGatilhosWhatsapp';
 import { useTheme } from '../../contexts/ThemeContext';
 import { notificarConfiguracaoSalvaParaOnboarding } from '../../services/onboardingSetupService';
+import { formatarDataLocal, formatarDataHoraLocal } from '../../utils/dateTime';
 
 interface CardCarteiraWhatsappProps {
   loja: Loja;
@@ -216,7 +217,7 @@ export const CardCarteiraWhatsapp: React.FC<CardCarteiraWhatsappProps> = ({
       expirado: false,
       texto: `Bônus de degustação válido por mais ${diasRestantes} ${
         diasRestantes === 1 ? 'dia' : 'dias'
-      } (${dataExp.toLocaleDateString('pt-BR')}).`,
+      } (${formatarDataLocal(dataExp)}).`,
     };
   })();
 
@@ -513,7 +514,7 @@ export const CardCarteiraWhatsapp: React.FC<CardCarteiraWhatsappProps> = ({
                         <td className={`py-2.5 px-3 whitespace-nowrap text-sm font-medium ${
                           isDark ? 'text-slate-300' : 'text-black'
                         }`}>
-                          {new Date(tx.criado_em).toLocaleString('pt-BR', {
+                          {formatarDataHoraLocal(tx.criado_em, {
                             day: '2-digit',
                             month: '2-digit',
                             year: '2-digit',

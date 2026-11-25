@@ -28,6 +28,7 @@ import {
   ItemInadimplente
 } from '../../services/dashboardJevService';
 import { useTheme } from '../../contexts/ThemeContext';
+import { formatarDataLocal, formatarDataHoraLocal } from '../../utils/dateTime';
 import { formatarMoeda } from '../../utils/formatters';
 
 export type TipoMetricaCockpitDrawer =
@@ -183,7 +184,7 @@ export const CockpitMetricDrawer: React.FC<CockpitMetricDrawerProps> = ({
     if (!item.clienteTelefoneBruto) return;
     const foneLimpo = item.clienteTelefoneBruto.replace(/\D/g, '');
     const mensagem = encodeURIComponent(
-      `Olá, ${item.clienteNome}! Tudo bem? Passando para lembrar sobre a pendência do seu pedido #${item.numeroPedido} no valor de ${formMoeda(item.valorDevido)}, com vencimento em ${new Date(item.dataVencimento).toLocaleDateString('pt-BR')}. Caso precise da chave Pix ou maiores detalhes, estamos à disposição!`
+      `Olá, ${item.clienteNome}! Tudo bem? Passando para lembrar sobre a pendência do seu pedido #${item.numeroPedido} no valor de ${formMoeda(item.valorDevido)}, com vencimento em ${formatarDataLocal(item.dataVencimento)}. Caso precise da chave Pix ou maiores detalhes, estamos à disposição!`
     );
     window.open(`https://wa.me/55${foneLimpo}?text=${mensagem}`, '_blank');
   };
@@ -359,7 +360,7 @@ export const CockpitMetricDrawer: React.FC<CockpitMetricDrawerProps> = ({
                             <span className="text-black dark:text-slate-400 font-medium">• {v.clienteNome}</span>
                           </div>
                           <div className="text-[11px] text-black dark:text-slate-400 font-medium flex items-center gap-2">
-                            <span>{new Date(v.data).toLocaleString('pt-BR', { dateStyle: 'short', timeStyle: 'short' })}</span>
+                            <span>{formatarDataHoraLocal(v.data, { dateStyle: 'short', timeStyle: 'short' })}</span>
                             <span>• {v.canal}</span>
                             <span>• {v.formaPagamento}</span>
                           </div>
@@ -727,7 +728,7 @@ export const CockpitMetricDrawer: React.FC<CockpitMetricDrawerProps> = ({
                               </span>
                             </div>
                             <div className="text-[11px] text-black dark:text-slate-400 font-medium flex items-center gap-2">
-                              <span>{new Date(item.data).toLocaleDateString('pt-BR')}</span>
+                              <span>{formatarDataLocal(item.data)}</span>
                               <span>• {item.categoria}</span>
                             </div>
                           </div>
@@ -810,7 +811,7 @@ export const CockpitMetricDrawer: React.FC<CockpitMetricDrawerProps> = ({
                             <div className="text-right">
                               <div className="font-mono font-bold text-rose-600 dark:text-rose-400 text-sm">{formMoeda(it.valorDevido)}</div>
                               <div className="text-[10px] text-black dark:text-slate-400 font-medium">
-                                Venc: {new Date(it.dataVencimento).toLocaleDateString('pt-BR')}
+                                Venc: {formatarDataLocal(it.dataVencimento)}
                               </div>
                             </div>
 

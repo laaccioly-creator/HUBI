@@ -1,6 +1,7 @@
 import * as XLSX from 'xlsx';
 import { supabase } from '../lib/supabase';
 import { Cliente, TabelaPreco } from '../types';
+import { formatarDataLocal, obterDataLocalYYYYMMDD } from '../utils/dateTime';
 
 export interface LinhaClienteImportacao {
   linha: number;
@@ -954,7 +955,7 @@ export const clientImportExportService = {
       'Endereço Principal': c.endereco_principal || '',
       'Data de Aniversário': c.data_aniversario || '',
       'Observações': c.observacoes || '',
-      'Data de Cadastro': c.criado_em ? new Date(c.criado_em).toLocaleDateString('pt-BR') : ''
+      'Data de Cadastro': c.criado_em ? formatarDataLocal(c.criado_em) : ''
     }));
 
     const wb = XLSX.utils.book_new();
@@ -984,7 +985,7 @@ export const clientImportExportService = {
     ];
 
     XLSX.utils.book_append_sheet(wb, ws, 'Clientes');
-    const timestamp = new Date().toISOString().slice(0, 10);
+    const timestamp = obterDataLocalYYYYMMDD();
     const safeNomeLoja = (nomeLoja || 'Rubi').replace(/[^a-zA-Z0-9_-]/g, '_');
     XLSX.writeFile(wb, `${safeNomeLoja}_Clientes_${timestamp}.xlsx`);
   },
@@ -1025,7 +1026,7 @@ export const clientImportExportService = {
         Number(c.limite_credito || 0).toFixed(2).replace('.', ','),
         Number(c.saldo_devedor_fiado || 0).toFixed(2).replace('.', ','),
         this.formatarCampoCsv(endereco),
-        this.formatarCampoCsv(c.criado_em ? new Date(c.criado_em).toLocaleDateString('pt-BR') : ''),
+        this.formatarCampoCsv(c.criado_em ? formatarDataLocal(c.criado_em) : ''),
         this.formatarCampoCsv(c.observacoes || '')
       ].join(';');
     });
@@ -1035,7 +1036,7 @@ export const clientImportExportService = {
     const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
     const url = URL.createObjectURL(blob);
     const link = document.createElement('a');
-    const timestamp = new Date().toISOString().slice(0, 10);
+    const timestamp = obterDataLocalYYYYMMDD();
     const safeNomeLoja = (nomeLoja || 'Rubi').replace(/[^a-zA-Z0-9_-]/g, '_');
     link.setAttribute('href', url);
     link.setAttribute('download', `${safeNomeLoja}_Clientes_${timestamp}.csv`);

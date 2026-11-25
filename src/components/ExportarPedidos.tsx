@@ -13,6 +13,7 @@ import { supabase } from '../lib/supabase';
 import { useAuth } from '../contexts/AuthContext';
 import { Pedido } from '../types';
 import { orderImportExportService } from '../services/orderImportExportService';
+import { obterDataLocalYYYYMMDD, obterInicioDiaISO, obterFimDiaISO } from '../utils/dateTime';
 
 interface ExportarPedidosProps {
   onVoltar: () => void;
@@ -29,11 +30,11 @@ export const ExportarPedidos: React.FC<ExportarPedidosProps> = ({ onVoltar }) =>
   const dataPadraoInicio = useMemo(() => {
     const d = new Date();
     d.setDate(d.getDate() - 30);
-    return d.toISOString().split('T')[0];
+    return obterDataLocalYYYYMMDD(d);
   }, []);
 
   const dataPadraoFim = useMemo(() => {
-    return new Date().toISOString().split('T')[0];
+    return obterDataLocalYYYYMMDD();
   }, []);
 
   const [dataInicio, setDataInicio] = useState<string>(dataPadraoInicio);
@@ -48,8 +49,8 @@ export const ExportarPedidos: React.FC<ExportarPedidosProps> = ({ onVoltar }) =>
         .from('pedidos')
         .select('*, cliente:clientes(*), forma_pagamento:formas_pagamento(*), itens:itens_pedido(*, produto:produtos(*))')
         .eq('loja_id', loja.id)
-        .gte('data_venda', `${dataInicio}T00:00:00`)
-        .lte('data_venda', `${dataFim}T23:59:59`)
+        .gte('data_venda', obterInicioDiaISO(dataInicio))
+        .lte('data_venda', obterFimDiaISO(dataFim))
         .order('data_venda', { ascending: false });
 
       if (error) throw error;

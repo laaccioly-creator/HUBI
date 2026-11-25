@@ -27,6 +27,7 @@ import { useTheme } from '../../contexts/ThemeContext';
 import { useAuth } from '../../contexts/AuthContext';
 import { useRegisterOverlay } from '../../hooks/useRegisterOverlay';
 import { normalizarTelefoneComDDI } from '../../utils/formatters';
+import { formatarDataHoraLocal } from '../../utils/dateTime';
 
 /**
  * Formata defensivamente datas retornadas por APIs de rastreamento (Correios, Melhor Envio, Jadlog).
@@ -65,7 +66,7 @@ export function formatarDataRastreioDefensiva(valor?: any): string {
 
     if (!d || isNaN(d.getTime())) return '';
 
-    return d.toLocaleString('pt-BR', {
+    return formatarDataHoraLocal(d, {
       day: '2-digit',
       month: '2-digit',
       hour: '2-digit',

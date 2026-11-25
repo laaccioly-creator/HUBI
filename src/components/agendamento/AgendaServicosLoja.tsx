@@ -47,6 +47,7 @@ import { whatsappWalletService } from '../../services/whatsappWalletService';
 import { supabase } from '../../lib/supabase';
 import { ModalLembretesPendentesAgenda } from './ModalLembretesPendentesAgenda';
 import { ReciboPedidoModal } from '../pedidos/ReciboPedidoModal';
+import { obterDataLocalYYYYMMDD } from '../../utils/dateTime';
 import type {
   AgendamentoServico,
   StatusAgendamento,
@@ -62,10 +63,7 @@ export const AgendaServicosLoja: React.FC = () => {
   const navigate = useNavigate();
 
   // 1. Estados de Filtros e Seleção
-  const [dataSelecionada, setDataSelecionada] = useState<string>(() => {
-    const hoje = new Date();
-    return `${hoje.getFullYear()}-${String(hoje.getMonth() + 1).padStart(2, '0')}-${String(hoje.getDate()).padStart(2, '0')}`;
-  });
+  const [dataSelecionada, setDataSelecionada] = useState<string>(() => obterDataLocalYYYYMMDD());
   const [profissionalFiltro, setProfissionalFiltro] = useState<string>('todos');
   const [statusFiltro, setStatusFiltro] = useState<string>('todos');
   const [buscaTexto, setBuscaTexto] = useState<string>('');
@@ -1295,10 +1293,7 @@ const ModalNovoAgendamentoAvulso: React.FC<ModalNovoAgendamentoAvulsoProps> = ({
   const [clienteWhatsapp, setClienteWhatsapp] = useState<string>('');
   const [servicoId, setServicoId] = useState<string>('');
   const [profissionalId, setProfissionalId] = useState<string>('');
-  const [dataAgendamento, setDataAgendamento] = useState<string>(() => {
-    const hoje = new Date();
-    return `${hoje.getFullYear()}-${String(hoje.getMonth() + 1).padStart(2, '0')}-${String(hoje.getDate()).padStart(2, '0')}`;
-  });
+  const [dataAgendamento, setDataAgendamento] = useState<string>(() => obterDataLocalYYYYMMDD());
   const [modalidadeLocal, setModalidadeLocal] = useState<ModalidadeLocalPrestacao>('loja');
   const [enderecoSnapshot, setEnderecoSnapshot] = useState<string>('');
   const [observacoes, setObservacoes] = useState<string>('');

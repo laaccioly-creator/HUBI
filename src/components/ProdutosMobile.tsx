@@ -83,6 +83,7 @@ import { ModalVincularAnuncioMl } from './mercadolivre/ModalVincularAnuncioMl';
 import type { AnuncioMlResumo } from './ProdutosEstoque';
 import { pesquisarPrecosMercadoIA, DadosMercadoIA } from './ProdutoCadastro';
 import { UNIDADES_PADRAO } from './CadastrosAuxiliares';
+import { formatarDataLocal, formatarHoraLocal, formatarDataHoraLocal } from '../utils/dateTime';
 import { useFeedbackModal } from '../contexts/FeedbackContext';
 import { useRegisterOverlay } from '../hooks/useRegisterOverlay';
 import {
@@ -2779,7 +2780,7 @@ export const ProdutosMobile: React.FC<ProdutosMobileProps> = ({
             movsFiltradas.map((mov) => {
               const tipoStr = String(mov.tipo_movimentacao || '').toLowerCase();
               const ehEntrada = tipoStr.includes('entrada') || tipoStr.includes('estorno') || tipoStr.includes('credito');
-              const dataFmt = mov.criado_em ? new Date(mov.criado_em).toLocaleString('pt-BR', { dateStyle: 'short', timeStyle: 'short' }) : '';
+              const dataFmt = mov.criado_em ? formatarDataHoraLocal(mov.criado_em, { dateStyle: 'short', timeStyle: 'short' }) : '';
               const rotuloTipo = tipoStr.replace(/_/g, ' ');
               return (
                 <div key={mov.id} className="p-4 flex items-center justify-between bg-white dark:bg-[#000000]">
@@ -5368,7 +5369,7 @@ export const ProdutosMobile: React.FC<ProdutosMobileProps> = ({
                   {formData.quantidadeEstoque}
                 </span>
                 <span className="text-xs mt-3 font-semibold" style={{ color: temaCores.textoSecundario }}>
-                  Atualizado em {new Date().toLocaleDateString('pt-BR')} às {new Date().toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })}
+                  Atualizado em {formatarDataLocal(new Date())} às {formatarHoraLocal(new Date(), { hour: '2-digit', minute: '2-digit' })}
                 </span>
               </div>
 

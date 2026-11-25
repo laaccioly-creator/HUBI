@@ -1,6 +1,7 @@
 import * as XLSX from 'xlsx';
 import { supabase } from '../lib/supabase';
 import { Produto, Categoria } from '../types';
+import { obterDataLocalYYYYMMDD } from '../utils/dateTime';
 
 export interface LinhaProdutoImportacao {
   linha: number;
@@ -305,7 +306,7 @@ export const productImportExportService = {
 
     XLSX.utils.book_append_sheet(wb, ws, 'Produtos');
 
-    const timestamp = new Date().toISOString().slice(0, 10);
+    const timestamp = obterDataLocalYYYYMMDD();
     const safeNomeLoja = (nomeLoja || 'Rubi').replace(/[^a-zA-Z0-9_-]/g, '_');
     XLSX.writeFile(wb, `${safeNomeLoja}_Produtos_${timestamp}.xlsx`);
   },
@@ -343,7 +344,7 @@ export const productImportExportService = {
     const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
     const url = URL.createObjectURL(blob);
     const link = document.createElement('a');
-    const timestamp = new Date().toISOString().slice(0, 10);
+    const timestamp = obterDataLocalYYYYMMDD();
     const safeNomeLoja = (nomeLoja || 'Rubi').replace(/[^a-zA-Z0-9_-]/g, '_');
     link.setAttribute('href', url);
     link.setAttribute('download', `${safeNomeLoja}_Produtos_${timestamp}.csv`);

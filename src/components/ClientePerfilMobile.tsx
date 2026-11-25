@@ -39,6 +39,7 @@ import { ModalHistoricoFiadoCliente } from './ModalHistoricoFiadoCliente';
 import { ModalExtratoCadernetaCliente } from './ModalExtratoCadernetaCliente';
 import { obterInfoVencimentoFiado } from '../utils/statusPedidoUtils';
 import { normalizarTelefoneComDDI } from '../utils/formatters';
+import { formatarDataLocal, formatarHoraLocal, obterDataLocalYYYYMMDD } from '../utils/dateTime';
 import { CadernetaService } from '../services/cadernetaService';
 import {
   DIAS_SEMANA_CADERNETA,
@@ -294,7 +295,7 @@ export const ClientePerfilMobile: React.FC<ClientePerfilMobileProps> = ({
           valor: valorNum,
           forma_pagamento: formaQuitar,
           status: 'pago',
-          data_vencimento: new Date().toISOString().split('T')[0],
+          data_vencimento: obterDataLocalYYYYMMDD(),
           data_pagamento: new Date().toISOString(),
           observacoes: `Abatimento fiado. ${obsQuitar}`.trim()
         }]);
@@ -1337,7 +1338,7 @@ export const ClientePerfilMobile: React.FC<ClientePerfilMobileProps> = ({
                     <div className="flex items-center justify-between text-xs font-black">
                       <span className="font-mono">R$ {Number(pedido.valor_total).toFixed(2)}</span>
                       <span className={`text-sm leading-relaxed font-bold ${isDark ? 'text-slate-300' : 'text-black'}`}>
-                        {new Date(pedido.data_venda).toLocaleDateString('pt-BR')}
+                        {formatarDataLocal(pedido.data_venda)}
                       </span>
                     </div>
                     <p className={`text-sm leading-relaxed font-medium truncate ${isDark ? 'text-slate-300' : 'text-black'}`}>
@@ -1400,7 +1401,7 @@ export const ClientePerfilMobile: React.FC<ClientePerfilMobileProps> = ({
                           <span>R$ {Number(pedido.valor_total).toFixed(2)}</span>
                         </div>
                         <span className={`text-sm leading-relaxed font-bold ${isDark ? 'text-slate-300' : 'text-black'}`}>
-                          {new Date(pedido.data_venda).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })}
+                          {formatarHoraLocal(pedido.data_venda, { hour: '2-digit', minute: '2-digit' })}
                         </span>
                       </div>
 
@@ -1813,7 +1814,7 @@ export const ClientePerfilMobile: React.FC<ClientePerfilMobileProps> = ({
                         {m.tipo === 'adicionar' ? '+' : '-'} R$ {Number(m.valor).toFixed(2)}
                       </span>
                       <span className={`text-[10px] font-bold ${isDark ? 'text-slate-400' : 'text-slate-500'}`}>
-                        {new Date(m.criado_em || '').toLocaleDateString('pt-BR')}
+                        {formatarDataLocal(m.criado_em || '')}
                       </span>
                     </div>
                     {m.observacao && (

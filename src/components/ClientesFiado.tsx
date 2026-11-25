@@ -37,6 +37,7 @@ import { ModalHistoricoFiadoCliente } from './ModalHistoricoFiadoCliente';
 import { useFeedbackModal } from '../contexts/FeedbackContext';
 import { obterInfoVencimentoFiado } from '../utils/statusPedidoUtils';
 import { formatarMoeda, formatarTelefone, normalizarTelefoneComDDI } from '../utils/formatters';
+import { obterDataLocalYYYYMMDD } from '../utils/dateTime';
 import { ModalExtratoCadernetaCliente } from './ModalExtratoCadernetaCliente';
 import { ModalImportarClientes } from './ModalImportarClientes';
 import { CadernetaService } from '../services/cadernetaService';
@@ -390,7 +391,7 @@ export const ClientesFiado: React.FC = () => {
           categoria: 'Quitação de Fiado',
           descricao: `Recebimento de Fiado - Cliente: ${clienteQuitar.nome}`,
           valor: valor,
-          data_vencimento: new Date().toISOString().split('T')[0],
+          data_vencimento: obterDataLocalYYYYMMDD(),
           data_pagamento: new Date().toISOString(),
           status: 'pago'
         }
@@ -463,7 +464,7 @@ export const ClientesFiado: React.FC = () => {
     const url = URL.createObjectURL(blob);
     const link = document.createElement('a');
     link.setAttribute('href', url);
-    link.setAttribute('download', `clientes_rubi_${new Date().toISOString().split('T')[0]}.csv`);
+    link.setAttribute('download', `clientes_rubi_${obterDataLocalYYYYMMDD()}.csv`);
     document.body.appendChild(link);
     link.click();
     document.body.removeChild(link);

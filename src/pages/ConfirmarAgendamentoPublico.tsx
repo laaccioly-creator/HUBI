@@ -28,6 +28,7 @@ import type {
 } from '../types/agendamento';
 import type { UsuarioLoja } from '../types';
 import { formatarMoeda } from '../utils/formatters';
+import { formatarDataLocal, obterDataLocalYYYYMMDD } from '../utils/dateTime';
 
 interface DadosLojaComplementar {
   url_logo?: string | null;
@@ -453,16 +454,16 @@ export const ConfirmarAgendamentoPublico: React.FC = () => {
   // Carrossel de datas para remarcação (próximos 14 dias)
   const diasDisponiveisRemarcacao = useMemo(() => {
     const lista: { data: string; diaSemana: string; diaMes: string }[] = [];
-    const hoje = new Date();
+    const hojeYmd = obterDataLocalYYYYMMDD();
+    const [anoH, mesH, diaH] = hojeYmd.split('-').map(Number);
     for (let i = 0; i < 14; i++) {
-      const d = new Date(hoje);
-      d.setDate(hoje.getDate() + i);
-      const ano = d.getFullYear();
-      const mes = String(d.getMonth() + 1).padStart(2, '0');
-      const dia = String(d.getDate()).padStart(2, '0');
+      const d = new Date(Date.UTC(anoH, mesH - 1, diaH + i, 12, 0, 0));
+      const ano = d.getUTCFullYear();
+      const mes = String(d.getUTCMonth() + 1).padStart(2, '0');
+      const dia = String(d.getUTCDate()).padStart(2, '0');
       const dataStr = `${ano}-${mes}-${dia}`;
 
-      const nomeDia = d.toLocaleDateString('pt-BR', { weekday: 'short' }).replace('.', '');
+      const nomeDia = formatarDataLocal(dataStr, { weekday: 'short' }).replace('.', '');
       const diaMes = `${dia}/${mes}`;
 
       lista.push({

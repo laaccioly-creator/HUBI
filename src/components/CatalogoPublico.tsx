@@ -60,6 +60,7 @@ import { formatarResumoDescricao } from './DescricaoFormatadaProduto';
 import { ChatRubiCatalogo } from './ChatRubiCatalogo';
 import { getCategoriaPeso } from './PosCheckout';
 import { obterDataOperacaoISO, obterDataOperacaoISOParaLoja, definirDataOperacao } from '../utils/dataOperacao';
+import { obterDataLocalYYYYMMDD } from '../utils/dateTime';
 import { isUuidValido } from '../services/syncService';
 import { formatarMoeda, ehProdutoFracionado, formatarQuantidadeUnidade, obterSiglaUnidade, formatarLinhaCalculoItem } from '../utils/formatters';
 import { calcularTaxaVisitaPedido } from '../utils/taxaDomicilioUtils';
@@ -2140,7 +2141,7 @@ export const CatalogoPublico: React.FC = () => {
         data_vencimento_fiado: ehCaderneta
           ? CadernetaService.calcularProximoVencimento(Number(clienteSelecionado?.dia_vencimento_caderneta || loja?.dia_vencimento_padrao_caderneta || loja?.configuracoes_extras?.pagamentos?.dia_vencimento_padrao_caderneta || 10))
           : ehFiado
-            ? new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString().split('T')[0]
+            ? obterDataLocalYYYYMMDD(new Date(Date.now() + 30 * 24 * 60 * 60 * 1000))
             : null,
         fiado_quitado: (ehFiado || ehCaderneta) ? false : false,
         tabela_preco_aplicada: avaliacaoCarrinho.tabelaAtiva,

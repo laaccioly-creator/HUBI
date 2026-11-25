@@ -27,6 +27,7 @@ import { obterDataOperacaoISO } from '../utils/dataOperacao';
 import { obterInfoVencimentoFiado } from '../utils/statusPedidoUtils';
 import { useRegisterOverlay } from '../hooks/useRegisterOverlay';
 import { normalizarTelefoneComDDI } from '../utils/formatters';
+import { formatarDataLocal } from '../utils/dateTime';
 
 interface ModalHistoricoFiadoClienteProps {
   isOpen: boolean;
@@ -175,8 +176,7 @@ export const ModalHistoricoFiadoCliente: React.FC<ModalHistoricoFiadoClienteProp
   const formatarData = (dataStr?: string | null) => {
     if (!dataStr) return '-';
     try {
-      const d = new Date(dataStr);
-      return d.toLocaleDateString('pt-BR', {
+      return formatarDataLocal(dataStr, {
         day: '2-digit',
         month: '2-digit',
         year: 'numeric'

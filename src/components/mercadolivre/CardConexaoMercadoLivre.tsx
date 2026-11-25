@@ -14,6 +14,7 @@ import {
 } from 'lucide-react';
 import { mercadoLivreService, MarketplaceContaLoja } from '../../services/mercadoLivreService';
 import { useFeedbackModal } from '../../contexts/FeedbackContext';
+import { formatarDataHoraLocal } from '../../utils/dateTime';
 
 interface CardConexaoMercadoLivreProps {
   lojaId?: string;
@@ -295,7 +296,7 @@ export const CardConexaoMercadoLivre: React.FC<CardConexaoMercadoLivreProps> = (
               <div className="text-right">
                 <span className="text-sm leading-relaxed font-semibold text-black dark:text-slate-300 block">Última Sincronização</span>
                 <span className="text-sm leading-relaxed font-medium text-black dark:text-slate-300">
-                  {new Date(conta.ultima_sincronizacao_em).toLocaleString('pt-BR')}
+                  {formatarDataHoraLocal(conta.ultima_sincronizacao_em)}
                 </span>
               </div>
             )}

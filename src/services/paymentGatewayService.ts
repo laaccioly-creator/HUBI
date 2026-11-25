@@ -6,6 +6,7 @@
 import { Loja, PagamentosDigitaisConfig, PrazosTaxasMaquininha } from '../types';
 import { supabase } from '../lib/supabase';
 import { caixaService } from './caixaService';
+import { obterDataLocalYYYYMMDD } from '../utils/dateTime';
 
 export interface PixDinamicoResponse {
   sucesso: boolean;
@@ -426,7 +427,7 @@ class PaymentGatewayService {
 
     const dataPrev = new Date();
     dataPrev.setDate(dataPrev.getDate() + prazoDias);
-    const dataPrevisaoRecebimento = dataPrev.toISOString().split('T')[0];
+    const dataPrevisaoRecebimento = obterDataLocalYYYYMMDD(dataPrev);
 
     return {
       valorBruto: valor,

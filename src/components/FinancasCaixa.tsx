@@ -64,6 +64,7 @@ import { financeExportService } from '../services/financeExportService';
 import { FinancasMobile } from './FinancasMobile';
 import { useFeedbackModal } from '../contexts/FeedbackContext';
 import { obterDataOperacao, obterDataOperacaoISO, obterDataOperacaoYMD, formatarDataLocalYMD } from '../utils/dataOperacao';
+import { formatarDataLocal, formatarHoraLocal, formatarDataHoraLocal } from '../utils/dateTime';
 import { formatarMoeda } from '../utils/formatters';
 
 // Componente de Auditoria de Fechamento de Caixa com Jev TypeSafe
@@ -2008,7 +2009,7 @@ export const FinancasCaixa: React.FC = () => {
                             }`}
                           >
                             <span className="w-1.5 h-1.5 rounded-full bg-emerald-500"></span>
-                            <span>Turno Atual ({new Date(sessaoAtiva.aberto_em).toLocaleDateString('pt-BR')})</span>
+                            <span>Turno Atual ({formatarDataLocal(sessaoAtiva.aberto_em)})</span>
                           </button>
                         )}
                         <button
@@ -2143,7 +2144,7 @@ export const FinancasCaixa: React.FC = () => {
                                   </>
                                 )}
                                 <span>•</span>
-                                <span className="font-medium">{new Date(tr.data).toLocaleDateString('pt-BR')}</span>
+                                <span className="font-medium">{formatarDataLocal(tr.data)}</span>
                                 {tr.ehRecorrente && (
                                   <span className="text-emerald-600 dark:text-emerald-400 font-bold flex items-center gap-1">
                                     <Repeat className="w-3.5 h-3.5" /> Mensal
@@ -2231,7 +2232,7 @@ export const FinancasCaixa: React.FC = () => {
                               Atenção: Sessão de Caixa aberta há mais de 24 horas ({resumoSessao.duracaoTexto})!
                             </strong>
                             <span className={isDark ? 'text-amber-200/90' : 'text-[#92400E]'}>
-                              Este caixa foi aberto em {new Date(sessaoAtiva.aberto_em).toLocaleString('pt-BR')} e continua acumulando movimentações.
+                              Este caixa foi aberto em {formatarDataHoraLocal(sessaoAtiva.aberto_em)} e continua acumulando movimentações.
                               Para evitar discrepâncias entre turnos, recomenda-se realizar o Fechamento Cego e abrir uma nova sessão.
                             </span>
                           </div>
@@ -2259,7 +2260,7 @@ export const FinancasCaixa: React.FC = () => {
                             <div className={`flex items-center gap-3 text-sm mt-1 ${isDark ? 'text-slate-300' : 'text-black'}`}>
                               <span className="flex items-center gap-1.5 font-medium">
                                 <Clock className="w-4 h-4 text-emerald-500" />
-                                Aberto às {new Date(sessaoAtiva.aberto_em).toLocaleTimeString('pt-BR')} ({new Date(sessaoAtiva.aberto_em).toLocaleDateString('pt-BR')})
+                                Aberto às {formatarHoraLocal(sessaoAtiva.aberto_em)} ({formatarDataLocal(sessaoAtiva.aberto_em)})
                               </span>
                               <span>•</span>
                               <span className={`font-bold ${isDark ? 'text-white' : 'text-black'}`}>
@@ -2495,7 +2496,7 @@ export const FinancasCaixa: React.FC = () => {
                                         <div className={`flex items-center gap-2 text-sm mt-0.5 ${isDark ? 'text-slate-300' : 'text-black'}`}>
                                           <span className="uppercase font-bold">{m.metodo_pagamento}</span>
                                           <span>•</span>
-                                          <span>{new Date(m.criado_em).toLocaleTimeString('pt-BR')}</span>
+                                          <span>{formatarHoraLocal(m.criado_em)}</span>
                                           {m.usuario?.nome_completo && (
                                             <>
                                               <span>•</span>
@@ -2719,10 +2720,10 @@ export const FinancasCaixa: React.FC = () => {
                             </div>
 
                             <p className={`text-sm leading-relaxed ${isDark ? 'text-slate-300' : 'text-black'}`}>
-                              Aberto em: <span className={`font-bold ${isDark ? 'text-white' : 'text-black'}`}>{new Date(cx.aberto_em).toLocaleString('pt-BR')}</span> por {cx.usuario_abertura?.nome_completo || 'Operador'}
+                              Aberto em: <span className={`font-bold ${isDark ? 'text-white' : 'text-black'}`}>{formatarDataHoraLocal(cx.aberto_em)}</span> por {cx.usuario_abertura?.nome_completo || 'Operador'}
                               {cx.fechado_em && (
                                 <>
-                                  {' '}• Fechado em: <span className={`font-bold ${isDark ? 'text-white' : 'text-black'}`}>{new Date(cx.fechado_em).toLocaleString('pt-BR')}</span>
+                                  {' '}• Fechado em: <span className={`font-bold ${isDark ? 'text-white' : 'text-black'}`}>{formatarDataHoraLocal(cx.fechado_em)}</span>
                                 </>
                               )}
                             </p>
@@ -3945,12 +3946,12 @@ export const FinancasCaixa: React.FC = () => {
                   }`}>
                     <div>
                       <span className={`text-[10px] block font-bold ${isDark ? 'text-slate-300' : 'text-slate-900'}`}>Abertura</span>
-                      <span className={`font-black ${isDark ? 'text-white' : 'text-black'}`}>{new Date(sessaoDrillDown.aberto_em).toLocaleString('pt-BR')}</span>
+                      <span className={`font-black ${isDark ? 'text-white' : 'text-black'}`}>{formatarDataHoraLocal(sessaoDrillDown.aberto_em)}</span>
                     </div>
                     <div>
                       <span className={`text-[10px] block font-bold ${isDark ? 'text-slate-300' : 'text-slate-900'}`}>Fechamento</span>
                       <span className={`font-black ${isDark ? 'text-white' : 'text-black'}`}>
-                        {sessaoDrillDown.fechado_em ? new Date(sessaoDrillDown.fechado_em).toLocaleString('pt-BR') : 'Em Aberto'}
+                        {sessaoDrillDown.fechado_em ? formatarDataHoraLocal(sessaoDrillDown.fechado_em) : 'Em Aberto'}
                       </span>
                     </div>
                     <div>
@@ -4030,7 +4031,7 @@ export const FinancasCaixa: React.FC = () => {
                                 <span>•</span>
                                 <span>{m.metodo_pagamento}</span>
                                 <span>•</span>
-                                <span>{new Date(m.criado_em).toLocaleTimeString('pt-BR')}</span>
+                                <span>{formatarHoraLocal(m.criado_em)}</span>
                               </div>
                             </div>
                             <span className={`font-black ${
@@ -4310,7 +4311,7 @@ export const FinancasCaixa: React.FC = () => {
                           <div className={`flex items-center gap-2 text-[10px] mt-1 ${isDark ? 'text-slate-300' : 'text-slate-900'}`}>
                             <span>Terminal: {item.terminal}</span>
                             <span>•</span>
-                            <span>{new Date(item.data).toLocaleString('pt-BR')}</span>
+                            <span>{formatarDataHoraLocal(item.data)}</span>
                             <span>•</span>
                             <span>Resp: {item.operador}</span>
                           </div>
@@ -4432,7 +4433,7 @@ export const FinancasCaixa: React.FC = () => {
                                 {t.descricao}
                               </span>
                               <span className={`text-sm leading-relaxed font-medium ${isDark ? 'text-slate-300' : 'text-black'}`}>
-                                {t.categoria} • {new Date(t.data).toLocaleDateString('pt-BR')}
+                                {t.categoria} • {formatarDataLocal(t.data)}
                               </span>
                             </div>
                             <span className="font-black text-emerald-600 dark:text-emerald-400 text-base shrink-0">
@@ -4503,7 +4504,7 @@ export const FinancasCaixa: React.FC = () => {
                                   {descLimpa}
                                 </span>
                                 <span className={`text-sm leading-relaxed block mt-1 font-medium ${isDark ? 'text-slate-300' : 'text-black'}`}>
-                                  {t.categoria} • {new Date(t.data).toLocaleDateString('pt-BR')}
+                                  {t.categoria} • {formatarDataLocal(t.data)}
                                 </span>
                               </div>
                               <div className="flex items-center gap-2 shrink-0">
@@ -4605,7 +4606,7 @@ export const FinancasCaixa: React.FC = () => {
                                 {t.descricao}
                               </span>
                               <span className={`text-sm leading-relaxed font-medium ${isDark ? 'text-slate-300' : 'text-black'}`}>
-                                Vencimento: {new Date(t.data).toLocaleDateString('pt-BR')} • {t.categoria}
+                                Vencimento: {formatarDataLocal(t.data)} • {t.categoria}
                               </span>
                             </div>
                             <div className="flex items-center gap-2 shrink-0">

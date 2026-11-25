@@ -35,6 +35,7 @@ import { useAuth } from '../../contexts/AuthContext';
 import { useTheme } from '../../contexts/ThemeContext';
 import { useFeedbackModal } from '../../contexts/FeedbackContext';
 import { usePermissions } from '../../hooks/usePermissions';
+import { formatarDataHoraLocal } from '../../utils/dateTime';
 
 interface CardParametrosHubiAdminProps {
   emailLogado: string;
@@ -352,7 +353,7 @@ export const CardParametrosHubiAdmin: React.FC<CardParametrosHubiAdminProps> = (
 
         {ultimaAtualizacao && (
           <span className="text-xs font-medium text-black dark:text-slate-300 self-start sm:self-auto font-mono">
-            Última alteração: {new Date(ultimaAtualizacao).toLocaleString('pt-BR')}
+            Última alteração: {formatarDataHoraLocal(ultimaAtualizacao)}
           </span>
         )}
       </div>
