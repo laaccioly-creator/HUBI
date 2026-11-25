@@ -17,7 +17,8 @@ import {
   ChevronDown,
   Trash2,
   Gift,
-  Truck
+  Truck,
+  Menu
 } from 'lucide-react';
 import { supabase } from '../lib/supabase';
 import { Loja, Produto, VariacaoProduto, Categoria, FormaEntrega, ModoExibicaoCatalogo, Cupom, Cliente, PedidoEntrega, Pedido } from '../types';
@@ -117,6 +118,8 @@ export const CatalogoPublico: React.FC = () => {
     return [];
   });
   const [drawerCarrinhoAberto, setDrawerCarrinhoAberto] = useState<boolean>(false);
+  const [drawerMenuMobileAberto, setDrawerMenuMobileAberto] = useState<boolean>(false);
+  const [modalDadosLojaAberto, setModalDadosLojaAberto] = useState<boolean>(false);
   const [produtoModalVariacao, setProdutoModalVariacao] = useState<Produto | null>(null);
 
   // Controle do modal de detalhes do produto e assistente Rubi IA
@@ -141,16 +144,16 @@ export const CatalogoPublico: React.FC = () => {
     }
   }, [carrinho, slug]);
 
-  // Scroll locking: Impede rolagem do catálogo ao fundo quando o Drawer do Carrinho estiver aberto
+  // Scroll locking: Impede rolagem do catálogo ao fundo quando o Drawer do Carrinho, Menu ou Modal Dados da Loja estiver aberto
   useEffect(() => {
-    if (drawerCarrinhoAberto) {
+    if (drawerCarrinhoAberto || drawerMenuMobileAberto || modalDadosLojaAberto) {
       const originalOverflow = document.body.style.overflow;
       document.body.style.overflow = 'hidden';
       return () => {
         document.body.style.overflow = originalOverflow;
       };
     }
-  }, [drawerCarrinhoAberto]);
+  }, [drawerCarrinhoAberto, drawerMenuMobileAberto, modalDadosLojaAberto]);
 
   // Referência para medir altura dinâmica do cabeçalho
   const headerRef = React.useRef<HTMLElement>(null);
@@ -332,6 +335,7 @@ export const CatalogoPublico: React.FC = () => {
   const [saldoContaClienteReconciliado, setSaldoContaClienteReconciliado] = useState<number>(0);
   const [menuUsuarioAberto, setMenuUsuarioAberto] = useState<boolean>(false);
   const menuUsuarioRef = useRef<HTMLDivElement>(null);
+  const menuUsuarioMobileRef = useRef<HTMLDivElement>(null);
   const pedidosProcessadosRef = useRef<Set<string>>(new Set());
 
   const atualizarDadosContaCliente = async () => {
@@ -374,15 +378,21 @@ export const CatalogoPublico: React.FC = () => {
   }, [loja?.id, clienteSelecionado?.id]);
 
   useEffect(() => {
-    if (!menuUsuarioAberto) return;
+    if (!menuUsuarioAberto && !drawerMenuMobileAberto && !modalDadosLojaAberto) return;
     const handleClickOutside = (event: MouseEvent) => {
-      if (menuUsuarioRef.current && !menuUsuarioRef.current.contains(event.target as Node)) {
+      if (!menuUsuarioAberto) return;
+      const target = event.target as Node;
+      const clicouDesktop = Boolean(menuUsuarioRef.current?.contains(target));
+      const clicouMobile = Boolean(menuUsuarioMobileRef.current?.contains(target));
+      if (!clicouDesktop && !clicouMobile) {
         setMenuUsuarioAberto(false);
       }
     };
     const handleKeyDown = (event: KeyboardEvent) => {
       if (event.key === 'Escape') {
         setMenuUsuarioAberto(false);
+        setDrawerMenuMobileAberto(false);
+        setModalDadosLojaAberto(false);
       }
     };
     document.addEventListener('mousedown', handleClickOutside);
@@ -391,7 +401,7 @@ export const CatalogoPublico: React.FC = () => {
       document.removeEventListener('mousedown', handleClickOutside);
       document.removeEventListener('keydown', handleKeyDown);
     };
-  }, [menuUsuarioAberto]);
+  }, [menuUsuarioAberto, drawerMenuMobileAberto, modalDadosLojaAberto]);
 
   // Listener para sincronização e fechamento do modal de pedidos quando navegado a partir do tracking
   useEffect(() => {
@@ -617,6 +627,8 @@ export const CatalogoPublico: React.FC = () => {
 
     // Fechar todos os modais secundários e menu de conta
     setMenuUsuarioAberto(false);
+    setDrawerMenuMobileAberto(false);
+    setModalDadosLojaAberto(false);
     setModalContatoAberto(false);
     setModalEnderecoAberto(false);
     setModalPedidosAberto(false);
@@ -2770,273 +2782,434 @@ Fico no aguardo da confirmação! ✨`;
 
   // Navegação livre na vitrine: clientes e visitantes podem ver os produtos,
   // abrindo o modal de onboarding sob demanda quando necessário.
+  const saldoContaClienteExibicao = Math.max(
+    saldoContaClienteReconciliado,
+    Number(clienteSelecionado?.saldo_devedor_caderneta || 0),
+    Number(clienteSelecionado?.saldo_devedor_fiado || 0)
+  );
+  const exibirCadernetaCliente = Boolean(
+    clienteSelecionado &&
+    (
+      saldoContaClienteExibicao > 0 ||
+      (loja?.caderneta_ativa && clienteSelecionado.permite_caderneta) ||
+      (!loja?.caderneta_ativa && clienteSelecionado.permite_fiado)
+    )
+  );
+
+  const voltarInicioCatalogo = () => {
+    setCategoriaSelecionada('todas');
+    setBusca('');
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+  };
+
+  const abrirPedidosCliente = () => {
+    if (!clienteSelecionado?.id) {
+      setModalOnboardingMotivo('pedidos');
+      setModalOnboardingAberto(true);
+    } else {
+      setModalPedidosAberto(true);
+    }
+  };
+
+  const abrirFavoritosCliente = () => {
+    if (!clienteSelecionado?.id) {
+      setModalOnboardingMotivo('favoritos');
+      setModalOnboardingAberto(true);
+    } else {
+      setModalFavoritosAberto(true);
+    }
+  };
+
+  const abrirNotificacoesCliente = () => {
+    if (!clienteSelecionado?.id) {
+      setModalOnboardingMotivo('geral');
+      setModalOnboardingAberto(true);
+    } else {
+      setModalNotificacoesAberto(true);
+    }
+  };
+
+  const renderDropdownUsuario = () => {
+    if (!clienteSelecionado || !menuUsuarioAberto) return null;
+    return (
+      <div className="absolute right-0 mt-2 w-48 rounded-2xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 shadow-2xl py-2 z-50 animate-in fade-in zoom-in-95">
+        <div className="px-3.5 py-2 border-b border-slate-100 dark:border-slate-800">
+          <p className="text-xs font-bold text-slate-900 dark:text-slate-100 truncate">{clienteSelecionado.nome}</p>
+          <p className="text-[11px] text-slate-500 dark:text-slate-400 truncate">{clienteSelecionado.telefone || clienteSelecionado.whatsapp}</p>
+        </div>
+        <button
+          type="button"
+          onClick={() => {
+            setMenuUsuarioAberto(false);
+            setModalMeusDadosAberto(true);
+          }}
+          className="w-full px-3.5 py-2 text-left text-xs text-slate-700 dark:text-slate-300 hover:text-slate-950 dark:hover:text-white hover:bg-slate-100 dark:hover:bg-slate-800 flex items-center gap-2 cursor-pointer font-semibold"
+        >
+          <User className="w-3.5 h-3.5 text-emerald-500" />
+          <span>Meus Dados</span>
+        </button>
+        <button
+          type="button"
+          onClick={() => {
+            setMenuUsuarioAberto(false);
+            setModalCadernetaAberto(true);
+          }}
+          className="w-full px-3.5 py-2 text-left text-xs text-slate-700 dark:text-slate-300 hover:text-slate-950 dark:hover:text-white hover:bg-slate-100 dark:hover:bg-slate-800 flex items-center gap-2 cursor-pointer font-semibold"
+        >
+          <FileText className="w-3.5 h-3.5 text-amber-500" />
+          <span>Minha Conta</span>
+        </button>
+        <button
+          type="button"
+          onClick={() => {
+            setMenuUsuarioAberto(false);
+            setModalPedidosAberto(true);
+          }}
+          className="w-full px-3.5 py-2 text-left text-xs text-slate-700 dark:text-slate-300 hover:text-slate-950 dark:hover:text-white hover:bg-slate-100 dark:hover:bg-slate-800 flex items-center gap-2 cursor-pointer"
+        >
+          <Package className="w-3.5 h-3.5 text-sky-500" />
+          <span>Meus Pedidos</span>
+        </button>
+        <button
+          type="button"
+          onClick={() => {
+            setMenuUsuarioAberto(false);
+            setModalFavoritosAberto(true);
+          }}
+          className="w-full px-3.5 py-2 text-left text-xs text-slate-700 dark:text-slate-300 hover:text-slate-950 dark:hover:text-white hover:bg-slate-100 dark:hover:bg-slate-800 flex items-center gap-2 cursor-pointer"
+        >
+          <Star className="w-3.5 h-3.5 text-amber-500" />
+          <span>Favoritos</span>
+        </button>
+        <button
+          type="button"
+          onClick={() => {
+            setMenuUsuarioAberto(false);
+            handleLogoutCliente();
+          }}
+          className="w-full px-3.5 py-2 text-left text-xs text-rose-600 dark:text-rose-400 hover:bg-rose-500/10 flex items-center gap-2 cursor-pointer border-t border-slate-100 dark:border-slate-800 mt-1 font-semibold"
+        >
+          <LogOut className="w-3.5 h-3.5" />
+          <span>Sair da Conta</span>
+        </button>
+      </div>
+    );
+  };
 
   return (
     <div className="min-h-screen bg-slate-100 dark:bg-slate-950 text-slate-900 dark:text-slate-100 flex flex-col selection:bg-emerald-500 selection:text-white transition-colors duration-200">
-      {/* HEADER PRINCIPAL DO CATÁLOGO COM COR DO TEMA */}
+      {/* HEADER PRINCIPAL DO CATÁLOGO COM SAFE AREA MOBILE E COR DO TEMA */}
       <header
         ref={headerRef}
-        className="sticky top-0 z-30 bg-white/95 dark:bg-slate-900/95 backdrop-blur-md border-b border-slate-200 dark:border-slate-800 px-3 sm:px-4 py-2.5 sm:py-3 flex items-center justify-between gap-2 sm:gap-4 shadow-xs"
+        className="sticky top-0 z-30 bg-white/95 dark:bg-slate-900/95 backdrop-blur-md border-b border-slate-200 dark:border-slate-800 px-2.5 sm:px-4 pt-[max(14px,env(safe-area-inset-top))] pb-2.5 md:py-3 shadow-xs"
       >
-        {/* Identidade da Loja e Mensagem Institucional (Esquerda) */}
-        <div className="flex items-center gap-2.5 sm:gap-3 min-w-0 max-w-[48%] md:max-w-[50%] lg:max-w-[45%]">
-          {loja?.url_logo ? (
-            <img src={loja.url_logo} alt={loja.nome_fantasia} className="w-8 h-8 sm:w-10 sm:h-10 rounded-full object-contain bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-white shrink-0 shadow-xs" />
-          ) : (
-            <div
-              className={`w-8 h-8 sm:w-10 sm:h-10 rounded-full flex items-center justify-center font-bold text-white shadow text-xs sm:text-base shrink-0 ${
-                isDark ? 'bg-slate-800 border border-slate-700' : 'bg-emerald-600 border border-emerald-500'
-              }`}
+        {/* VERSÃO MOBILE: ÍCONES NAS EXTREMIDADES + HAMBÚRGUER + CENTRO PROTEGIDO (CÂMERA PUNCH-HOLE) */}
+        <div className="flex md:hidden w-full items-center justify-between gap-1.5">
+          {/* Grupo Esquerdo: Logo Loja + Hambúrguer + Pedidos + Favoritos + Caderneta */}
+          <div className="flex items-center gap-1 min-[390px]:gap-1.5 shrink-0">
+            <button
+              type="button"
+              onClick={voltarInicioCatalogo}
+              className="shrink-0 rounded-full cursor-pointer"
+              title={loja?.nome_fantasia || 'Catálogo Online'}
+              aria-label="Início do catálogo"
             >
-              {loja?.nome_fantasia ? loja.nome_fantasia.slice(0, 2).toUpperCase() : 'HB'}
-            </div>
-          )}
-          <div className="min-w-0">
-            <div className="flex items-center gap-1.5 flex-wrap">
-              <h1 className="font-extrabold text-xs sm:text-sm text-slate-900 dark:text-white leading-tight truncate">
-                {loja?.nome_fantasia || 'Catálogo Online'}
-              </h1>
-              <span className="text-[10px] sm:text-[11px] font-semibold flex items-center gap-1 truncate text-emerald-600 dark:text-emerald-400">
-                <span className="w-1.5 h-1.5 rounded-full animate-pulse shrink-0 bg-emerald-500"></span>
-                {aceitaPedidos ? 'Aberto' : 'Mostruário'}
-              </span>
-            </div>
-            <p className="text-[10px] sm:text-[11px] text-slate-600 dark:text-slate-300 font-medium leading-tight truncate hidden md:block mt-0.5">
-              Bem-vindo ao catálogo da <strong className="font-bold text-slate-950 dark:text-white">{loja?.nome_fantasia || 'Hotamazon'}</strong>. Faça seus pedidos online aqui.
-            </p>
+              {loja?.url_logo ? (
+                <img
+                  src={loja.url_logo}
+                  alt={loja.nome_fantasia}
+                  className="w-8 h-8 rounded-full object-contain bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 shadow-xs"
+                />
+              ) : (
+                <div
+                  className={`w-8 h-8 rounded-full flex items-center justify-center font-bold text-white shadow text-xs ${
+                    isDark ? 'bg-slate-800 border border-slate-700' : 'bg-emerald-600 border border-emerald-500'
+                  }`}
+                >
+                  {loja?.nome_fantasia ? loja.nome_fantasia.slice(0, 2).toUpperCase() : 'HB'}
+                </div>
+              )}
+            </button>
+
+            <button
+              type="button"
+              onClick={() => setDrawerMenuMobileAberto(true)}
+              className="p-1.5 min-[390px]:p-2 rounded-xl bg-slate-100 hover:bg-slate-200 border border-slate-300/80 text-slate-900 dark:bg-slate-800/90 dark:hover:bg-slate-800 dark:text-white dark:border-2 dark:border-emerald-400 font-bold transition flex items-center justify-center cursor-pointer shadow-xs shrink-0"
+              title="Abrir menu do catálogo"
+              aria-label="Abrir menu"
+            >
+              <Menu className="w-4 h-4 text-emerald-600 dark:text-emerald-400" />
+            </button>
+
+            <button
+              type="button"
+              onClick={abrirPedidosCliente}
+              className="p-1.5 min-[390px]:p-2 rounded-xl bg-slate-100 hover:bg-slate-200 border border-slate-300/80 text-slate-900 dark:bg-slate-800/80 dark:hover:bg-slate-700/80 dark:text-slate-100 dark:border-2 dark:border-slate-400 font-semibold transition flex items-center justify-center cursor-pointer shadow-xs shrink-0"
+              title="Meus Pedidos & Rastreamento"
+              aria-label="Meus Pedidos"
+            >
+              <Package className="w-4 h-4 text-sky-500" />
+            </button>
+
+            <button
+              type="button"
+              onClick={abrirFavoritosCliente}
+              className="relative p-1.5 min-[390px]:p-2 rounded-xl bg-slate-100 hover:bg-slate-200 border border-slate-300/80 text-slate-900 dark:bg-slate-800/80 dark:hover:bg-slate-700/80 dark:text-slate-100 dark:border-2 dark:border-slate-400 font-semibold transition flex items-center justify-center cursor-pointer shadow-xs shrink-0"
+              title="Produtos Favoritos"
+              aria-label="Favoritos"
+            >
+              <Star className={`w-4 h-4 ${favoritosIds.size > 0 ? 'text-amber-500 fill-amber-500' : 'text-slate-500 dark:text-slate-300'}`} />
+              {favoritosIds.size > 0 && (
+                <span className="absolute -top-1 -right-1 bg-amber-500 text-slate-950 text-[9px] font-black min-w-[16px] h-4 px-1 rounded-full flex items-center justify-center leading-none border border-white dark:border-slate-900">
+                  {favoritosIds.size}
+                </span>
+              )}
+            </button>
+
+            {exibirCadernetaCliente && (
+              <button
+                type="button"
+                onClick={() => setModalCadernetaAberto(true)}
+                className="p-1.5 min-[390px]:p-2 rounded-xl bg-slate-100 hover:bg-slate-200 border border-slate-300/80 text-slate-900 dark:bg-slate-800/80 dark:hover:bg-slate-700/80 dark:text-slate-100 dark:border-2 dark:border-slate-400 font-semibold transition flex items-center justify-center cursor-pointer shadow-xs shrink-0"
+                title="Minha Caderneta — Extrato e Liquidação"
+                aria-label="Minha Caderneta"
+              >
+                <FileText className="w-4 h-4 text-emerald-600 dark:text-emerald-400" />
+              </button>
+            )}
+          </div>
+
+          {/* Espaço Central Vazio (Proteção contra câmera frontal / punch-hole) */}
+          <div className="flex-1 min-w-[44px]" aria-hidden="true" />
+
+          {/* Grupo Direito: Notificações + Tema + Pill de Perfil / Entrar */}
+          <div className="flex items-center gap-1 min-[390px]:gap-1.5 shrink-0">
+            <button
+              type="button"
+              onClick={abrirNotificacoesCliente}
+              className="relative p-1.5 min-[390px]:p-2 rounded-xl bg-slate-100 hover:bg-slate-200 border border-slate-300/80 text-slate-900 dark:bg-slate-800/80 dark:hover:bg-slate-700/80 dark:text-slate-100 dark:border-2 dark:border-slate-400 font-semibold transition flex items-center justify-center cursor-pointer shadow-xs shrink-0"
+              title="Notificações e Avisos"
+              aria-label="Notificações"
+            >
+              <Bell className="w-4 h-4 text-slate-700 dark:text-slate-200" />
+              {contagemNotificacoesNaoLidas > 0 && (
+                <span className="absolute -top-1 -right-1 w-2.5 h-2.5 rounded-full bg-rose-500 animate-pulse border-2 border-white dark:border-slate-900"></span>
+              )}
+            </button>
+
+            <button
+              type="button"
+              onClick={alternarTema}
+              className="p-1.5 min-[390px]:p-2 rounded-xl bg-slate-100 hover:bg-slate-200 border border-slate-300/80 text-slate-900 dark:bg-slate-800/80 dark:hover:bg-slate-700/80 dark:text-slate-100 dark:border-2 dark:border-slate-400 font-semibold transition flex items-center justify-center cursor-pointer shadow-xs shrink-0"
+              title={isDark ? 'Alternar para Tema Claro' : 'Alternar para Tema Escuro'}
+              aria-label="Alternar tema"
+            >
+              {isDark ? (
+                <Sun className="w-4 h-4 text-amber-400" />
+              ) : (
+                <Moon className="w-4 h-4 text-indigo-600" />
+              )}
+            </button>
+
+            {clienteSelecionado ? (
+              <div ref={menuUsuarioMobileRef} className="relative">
+                <button
+                  type="button"
+                  onClick={() => setMenuUsuarioAberto(!menuUsuarioAberto)}
+                  className="px-2 py-1.5 rounded-xl bg-slate-100 hover:bg-slate-200 border border-slate-300 text-slate-900 dark:bg-slate-800/90 dark:hover:bg-slate-750 dark:border-slate-700 dark:text-slate-100 font-semibold text-xs flex items-center gap-1.5 transition cursor-pointer shadow-xs"
+                  title="Minha Conta"
+                >
+                  <div className="w-5 h-5 rounded-full bg-slate-800 border border-slate-700 text-white flex items-center justify-center text-[10px] font-bold shrink-0">
+                    {clienteSelecionado.nome.charAt(0).toUpperCase()}
+                  </div>
+                  <span className="inline max-w-[64px] min-[390px]:max-w-[78px] truncate text-slate-900 dark:text-slate-100 font-semibold">
+                    Olá, {clienteSelecionado.nome.split(' ')[0]}
+                  </span>
+                </button>
+                {renderDropdownUsuario()}
+              </div>
+            ) : (
+              <button
+                type="button"
+                onClick={() => {
+                  setModalOnboardingMotivo('geral');
+                  setModalOnboardingAberto(true);
+                }}
+                className="px-2.5 py-1.5 rounded-xl bg-slate-100 hover:bg-slate-200 border border-slate-300/80 text-slate-900 dark:bg-slate-800/80 dark:hover:bg-slate-700/80 dark:text-slate-100 dark:border-2 dark:border-slate-400 font-bold text-xs flex items-center gap-1 transition cursor-pointer shadow-xs shrink-0"
+                title="Entrar ou Cadastrar"
+              >
+                <User className="w-3.5 h-3.5 text-emerald-500" />
+                <span>Entrar</span>
+              </button>
+            )}
           </div>
         </div>
 
-        {/* Cluster de Ações da Área do Cliente (Canto Superior Direito) */}
-        <div className="flex items-center gap-1.5 sm:gap-2 shrink-0">
-          {/* 1. Compras / Vitrine */}
-          <button
-            type="button"
-            onClick={() => {
-              setCategoriaSelecionada('todas');
-              setBusca('');
-              window.scrollTo({ top: 0, behavior: 'smooth' });
-            }}
-            className="p-2 sm:px-2.5 sm:py-2 rounded-xl bg-slate-100 hover:bg-slate-200 border border-slate-300/80 text-slate-900 dark:bg-slate-800/90 dark:hover:bg-slate-800 dark:text-white dark:border-2 dark:border-emerald-400 font-bold transition flex items-center gap-1.5 cursor-pointer text-xs shadow-xs"
-            title="Início do catálogo de produtos"
-          >
-            <Store className="w-4 h-4 text-emerald-500" />
-            <span className="hidden xl:inline">Vitrine</span>
-          </button>
-
-          {/* 2. Pedidos */}
-          <button
-            type="button"
-            onClick={() => {
-              if (!clienteSelecionado?.id) {
-                setModalOnboardingMotivo('pedidos');
-                setModalOnboardingAberto(true);
-              } else {
-                setModalPedidosAberto(true);
-              }
-            }}
-            className="p-2 sm:px-2.5 sm:py-2 rounded-xl bg-slate-100 hover:bg-slate-200 border border-slate-300/80 text-slate-900 dark:bg-slate-800/80 dark:hover:bg-slate-700/80 dark:text-slate-100 dark:border-2 dark:border-slate-400 font-semibold transition flex items-center gap-1.5 cursor-pointer text-xs shadow-xs"
-            title="Meus Pedidos & Rastreamento"
-          >
-            <Package className="w-4 h-4 text-sky-500" />
-            <span className="hidden lg:inline">Pedidos</span>
-          </button>
-
-          {/* 3. Favoritos */}
-          <button
-            type="button"
-            onClick={() => {
-              if (!clienteSelecionado?.id) {
-                setModalOnboardingMotivo('favoritos');
-                setModalOnboardingAberto(true);
-              } else {
-                setModalFavoritosAberto(true);
-              }
-            }}
-            className="relative p-2 sm:px-2.5 sm:py-2 rounded-xl bg-slate-100 hover:bg-slate-200 border border-slate-300/80 text-slate-900 dark:bg-slate-800/80 dark:hover:bg-slate-700/80 dark:text-slate-100 dark:border-2 dark:border-slate-400 font-semibold transition flex items-center gap-1.5 cursor-pointer text-xs shadow-xs"
-            title="Produtos Favoritos"
-          >
-            <Star className={`w-4 h-4 ${favoritosIds.size > 0 ? 'text-amber-500 fill-amber-500' : 'text-slate-500 dark:text-slate-300'}`} />
-            <span className="hidden lg:inline">Favoritos</span>
-            {favoritosIds.size > 0 && (
-              <span className="bg-amber-500 text-slate-950 text-[10px] font-black px-1.5 py-0.2 rounded-full leading-none">
-                {favoritosIds.size}
-              </span>
+        {/* VERSÃO DESKTOP: CABEÇALHO ORIGINAL PRESERVADO INTEGRALMENTE */}
+        <div className="hidden md:flex w-full items-center justify-between gap-4">
+          {/* Identidade da Loja e Mensagem Institucional (Esquerda) */}
+          <div className="flex items-center gap-3 min-w-0 max-w-[50%] lg:max-w-[45%]">
+            {loja?.url_logo ? (
+              <img src={loja.url_logo} alt={loja.nome_fantasia} className="w-10 h-10 rounded-full object-contain bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-white shrink-0 shadow-xs" />
+            ) : (
+              <div
+                className={`w-10 h-10 rounded-full flex items-center justify-center font-bold text-white shadow text-base shrink-0 ${
+                  isDark ? 'bg-slate-800 border border-slate-700' : 'bg-emerald-600 border border-emerald-500'
+                }`}
+              >
+                {loja?.nome_fantasia ? loja.nome_fantasia.slice(0, 2).toUpperCase() : 'HB'}
+              </div>
             )}
-          </button>
+            <div className="min-w-0">
+              <div className="flex items-center gap-1.5 flex-wrap">
+                <h1 className="font-extrabold text-sm text-slate-900 dark:text-white leading-tight truncate">
+                  {loja?.nome_fantasia || 'Catálogo Online'}
+                </h1>
+                <span className="text-[11px] font-semibold flex items-center gap-1 truncate text-emerald-600 dark:text-emerald-400">
+                  <span className="w-1.5 h-1.5 rounded-full animate-pulse shrink-0 bg-emerald-500"></span>
+                  {aceitaPedidos ? 'Aberto' : 'Mostruário'}
+                </span>
+              </div>
+              <p className="text-[11px] text-slate-600 dark:text-slate-300 font-medium leading-tight truncate mt-0.5">
+                Bem-vindo ao catálogo da <strong className="font-bold text-slate-950 dark:text-white">{loja?.nome_fantasia || 'Hotamazon'}</strong>. Faça seus pedidos online aqui.
+              </p>
+            </div>
+          </div>
 
-          {/* 3.1 Botão Minha Conta (Padronizado com Vitrine / Pedidos / Favoritos) */}
-          {Boolean(
-            clienteSelecionado &&
-            (
-              saldoContaClienteReconciliado > 0 ||
-              Number(clienteSelecionado.saldo_devedor_caderneta || 0) > 0 ||
-              Number(clienteSelecionado.saldo_devedor_fiado || 0) > 0 ||
-              (loja?.caderneta_ativa && clienteSelecionado.permite_caderneta) ||
-              (!loja?.caderneta_ativa && clienteSelecionado.permite_fiado)
-            )
-          ) && (
+          {/* Cluster de Ações da Área do Cliente (Canto Superior Direito) */}
+          <div className="flex items-center gap-2 shrink-0">
+            {/* 1. Compras / Vitrine */}
             <button
               type="button"
-              onClick={() => setModalCadernetaAberto(true)}
-              className="relative p-2 sm:px-2.5 sm:py-2 rounded-xl bg-slate-100 hover:bg-slate-200 border border-slate-300/80 text-slate-900 dark:bg-slate-800/80 dark:hover:bg-slate-700/80 dark:text-slate-100 dark:border-2 dark:border-slate-400 font-semibold transition flex items-center gap-1.5 cursor-pointer text-xs shadow-xs shrink-0"
-              title="Minha Conta — Extrato e Liquidação"
+              onClick={voltarInicioCatalogo}
+              className="px-2.5 py-2 rounded-xl bg-slate-100 hover:bg-slate-200 border border-slate-300/80 text-slate-900 dark:bg-slate-800/90 dark:hover:bg-slate-800 dark:text-white dark:border-2 dark:border-emerald-400 font-bold transition flex items-center gap-1.5 cursor-pointer text-xs shadow-xs"
+              title="Início do catálogo de produtos"
             >
-              <FileText className="w-4 h-4 text-emerald-600 dark:text-emerald-400" />
-              <span className="hidden lg:inline">Minha Conta</span>
-              {(saldoContaClienteReconciliado > 0 || Number(clienteSelecionado?.saldo_devedor_caderneta || 0) > 0 || Number(clienteSelecionado?.saldo_devedor_fiado || 0) > 0) && (
-                <span className="hidden sm:inline font-bold text-slate-700 dark:text-slate-300 ml-0.5">
-                  {formatarMoeda(Math.max(saldoContaClienteReconciliado, Number(clienteSelecionado?.saldo_devedor_caderneta || 0), Number(clienteSelecionado?.saldo_devedor_fiado || 0)))}
+              <Store className="w-4 h-4 text-emerald-500" />
+              <span className="hidden xl:inline">Vitrine</span>
+            </button>
+
+            {/* 2. Pedidos */}
+            <button
+              type="button"
+              onClick={abrirPedidosCliente}
+              className="px-2.5 py-2 rounded-xl bg-slate-100 hover:bg-slate-200 border border-slate-300/80 text-slate-900 dark:bg-slate-800/80 dark:hover:bg-slate-700/80 dark:text-slate-100 dark:border-2 dark:border-slate-400 font-semibold transition flex items-center gap-1.5 cursor-pointer text-xs shadow-xs"
+              title="Meus Pedidos & Rastreamento"
+            >
+              <Package className="w-4 h-4 text-sky-500" />
+              <span className="hidden lg:inline">Pedidos</span>
+            </button>
+
+            {/* 3. Favoritos */}
+            <button
+              type="button"
+              onClick={abrirFavoritosCliente}
+              className="relative px-2.5 py-2 rounded-xl bg-slate-100 hover:bg-slate-200 border border-slate-300/80 text-slate-900 dark:bg-slate-800/80 dark:hover:bg-slate-700/80 dark:text-slate-100 dark:border-2 dark:border-slate-400 font-semibold transition flex items-center gap-1.5 cursor-pointer text-xs shadow-xs"
+              title="Produtos Favoritos"
+            >
+              <Star className={`w-4 h-4 ${favoritosIds.size > 0 ? 'text-amber-500 fill-amber-500' : 'text-slate-500 dark:text-slate-300'}`} />
+              <span className="hidden lg:inline">Favoritos</span>
+              {favoritosIds.size > 0 && (
+                <span className="bg-amber-500 text-slate-950 text-[10px] font-black px-1.5 py-0.2 rounded-full leading-none">
+                  {favoritosIds.size}
                 </span>
               )}
             </button>
-          )}
 
-          {/* 4. Notificações */}
-          <button
-            type="button"
-            onClick={() => {
-              if (!clienteSelecionado?.id) {
-                setModalOnboardingMotivo('geral');
-                setModalOnboardingAberto(true);
-              } else {
-                setModalNotificacoesAberto(true);
-              }
-            }}
-            className="relative p-2 sm:px-2.5 sm:py-2 rounded-xl bg-slate-100 hover:bg-slate-200 border border-slate-300/80 text-slate-900 dark:bg-slate-800/80 dark:hover:bg-slate-700/80 dark:text-slate-100 dark:border-2 dark:border-slate-400 font-semibold transition flex items-center gap-1.5 cursor-pointer text-xs shadow-xs"
-            title="Notificações e Avisos"
-          >
-            <Bell className="w-4 h-4 text-slate-700 dark:text-slate-200" />
-            {contagemNotificacoesNaoLidas > 0 && (
-              <span className="absolute -top-1 -right-1 w-2.5 h-2.5 rounded-full bg-rose-500 animate-pulse border-2 border-white dark:border-slate-900"></span>
-            )}
-          </button>
-
-          {/* Toggle de Tema (Claro / Escuro) */}
-          <button
-            type="button"
-            onClick={alternarTema}
-            className="p-2 sm:px-2.5 sm:py-2 rounded-xl bg-slate-100 hover:bg-slate-200 border border-slate-300/80 text-slate-900 dark:bg-slate-800/80 dark:hover:bg-slate-700/80 dark:text-slate-100 dark:border-2 dark:border-slate-400 font-semibold transition flex items-center gap-1.5 cursor-pointer text-xs shadow-xs"
-            title={isDark ? 'Alternar para Tema Claro' : 'Alternar para Tema Escuro'}
-          >
-            {isDark ? (
-              <Sun className="w-4 h-4 text-amber-400" />
-            ) : (
-              <Moon className="w-4 h-4 text-indigo-600" />
-            )}
-          </button>
-
-          {/* 5. Carrinho (Apenas ícone, texto Carrinho e valor total formatado em moeda) */}
-          <button
-            type="button"
-            onClick={() => setDrawerCarrinhoAberto(true)}
-            className="relative p-2 sm:px-2.5 sm:py-2 rounded-xl bg-slate-100 hover:bg-slate-200 border border-slate-300/80 text-slate-700 dark:bg-slate-800/80 dark:hover:bg-slate-700/80 dark:text-white dark:border-2 dark:border-slate-400 font-semibold transition flex items-center gap-1.5 cursor-pointer text-xs shadow-xs shrink-0"
-            title="Ver Carrinho de Compras"
-          >
-            <ShoppingBag className="w-4 h-4 text-emerald-600 dark:text-emerald-400" />
-            <span className="hidden lg:inline text-slate-800 dark:text-slate-100 font-semibold">Carrinho</span>
-            {totalItens > 0 && (
-              <span className="hidden sm:inline font-bold text-emerald-700 dark:text-emerald-400 ml-0.5">
-                {new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(total)}
-              </span>
-            )}
-          </button>
-
-          {/* 6. Identificação / Conta */}
-          {clienteSelecionado ? (
-            <div ref={menuUsuarioRef} className="relative">
+            {/* 3.1 Botão Minha Conta */}
+            {exibirCadernetaCliente && (
               <button
                 type="button"
-                onClick={() => setMenuUsuarioAberto(!menuUsuarioAberto)}
-                className="px-2.5 py-1.5 sm:py-2 rounded-xl bg-slate-100 hover:bg-slate-200 border border-slate-300 text-slate-900 dark:bg-slate-800/90 dark:hover:bg-slate-750 dark:border-slate-700 dark:text-slate-100 font-semibold text-xs flex items-center gap-1.5 transition cursor-pointer shadow-xs"
-                title="Minha Conta"
+                onClick={() => setModalCadernetaAberto(true)}
+                className="relative px-2.5 py-2 rounded-xl bg-slate-100 hover:bg-slate-200 border border-slate-300/80 text-slate-900 dark:bg-slate-800/80 dark:hover:bg-slate-700/80 dark:text-slate-100 dark:border-2 dark:border-slate-400 font-semibold transition flex items-center gap-1.5 cursor-pointer text-xs shadow-xs shrink-0"
+                title="Minha Conta — Extrato e Liquidação"
               >
-                <div className="w-5 h-5 rounded-full bg-slate-800 border border-slate-700 text-white flex items-center justify-center text-[10px] font-bold shrink-0">
-                  {clienteSelecionado.nome.charAt(0).toUpperCase()}
-                </div>
-                <span className="inline max-w-[95px] sm:max-w-[120px] truncate text-slate-900 dark:text-slate-100 font-semibold">
-                  Olá, {clienteSelecionado.nome.split(' ')[0]}
-                </span>
+                <FileText className="w-4 h-4 text-emerald-600 dark:text-emerald-400" />
+                <span className="hidden lg:inline">Minha Conta</span>
+                {saldoContaClienteExibicao > 0 && (
+                  <span className="font-bold text-slate-700 dark:text-slate-300 ml-0.5">
+                    {formatarMoeda(saldoContaClienteExibicao)}
+                  </span>
+                )}
               </button>
+            )}
 
-              {menuUsuarioAberto && (
-                <div className="absolute right-0 mt-2 w-48 rounded-2xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 shadow-2xl py-2 z-50 animate-in fade-in zoom-in-95">
-                  <div className="px-3.5 py-2 border-b border-slate-100 dark:border-slate-800">
-                    <p className="text-xs font-bold text-slate-900 dark:text-slate-100 truncate">{clienteSelecionado.nome}</p>
-                    <p className="text-[11px] text-slate-500 dark:text-slate-400 truncate">{clienteSelecionado.telefone || clienteSelecionado.whatsapp}</p>
-                  </div>
-                  <button
-                    type="button"
-                    onClick={() => {
-                      setMenuUsuarioAberto(false);
-                      setModalMeusDadosAberto(true);
-                    }}
-                    className="w-full px-3.5 py-2 text-left text-xs text-slate-700 dark:text-slate-300 hover:text-slate-950 dark:hover:text-white hover:bg-slate-100 dark:hover:bg-slate-800 flex items-center gap-2 cursor-pointer font-semibold"
-                  >
-                    <User className="w-3.5 h-3.5 text-emerald-500" />
-                    <span>Meus Dados</span>
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => {
-                      setMenuUsuarioAberto(false);
-                      setModalCadernetaAberto(true);
-                    }}
-                    className="w-full px-3.5 py-2 text-left text-xs text-slate-700 dark:text-slate-300 hover:text-slate-950 dark:hover:text-white hover:bg-slate-100 dark:hover:bg-slate-800 flex items-center gap-2 cursor-pointer font-semibold"
-                  >
-                    <FileText className="w-3.5 h-3.5 text-amber-500" />
-                    <span>Minha Conta</span>
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => {
-                      setMenuUsuarioAberto(false);
-                      setModalPedidosAberto(true);
-                    }}
-                    className="w-full px-3.5 py-2 text-left text-xs text-slate-700 dark:text-slate-300 hover:text-slate-950 dark:hover:text-white hover:bg-slate-100 dark:hover:bg-slate-800 flex items-center gap-2 cursor-pointer"
-                  >
-                    <Package className="w-3.5 h-3.5 text-sky-500" />
-                    <span>Meus Pedidos</span>
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => {
-                      setMenuUsuarioAberto(false);
-                      setModalFavoritosAberto(true);
-                    }}
-                    className="w-full px-3.5 py-2 text-left text-xs text-slate-700 dark:text-slate-300 hover:text-slate-950 dark:hover:text-white hover:bg-slate-100 dark:hover:bg-slate-800 flex items-center gap-2 cursor-pointer"
-                  >
-                    <Star className="w-3.5 h-3.5 text-amber-500" />
-                    <span>Favoritos</span>
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => {
-                      setMenuUsuarioAberto(false);
-                      handleLogoutCliente();
-                    }}
-                    className="w-full px-3.5 py-2 text-left text-xs text-rose-600 dark:text-rose-400 hover:bg-rose-500/10 flex items-center gap-2 cursor-pointer border-t border-slate-100 dark:border-slate-800 mt-1 font-semibold"
-                  >
-                    <LogOut className="w-3.5 h-3.5" />
-                    <span>Sair da Conta</span>
-                  </button>
-                </div>
-              )}
-            </div>
-          ) : (
+            {/* 4. Notificações */}
             <button
               type="button"
-              onClick={() => {
-                setModalOnboardingMotivo('geral');
-                setModalOnboardingAberto(true);
-              }}
-              className="px-2.5 sm:px-3 py-2 rounded-xl bg-slate-100 hover:bg-slate-200 border border-slate-300/80 text-slate-900 dark:bg-slate-800/80 dark:hover:bg-slate-700/80 dark:text-slate-100 dark:border-2 dark:border-slate-400 font-bold text-xs flex items-center gap-1.5 transition cursor-pointer shadow-xs"
-              title="Entrar ou Cadastrar"
+              onClick={abrirNotificacoesCliente}
+              className="relative px-2.5 py-2 rounded-xl bg-slate-100 hover:bg-slate-200 border border-slate-300/80 text-slate-900 dark:bg-slate-800/80 dark:hover:bg-slate-700/80 dark:text-slate-100 dark:border-2 dark:border-slate-400 font-semibold transition flex items-center gap-1.5 cursor-pointer text-xs shadow-xs"
+              title="Notificações e Avisos"
             >
-              <User className="w-3.5 h-3.5 text-emerald-500" />
-              <span className="hidden sm:inline">Entrar</span>
+              <Bell className="w-4 h-4 text-slate-700 dark:text-slate-200" />
+              {contagemNotificacoesNaoLidas > 0 && (
+                <span className="absolute -top-1 -right-1 w-2.5 h-2.5 rounded-full bg-rose-500 animate-pulse border-2 border-white dark:border-slate-900"></span>
+              )}
             </button>
-          )}
+
+            {/* Toggle de Tema (Claro / Escuro) */}
+            <button
+              type="button"
+              onClick={alternarTema}
+              className="px-2.5 py-2 rounded-xl bg-slate-100 hover:bg-slate-200 border border-slate-300/80 text-slate-900 dark:bg-slate-800/80 dark:hover:bg-slate-700/80 dark:text-slate-100 dark:border-2 dark:border-slate-400 font-semibold transition flex items-center gap-1.5 cursor-pointer text-xs shadow-xs"
+              title={isDark ? 'Alternar para Tema Claro' : 'Alternar para Tema Escuro'}
+            >
+              {isDark ? (
+                <Sun className="w-4 h-4 text-amber-400" />
+              ) : (
+                <Moon className="w-4 h-4 text-indigo-600" />
+              )}
+            </button>
+
+            {/* 5. Carrinho */}
+            <button
+              type="button"
+              onClick={() => setDrawerCarrinhoAberto(true)}
+              className="relative px-2.5 py-2 rounded-xl bg-slate-100 hover:bg-slate-200 border border-slate-300/80 text-slate-700 dark:bg-slate-800/80 dark:hover:bg-slate-700/80 dark:text-white dark:border-2 dark:border-slate-400 font-semibold transition flex items-center gap-1.5 cursor-pointer text-xs shadow-xs shrink-0"
+              title="Ver Carrinho de Compras"
+            >
+              <ShoppingBag className="w-4 h-4 text-emerald-600 dark:text-emerald-400" />
+              <span className="hidden lg:inline text-slate-800 dark:text-slate-100 font-semibold">Carrinho</span>
+              {totalItens > 0 && (
+                <span className="font-bold text-emerald-700 dark:text-emerald-400 ml-0.5">
+                  {new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(total)}
+                </span>
+              )}
+            </button>
+
+            {/* 6. Identificação / Conta */}
+            {clienteSelecionado ? (
+              <div ref={menuUsuarioRef} className="relative">
+                <button
+                  type="button"
+                  onClick={() => setMenuUsuarioAberto(!menuUsuarioAberto)}
+                  className="px-2.5 py-2 rounded-xl bg-slate-100 hover:bg-slate-200 border border-slate-300 text-slate-900 dark:bg-slate-800/90 dark:hover:bg-slate-750 dark:border-slate-700 dark:text-slate-100 font-semibold text-xs flex items-center gap-1.5 transition cursor-pointer shadow-xs"
+                  title="Minha Conta"
+                >
+                  <div className="w-5 h-5 rounded-full bg-slate-800 border border-slate-700 text-white flex items-center justify-center text-[10px] font-bold shrink-0">
+                    {clienteSelecionado.nome.charAt(0).toUpperCase()}
+                  </div>
+                  <span className="inline max-w-[120px] truncate text-slate-900 dark:text-slate-100 font-semibold">
+                    Olá, {clienteSelecionado.nome.split(' ')[0]}
+                  </span>
+                </button>
+                {renderDropdownUsuario()}
+              </div>
+            ) : (
+              <button
+                type="button"
+                onClick={() => {
+                  setModalOnboardingMotivo('geral');
+                  setModalOnboardingAberto(true);
+                }}
+                className="px-3 py-2 rounded-xl bg-slate-100 hover:bg-slate-200 border border-slate-300/80 text-slate-900 dark:bg-slate-800/80 dark:hover:bg-slate-700/80 dark:text-slate-100 dark:border-2 dark:border-slate-400 font-bold text-xs flex items-center gap-1.5 transition cursor-pointer shadow-xs"
+                title="Entrar ou Cadastrar"
+              >
+                <User className="w-3.5 h-3.5 text-emerald-500" />
+                <span>Entrar</span>
+              </button>
+            )}
+          </div>
         </div>
       </header>
 
@@ -4828,6 +5001,389 @@ Fico no aguardo da confirmação! ✨`;
             setItemPesagemCatalogo(null);
           }}
         />
+      )}
+
+      {/* MENU LATERAL MOBILE (DRAWER DO CATÁLOGO ONLINE) */}
+      {drawerMenuMobileAberto && (
+        <div className="fixed inset-0 z-50 flex md:hidden select-none">
+          <div
+            className="fixed inset-0 bg-black/60 backdrop-blur-sm animate-in fade-in duration-200"
+            onClick={() => setDrawerMenuMobileAberto(false)}
+          />
+
+          <aside className="relative w-[84%] max-w-xs h-full bg-white dark:bg-slate-950 text-slate-900 dark:text-slate-100 border-r border-slate-200 dark:border-slate-800 shadow-2xl z-10 flex flex-col animate-in slide-in-from-left duration-200 pt-[max(1rem,env(safe-area-inset-top))]">
+            {/* Topo do Drawer: Identidade da Loja + Saudação / Login */}
+            <div className="px-4 pb-4 border-b border-slate-200 dark:border-slate-800 space-y-3 shrink-0">
+              <div className="flex items-center justify-between gap-2">
+                <div className="flex items-center gap-2.5 min-w-0">
+                  {loja?.url_logo ? (
+                    <img
+                      src={loja.url_logo}
+                      alt={loja.nome_fantasia}
+                      className="w-10 h-10 rounded-full object-contain bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 shrink-0 shadow-xs"
+                    />
+                  ) : (
+                    <div
+                      className={`w-10 h-10 rounded-full flex items-center justify-center font-bold text-white shadow text-sm shrink-0 ${
+                        isDark ? 'bg-slate-800 border border-slate-700' : 'bg-emerald-600 border border-emerald-500'
+                      }`}
+                    >
+                      {loja?.nome_fantasia ? loja.nome_fantasia.slice(0, 2).toUpperCase() : 'HB'}
+                    </div>
+                  )}
+                  <div className="min-w-0">
+                    <h2 className="font-black text-sm text-slate-900 dark:text-white truncate">
+                      {loja?.nome_fantasia || 'Catálogo Online'}
+                    </h2>
+                    <span className="text-[11px] font-semibold text-emerald-600 dark:text-emerald-400 flex items-center gap-1">
+                      <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />
+                      {aceitaPedidos ? 'Aberto para pedidos' : 'Mostruário'}
+                    </span>
+                  </div>
+                </div>
+
+                <button
+                  type="button"
+                  onClick={() => setDrawerMenuMobileAberto(false)}
+                  className="p-2 rounded-xl bg-slate-100 hover:bg-slate-200 dark:bg-slate-900 dark:hover:bg-slate-800 text-slate-600 dark:text-slate-300 border border-slate-200 dark:border-slate-800 transition cursor-pointer shrink-0"
+                  title="Fechar menu"
+                  aria-label="Fechar menu"
+                >
+                  <X className="w-4 h-4" />
+                </button>
+              </div>
+
+              {clienteSelecionado ? (
+                <div className="p-3 rounded-2xl bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-800 flex items-center justify-between gap-2">
+                  <div className="flex items-center gap-2.5 min-w-0">
+                    <div className="w-8 h-8 rounded-full bg-emerald-600 text-white font-black text-xs flex items-center justify-center shrink-0">
+                      {clienteSelecionado.nome.charAt(0).toUpperCase()}
+                    </div>
+                    <div className="min-w-0">
+                      <p className="text-xs font-extrabold text-slate-900 dark:text-white truncate">
+                        Olá, {clienteSelecionado.nome.split(' ')[0]}
+                      </p>
+                      <p className="text-[11px] text-slate-500 dark:text-slate-400 truncate">
+                        {clienteSelecionado.whatsapp || clienteSelecionado.telefone}
+                      </p>
+                    </div>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setDrawerMenuMobileAberto(false);
+                      setModalMeusDadosAberto(true);
+                    }}
+                    className="px-2.5 py-1.5 rounded-xl bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-[11px] font-bold text-slate-700 dark:text-slate-200 hover:border-emerald-500 transition cursor-pointer shrink-0"
+                  >
+                    Meus Dados
+                  </button>
+                </div>
+              ) : (
+                <button
+                  type="button"
+                  onClick={() => {
+                    setDrawerMenuMobileAberto(false);
+                    setModalOnboardingMotivo('geral');
+                    setModalOnboardingAberto(true);
+                  }}
+                  className="w-full py-2.5 px-3.5 rounded-2xl bg-emerald-600 hover:bg-emerald-500 text-white font-extrabold text-xs flex items-center justify-center gap-2 shadow-sm transition cursor-pointer"
+                >
+                  <User className="w-4 h-4" />
+                  <span>Entrar / Cadastrar</span>
+                </button>
+              )}
+            </div>
+
+            {/* Opções de Navegação Descritivas */}
+            <nav className="flex-1 overflow-y-auto p-3 space-y-1.5">
+              <button
+                type="button"
+                onClick={() => {
+                  setDrawerMenuMobileAberto(false);
+                  voltarInicioCatalogo();
+                }}
+                className="w-full px-3.5 py-3 rounded-2xl flex items-center gap-3 text-xs font-bold text-slate-800 dark:text-slate-100 hover:bg-slate-100 dark:hover:bg-slate-900 transition cursor-pointer text-left"
+              >
+                <Store className="w-4 h-4 text-emerald-500 shrink-0" />
+                <span className="flex-1">Catálogo de Produtos</span>
+              </button>
+
+              <button
+                type="button"
+                onClick={() => {
+                  setDrawerMenuMobileAberto(false);
+                  abrirPedidosCliente();
+                }}
+                className="w-full px-3.5 py-3 rounded-2xl flex items-center gap-3 text-xs font-bold text-slate-800 dark:text-slate-100 hover:bg-slate-100 dark:hover:bg-slate-900 transition cursor-pointer text-left"
+              >
+                <Package className="w-4 h-4 text-sky-500 shrink-0" />
+                <span className="flex-1">Meus Pedidos</span>
+              </button>
+
+              <button
+                type="button"
+                onClick={() => {
+                  setDrawerMenuMobileAberto(false);
+                  abrirFavoritosCliente();
+                }}
+                className="w-full px-3.5 py-3 rounded-2xl flex items-center gap-3 text-xs font-bold text-slate-800 dark:text-slate-100 hover:bg-slate-100 dark:hover:bg-slate-900 transition cursor-pointer text-left"
+              >
+                <Star className={`w-4 h-4 shrink-0 ${favoritosIds.size > 0 ? 'text-amber-500 fill-amber-500' : 'text-amber-500'}`} />
+                <span className="flex-1">Meus Favoritos</span>
+                {favoritosIds.size > 0 && (
+                  <span className="px-2 py-0.5 rounded-full bg-amber-500/15 text-amber-700 dark:text-amber-400 text-[11px] font-black">
+                    {favoritosIds.size}
+                  </span>
+                )}
+              </button>
+
+              <button
+                type="button"
+                onClick={() => {
+                  setDrawerMenuMobileAberto(false);
+                  if (!clienteSelecionado?.id) {
+                    setModalOnboardingMotivo('geral');
+                    setModalOnboardingAberto(true);
+                  } else {
+                    setModalCadernetaAberto(true);
+                  }
+                }}
+                className="w-full px-3.5 py-3 rounded-2xl flex items-center gap-3 text-xs font-bold text-slate-800 dark:text-slate-100 hover:bg-slate-100 dark:hover:bg-slate-900 transition cursor-pointer text-left"
+              >
+                <FileText className="w-4 h-4 text-emerald-500 shrink-0" />
+                <span className="flex-1">Minha Caderneta</span>
+                {saldoContaClienteExibicao > 0 && (
+                  <span className="text-[11px] font-extrabold text-emerald-600 dark:text-emerald-400">
+                    {formatarMoeda(saldoContaClienteExibicao)}
+                  </span>
+                )}
+              </button>
+
+              <button
+                type="button"
+                onClick={() => {
+                  setDrawerMenuMobileAberto(false);
+                  abrirNotificacoesCliente();
+                }}
+                className="w-full px-3.5 py-3 rounded-2xl flex items-center gap-3 text-xs font-bold text-slate-800 dark:text-slate-100 hover:bg-slate-100 dark:hover:bg-slate-900 transition cursor-pointer text-left"
+              >
+                <Bell className="w-4 h-4 text-indigo-500 shrink-0" />
+                <span className="flex-1">Notificações</span>
+                {contagemNotificacoesNaoLidas > 0 && (
+                  <span className="px-2 py-0.5 rounded-full bg-rose-500 text-white text-[10px] font-black">
+                    {contagemNotificacoesNaoLidas}
+                  </span>
+                )}
+              </button>
+
+              <button
+                type="button"
+                onClick={() => {
+                  setDrawerMenuMobileAberto(false);
+                  setModalDadosLojaAberto(true);
+                }}
+                className="w-full px-3.5 py-3 rounded-2xl flex items-center gap-3 text-xs font-bold text-slate-800 dark:text-slate-100 hover:bg-slate-100 dark:hover:bg-slate-900 transition cursor-pointer text-left"
+              >
+                <Clock className="w-4 h-4 text-teal-500 shrink-0" />
+                <span className="flex-1">Dados e Horários da Loja</span>
+              </button>
+
+              <button
+                type="button"
+                onClick={() => {
+                  alternarTema();
+                }}
+                className="w-full px-3.5 py-3 rounded-2xl flex items-center gap-3 text-xs font-bold text-slate-800 dark:text-slate-100 hover:bg-slate-100 dark:hover:bg-slate-900 transition cursor-pointer text-left"
+              >
+                {isDark ? (
+                  <Sun className="w-4 h-4 text-amber-400 shrink-0" />
+                ) : (
+                  <Moon className="w-4 h-4 text-indigo-600 shrink-0" />
+                )}
+                <span className="flex-1">Alternar Tema (Claro / Escuro)</span>
+                <span className="text-[10px] font-bold px-2 py-0.5 rounded-lg bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300">
+                  {isDark ? 'Escuro' : 'Claro'}
+                </span>
+              </button>
+            </nav>
+
+            {/* Rodapé do Drawer */}
+            {clienteSelecionado && (
+              <div className="p-3 border-t border-slate-200 dark:border-slate-800 shrink-0">
+                <button
+                  type="button"
+                  onClick={() => {
+                    setDrawerMenuMobileAberto(false);
+                    handleLogoutCliente();
+                  }}
+                  className="w-full px-3.5 py-3 rounded-2xl flex items-center justify-center gap-2 text-xs font-extrabold text-rose-600 dark:text-rose-400 bg-rose-50 dark:bg-rose-950/30 hover:bg-rose-100 dark:hover:bg-rose-950/50 border border-rose-200 dark:border-rose-900/50 transition cursor-pointer"
+                >
+                  <LogOut className="w-4 h-4" />
+                  <span>Sair da Conta</span>
+                </button>
+              </div>
+            )}
+          </aside>
+        </div>
+      )}
+
+      {/* MODAL DADOS E HORÁRIOS DA LOJA */}
+      {modalDadosLojaAberto && loja && (
+        <div
+          className="fixed inset-0 z-50 bg-black/70 backdrop-blur-sm flex items-end sm:items-center justify-center p-0 sm:p-4 animate-in fade-in"
+          onClick={() => setModalDadosLojaAberto(false)}
+        >
+          <div
+            className="w-full max-w-md max-h-[88vh] bg-white dark:bg-slate-900 text-slate-900 dark:text-slate-100 border border-slate-200 dark:border-slate-800 rounded-t-3xl sm:rounded-3xl shadow-2xl flex flex-col overflow-hidden"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="p-4 sm:p-5 border-b border-slate-200 dark:border-slate-800 flex items-center justify-between gap-3 shrink-0">
+              <div className="flex items-center gap-2.5 min-w-0">
+                <div className="w-9 h-9 rounded-xl bg-emerald-500/15 border border-emerald-500/30 text-emerald-600 dark:text-emerald-400 flex items-center justify-center shrink-0">
+                  <Store className="w-4 h-4" />
+                </div>
+                <div className="min-w-0">
+                  <h3 className="text-sm font-black text-slate-900 dark:text-white truncate">
+                    Dados e Horários da Loja
+                  </h3>
+                  <p className="text-[11px] text-slate-500 dark:text-slate-400 truncate">
+                    {loja.nome_fantasia}
+                  </p>
+                </div>
+              </div>
+              <button
+                type="button"
+                onClick={() => setModalDadosLojaAberto(false)}
+                className="p-2 rounded-xl bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-700 text-slate-600 dark:text-slate-300 transition cursor-pointer shrink-0"
+                aria-label="Fechar"
+              >
+                <X className="w-4 h-4" />
+              </button>
+            </div>
+
+            <div className="p-4 sm:p-5 space-y-4 overflow-y-auto text-xs">
+              {/* Funcionamento */}
+              <div className="p-3.5 rounded-2xl bg-slate-50 dark:bg-slate-800/70 border border-slate-200 dark:border-slate-700 space-y-2">
+                <div className="flex items-center gap-2 font-extrabold text-slate-900 dark:text-white">
+                  <Clock className="w-4 h-4 text-emerald-500 shrink-0" />
+                  <span>Atendimento & Funcionamento</span>
+                </div>
+                <div className="flex flex-wrap items-center gap-2">
+                  <span className={`px-2.5 py-1 rounded-full text-[11px] font-bold ${
+                    aceitaPedidos
+                      ? 'bg-emerald-500/15 text-emerald-700 dark:text-emerald-300 border border-emerald-500/30'
+                      : 'bg-amber-500/15 text-amber-700 dark:text-amber-300 border border-amber-500/30'
+                  }`}>
+                    {aceitaPedidos ? 'Aberto para Pedidos Online' : 'Modo Mostruário (Consulta)'}
+                  </span>
+                  {Boolean(loja.retirada_loja_ativa) && (
+                    <span className="px-2.5 py-1 rounded-full text-[11px] font-bold bg-sky-500/15 text-sky-700 dark:text-sky-300 border border-sky-500/30">
+                      Retirada na loja disponível
+                    </span>
+                  )}
+                </div>
+                {loja.sobre_loja && (
+                  <p className="text-slate-600 dark:text-slate-300 leading-relaxed">
+                    {loja.sobre_loja}
+                  </p>
+                )}
+                {Number(loja.valor_minimo_pedido || 0) > 0 && (
+                  <p className="text-slate-700 dark:text-slate-200 font-semibold">
+                    Pedido mínimo: {formatarMoeda(Number(loja.valor_minimo_pedido))}
+                  </p>
+                )}
+              </div>
+
+              {/* Endereço */}
+              <div className="p-3.5 rounded-2xl bg-slate-50 dark:bg-slate-800/70 border border-slate-200 dark:border-slate-700 space-y-1.5">
+                <div className="flex items-center gap-2 font-extrabold text-slate-900 dark:text-white">
+                  <MapPin className="w-4 h-4 text-rose-500 shrink-0" />
+                  <span>Endereço da Loja</span>
+                </div>
+                {loja.endereco_logradouro || loja.endereco_cidade || loja.endereco_bairro ? (
+                  <p className="text-slate-700 dark:text-slate-300 leading-relaxed">
+                    {[
+                      [loja.endereco_logradouro, loja.endereco_numero].filter(Boolean).join(', '),
+                      loja.endereco_complemento,
+                      loja.endereco_bairro,
+                      [loja.endereco_cidade, loja.endereco_estado].filter(Boolean).join(' - '),
+                      loja.endereco_cep ? `CEP ${loja.endereco_cep}` : ''
+                    ].filter(Boolean).join(' • ')}
+                  </p>
+                ) : (
+                  <p className="text-slate-500 dark:text-slate-400">
+                    Endereço não informado pelo lojista.
+                  </p>
+                )}
+              </div>
+
+              {/* Contato / WhatsApp */}
+              {(loja.whatsapp || loja.telefone) && (
+                <div className="p-3.5 rounded-2xl bg-slate-50 dark:bg-slate-800/70 border border-slate-200 dark:border-slate-700 space-y-2">
+                  <div className="flex items-center gap-2 font-extrabold text-slate-900 dark:text-white">
+                    <Phone className="w-4 h-4 text-emerald-500 shrink-0" />
+                    <span>Contato & WhatsApp</span>
+                  </div>
+                  <p className="text-slate-700 dark:text-slate-300 font-semibold">
+                    {loja.whatsapp || loja.telefone}
+                  </p>
+                  {(() => {
+                    const digits = String(loja.whatsapp || loja.telefone || '').replace(/\D/g, '');
+                    if (digits.length < 10) return null;
+                    const numeroWa = digits.startsWith('55') && digits.length >= 12 ? digits : `55${digits}`;
+                    return (
+                      <a
+                        href={`https://wa.me/${numeroWa}`}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="inline-flex items-center gap-2 px-3.5 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white font-bold text-xs transition"
+                      >
+                        <Phone className="w-3.5 h-3.5" />
+                        <span>Falar no WhatsApp</span>
+                        <ExternalLink className="w-3 h-3" />
+                      </a>
+                    );
+                  })()}
+                </div>
+              )}
+
+              {/* Formas de Pagamento */}
+              <div className="p-3.5 rounded-2xl bg-slate-50 dark:bg-slate-800/70 border border-slate-200 dark:border-slate-700 space-y-2">
+                <div className="flex items-center gap-2 font-extrabold text-slate-900 dark:text-white">
+                  <CreditCard className="w-4 h-4 text-sky-500 shrink-0" />
+                  <span>Formas de Pagamento Aceitas</span>
+                </div>
+                {opcoesPagamentoCatalogoAtivas.length > 0 ? (
+                  <div className="flex flex-wrap gap-1.5">
+                    {opcoesPagamentoCatalogoAtivas.map((op) => (
+                      <span
+                        key={op.id}
+                        className="px-2.5 py-1 rounded-xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 text-[11px] font-bold text-slate-800 dark:text-slate-200"
+                      >
+                        {op.nome}
+                      </span>
+                    ))}
+                  </div>
+                ) : (
+                  <p className="text-slate-500 dark:text-slate-400">
+                    Consulte as opções disponíveis no checkout.
+                  </p>
+                )}
+              </div>
+            </div>
+
+            <div className="p-4 border-t border-slate-200 dark:border-slate-800 shrink-0">
+              <button
+                type="button"
+                onClick={() => setModalDadosLojaAberto(false)}
+                className="w-full py-2.5 rounded-xl bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-700 text-slate-900 dark:text-white font-bold text-xs transition cursor-pointer"
+              >
+                Fechar
+              </button>
+            </div>
+          </div>
+        </div>
       )}
     </div>
   );
