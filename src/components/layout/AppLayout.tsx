@@ -53,6 +53,7 @@ import { BannerDataOperacao } from '../BannerDataOperacao';
 import { TelaBloqueioAssinatura } from '../assinatura/TelaBloqueioAssinatura';
 import { useAssinaturaStatus } from '../../hooks/useAssinaturaStatus';
 import { useSystemBillingConfig } from '../../hooks/useSystemBillingConfig';
+import { BarraProgressoPublicacaoMassaMl } from '../mercadolivre/BarraProgressoPublicacaoMassaMl';
 import { ErrorBoundary } from '../common/ErrorBoundary';
 import { logger } from '../../services/loggerService';
 import { UsuarioLoja } from '../../types';
@@ -1423,6 +1424,7 @@ export const AppLayout: React.FC = () => {
           }}
         />
       )}
+      <BarraProgressoPublicacaoMassaMl />
       <div className="hidden"
 
       />

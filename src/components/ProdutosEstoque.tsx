@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useState, useEffect, useMemo, useRef } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import {
   Plus,
@@ -34,7 +34,10 @@ import { ModalEntradaEstoque } from './ModalEntradaEstoque';
 import { ModalDetalhesProduto } from './ModalDetalhesProduto';
 import { ModalVincularAnuncioMl } from './mercadolivre/ModalVincularAnuncioMl';
 import { ModalConectarMercadoLivre } from './mercadolivre/ModalConectarMercadoLivre';
+import { ModalPublicarMassaMl } from './mercadolivre/ModalPublicarMassaMl';
 import { mercadoLivreService } from '../services/mercadoLivreService';
+import { mercadoLivrePublicacaoMassaService } from '../services/mercadoLivrePublicacaoMassaService';
+import { obterPermalinkAnuncioMl } from '../utils/gdmMercadoLivreMapper';
 import { ProdutosMobile } from './ProdutosMobile';
 import { formatarMoeda } from '../utils/formatters';
 import {
@@ -264,6 +267,22 @@ export const ProdutosEstoque: React.FC = () => {
     carregarProdutos();
   }, [loja?.id]);
 
+  const ultimaVersaoMassaRef = useRef<number>(
+    mercadoLivrePublicacaoMassaService.getEstado().versaoAtualizacao
+  );
+
+  useEffect(() => {
+    return mercadoLivrePublicacaoMassaService.inscrever(() => {
+      const versao = mercadoLivrePublicacaoMassaService.getEstado().versaoAtualizacao;
+      if (versao !== ultimaVersaoMassaRef.current) {
+        ultimaVersaoMassaRef.current = versao;
+        if (loja?.id) {
+          void carregarProdutos();
+        }
+      }
+    });
+  }, [loja?.id]);
+
   // Limpeza de filtros antigos legados em localStorage permanente
   useEffect(() => {
     try {
@@ -453,6 +472,36 @@ export const ProdutosEstoque: React.FC = () => {
     return obterCategoriasPrincipaisFiltro(categorias, produtos, loja?.id);
   }, [categorias, produtos, loja?.id]);
 
+  const handleAbrirPublicarMassaMl = async (categoriaOverrideId?: string | null) => {
+    if (!loja?.id || verificandoConexaoMl) return;
+    if (mercadoLivrePublicacaoMassaService.getEstado().status !== 'ocioso') {
+      mercadoLivrePublicacaoMassaService.restaurar();
+      return;
+    }
+
+    try {
+      setVerificandoConexaoMl(true);
+      const contaConectada = await mercadoLivreService.buscarContaConectada(loja.id);
+      if (!contaConectada) {
+        setModalConectarMlAberto(true);
+        return;
+      }
+
+      const categoriaInicial =
+        categoriaOverrideId !== undefined
+          ? categoriaOverrideId
+          : categoriasPrincipaisFiltro.find((c) =>
+              c.todosIds.some((id) => categoriasFiltro.includes(id))
+            )?.id || null;
+
+      mercadoLivrePublicacaoMassaService.abrirModal(categoriaInicial);
+    } catch {
+      setModalConectarMlAberto(true);
+    } finally {
+      setVerificandoConexaoMl(false);
+    }
+  };
+
   const produtosFiltrados = produtos.filter(p => {
     const matchBusca =
       p.nome.toLowerCase().includes(busca.toLowerCase()) ||
@@ -511,6 +560,7 @@ export const ProdutosEstoque: React.FC = () => {
           onRecarregar={carregarProdutos}
           mapaAnunciosMl={mapaAnunciosMl}
           onRecarregarAnunciosMl={carregarProdutos}
+          onAbrirPublicarMassaMl={handleAbrirPublicarMassaMl}
         />
       </div>
 
@@ -543,6 +593,20 @@ export const ProdutosEstoque: React.FC = () => {
           </div>
 
           <div className="flex items-center gap-2 flex-wrap">
+            {/* Botão Publicar em Massa no ML */}
+            {permissions.podeCadastrarAlterarProdutos && (
+              <button
+                type="button"
+                disabled={verificandoConexaoMl}
+                onClick={() => handleAbrirPublicarMassaMl()}
+                className="hubi-btn-neutral inline-flex items-center gap-1.5 px-3.5 py-2.5 rounded-xl bg-slate-100 hover:bg-slate-200 border border-slate-300 text-black text-xs font-bold transition cursor-pointer shadow-sm disabled:opacity-50"
+                title="Publicar vários produtos em lote no Mercado Livre"
+              >
+                <ShoppingBag className="w-4 h-4 text-black" />
+                <span>Publicar em Massa no ML</span>
+              </button>
+            )}
+
             {/* Botão Gerenciar Categorias */}
             {permissions.podeCadastrarAlterarProdutos && (
               <button
@@ -821,8 +885,7 @@ export const ProdutosEstoque: React.FC = () => {
                     const possuiMarketplaceVinculado = Boolean(anuncioPrincipalMl);
                     const codigoMlLimpo = anuncioPrincipalMl ? anuncioPrincipalMl.ml_item_id.replace(/^MLB-?/i, '') : '';
                     const urlAnuncioMl = anuncioPrincipalMl
-                      ? anuncioPrincipalMl.permalink ||
-                        `https://produto.mercadolivre.com.br/${anuncioPrincipalMl.ml_item_id.replace(/^MLB(\d+)/i, 'MLB-$1')}`
+                      ? obterPermalinkAnuncioMl(anuncioPrincipalMl.permalink, anuncioPrincipalMl.ml_item_id)
                       : '';
                     const statusMl = anuncioPrincipalMl?.status_anuncio || '';
                     const classeBadgeMl =
@@ -870,20 +933,39 @@ export const ProdutosEstoque: React.FC = () => {
                               {possuiMarketplaceVinculado && (
                                 <div className="flex flex-wrap items-center gap-1.5 mt-1">
                                   {anuncioPrincipalMl && (
-                                    <a
-                                      href={urlAnuncioMl}
-                                      target="_blank"
-                                      rel="noopener noreferrer"
-                                      onClick={(e) => e.stopPropagation()}
-                                      title={`Abrir anúncio ${anuncioPrincipalMl.ml_item_id} (${obterLabelStatusMl(statusMl)}) no Mercado Livre`}
-                                      className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-lg text-[10px] font-black font-mono transition ${classeBadgeMl}`}
-                                    >
-                                      <span>
-                                        ML • #{codigoMlLimpo}
-                                        {anunciosMl.length > 1 ? ` (+${anunciosMl.length - 1})` : ''}
-                                      </span>
-                                      <ExternalLink className="w-2.5 h-2.5 shrink-0" />
-                                    </a>
+                                    <>
+                                      <a
+                                        href={urlAnuncioMl}
+                                        target="_blank"
+                                        rel="noopener noreferrer"
+                                        onClick={(e) => e.stopPropagation()}
+                                        title={`Abrir anúncio ${anuncioPrincipalMl.ml_item_id} (${obterLabelStatusMl(statusMl)}) no Mercado Livre`}
+                                        className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-lg text-[10px] font-black font-mono transition ${classeBadgeMl}`}
+                                      >
+                                        <span>
+                                          ML • #{codigoMlLimpo}
+                                          {anunciosMl.length > 1 ? ` (+${anunciosMl.length - 1})` : ''}
+                                        </span>
+                                        <ExternalLink className="w-2.5 h-2.5 shrink-0" />
+                                      </a>
+                                      {urlAnuncioMl && (
+                                        <a
+                                          href={urlAnuncioMl}
+                                          target="_blank"
+                                          rel="noopener noreferrer"
+                                          onClick={(e) => e.stopPropagation()}
+                                          title="Ver anúncio publicado no Mercado Livre"
+                                          className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-lg text-[10px] font-bold transition ${
+                                            isDark
+                                              ? 'bg-slate-900 hover:bg-slate-800 border border-slate-700 text-slate-200'
+                                              : 'bg-slate-100 hover:bg-slate-200 border border-slate-300 text-black'
+                                          }`}
+                                        >
+                                          <span>Ver no Mercado Livre</span>
+                                          <ExternalLink className="w-2.5 h-2.5 shrink-0" />
+                                        </a>
+                                      )}
+                                    </>
                                   )}
                                 </div>
                               )}
@@ -1180,6 +1262,13 @@ export const ProdutosEstoque: React.FC = () => {
         onFechar={() => setModalConectarMlAberto(false)}
         lojaId={loja?.id || ''}
         nomeLoja={loja?.nome_fantasia}
+      />
+
+      <ModalPublicarMassaMl
+        lojaId={loja?.id || ''}
+        produtos={produtos}
+        categorias={categorias}
+        mapaAnunciosMl={mapaAnunciosMl}
       />
 
       {/* Modal de Filtros de Produtos & Estoque */}

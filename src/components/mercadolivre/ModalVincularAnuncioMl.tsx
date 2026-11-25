@@ -90,7 +90,11 @@ interface ModalVincularAnuncioMlProps {
   produto: Produto | null;
   lojaId: string;
   isDark?: boolean;
-  onSucesso?: () => void;
+  onSucesso?: (info?: {
+    gtinSincronizado?: string | null;
+    permalink?: string | null;
+    variacaoId?: string | null;
+  }) => void;
 }
 
 export const ModalVincularAnuncioMl: React.FC<ModalVincularAnuncioMlProps> = ({
@@ -441,7 +445,13 @@ export const ModalVincularAnuncioMl: React.FC<ModalVincularAnuncioMlProps> = ({
       });
 
       mostrarSucesso(res.mensagem, 'Anúncio Vinculado');
-      if (onSucesso) onSucesso();
+      if (onSucesso) {
+        onSucesso({
+          gtinSincronizado: res.gtin_sincronizado || null,
+          permalink: res.permalink || null,
+          variacaoId: variacaoSelecionadaId || null,
+        });
+      }
       onFechar();
     } catch (err: any) {
       const { mensagemAmigavel, detalheTecnico } = traduzirErroMercadoLivre(
@@ -521,7 +531,7 @@ export const ModalVincularAnuncioMl: React.FC<ModalVincularAnuncioMlProps> = ({
         atributosFichaTecnica: atributosExtras,
       });
 
-      let res: { sucesso: boolean; mensagem: string; item: any };
+      let res: Awaited<ReturnType<typeof mercadoLivreService.criarAnuncio>>;
       try {
         res = await mercadoLivreService.criarAnuncio({
           lojaId,
@@ -540,21 +550,24 @@ export const ModalVincularAnuncioMl: React.FC<ModalVincularAnuncioMlProps> = ({
         console.groupEnd();
       }
 
-      // Enriquece o cadastro local no Rubi caso codigo_barras estivesse vazio e um GTIN válido tenha sido informado
-      if (!semGtin && validarGtinGs1(gtinLimpo)) {
+      // Enriquece o cadastro local no Rubi sempre que houver GTIN válido (preenchendo ou corrigindo divergência)
+      const gtinSincronizadoFinal =
+        !semGtin && validarGtinGs1(gtinLimpo) ? gtinLimpo : res.gtin_sincronizado || null;
+
+      if (gtinSincronizadoFinal) {
         try {
-          if (!(produto.codigo_barras || '').trim()) {
-            await supabase
-              .from('produtos')
-              .update({ codigo_barras: gtinLimpo })
-              .eq('id', produto.id)
-              .eq('loja_id', lojaId);
-          }
-          if (variacaoAtual && !(variacaoAtual.codigo_barras || '').trim()) {
+          if (variacaoAtual) {
             await supabase
               .from('variacoes_produto')
-              .update({ codigo_barras: gtinLimpo })
+              .update({ codigo_barras: gtinSincronizadoFinal })
               .eq('id', variacaoAtual.id)
+              .eq('loja_id', lojaId);
+          }
+          if (!variacaoAtual || (produto.codigo_barras || '').trim() !== gtinSincronizadoFinal) {
+            await supabase
+              .from('produtos')
+              .update({ codigo_barras: gtinSincronizadoFinal })
+              .eq('id', produto.id)
               .eq('loja_id', lojaId);
           }
         } catch (errGtinDb) {
@@ -563,7 +576,13 @@ export const ModalVincularAnuncioMl: React.FC<ModalVincularAnuncioMlProps> = ({
       }
 
       mostrarSucesso(res.mensagem, 'Anúncio Publicado');
-      if (onSucesso) onSucesso();
+      if (onSucesso) {
+        onSucesso({
+          gtinSincronizado: gtinSincronizadoFinal,
+          permalink: res.permalink || res.item?.permalink || null,
+          variacaoId: variacaoAtual?.id || null,
+        });
+      }
       onFechar();
     } catch (err: any) {
       const { mensagemAmigavel, detalheTecnico } = traduzirErroMercadoLivre(

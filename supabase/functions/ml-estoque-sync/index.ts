@@ -301,6 +301,12 @@ function validarGtinGs1(codigo: string): boolean {
   return digitoVerificadorEsperado === Number(digitos[digitos.length - 1]);
 }
 
+function gerarPermalinkFallbackMl(mlItemId: string): string {
+  const idLimpo = String(mlItemId || "").trim().toUpperCase();
+  if (!idLimpo) return "";
+  return `https://produto.mercadolivre.com.br/${idLimpo.replace(/^([A-Z]+)(\d+)$/, "$1-$2")}`;
+}
+
 function aplicarAtributoGtinOuIsencao(
   atributos: MlAtributo[],
   opcoes: {
@@ -919,6 +925,11 @@ serve(async (req: Request) => {
         estoqueAtual = Math.max(0, p?.quantidade_estoque || 0);
       }
 
+      const permalinkFinal =
+        typeof dadosItem.permalink === "string" && dadosItem.permalink.trim()
+          ? dadosItem.permalink.trim()
+          : gerarPermalinkFallbackMl(itemLimpo);
+
       // Grava o vínculo no banco
       const { data: novoVinculo, error: erroVinculo } = await supabaseAdmin
         .from("marketplace_anuncios")
@@ -935,7 +946,7 @@ serve(async (req: Request) => {
             preco_anuncio: dadosItem.price,
             estoque_ultimo_enviado: estoqueAtual,
             status_anuncio: dadosItem.status || "active",
-            permalink: dadosItem.permalink || null,
+            permalink: permalinkFinal,
             sincronizacao_ativa: true,
             ultima_sincronizacao_estoque_em: new Date().toISOString(),
           },
@@ -947,6 +958,38 @@ serve(async (req: Request) => {
       if (erroVinculo) {
         // Se falhar o upsert pelo formato de expressão, busca ou insere direto
         console.error("[ml-estoque-sync] Erro ao gravar vínculo:", erroVinculo.message);
+      }
+
+      // Retroalimenta EAN/GTIN do anúncio do Mercado Livre para o cadastro interno, quando válido
+      let gtinSincronizado: string | null = null;
+      const atributosItemMl = Array.isArray(dadosItem.attributes) ? dadosItem.attributes : [];
+      const attrGtinMl = atributosItemMl.find(
+        (a: any) => String(a?.id || "").trim().toUpperCase() === "GTIN"
+      );
+      const gtinAnuncio = String(attrGtinMl?.value_name || "").replace(/\D/g, "").trim();
+      if (validarGtinGs1(gtinAnuncio)) {
+        gtinSincronizado = gtinAnuncio;
+        if (variacao_id) {
+          await supabaseAdmin
+            .from("variacoes_produto")
+            .update({ codigo_barras: gtinAnuncio })
+            .eq("id", variacao_id)
+            .eq("loja_id", loja_id);
+        }
+        const { data: prodDbGtin } = await supabaseAdmin
+          .from("produtos")
+          .select("codigo_barras")
+          .eq("id", produto_id)
+          .eq("loja_id", loja_id)
+          .maybeSingle();
+
+        if (!variacao_id || (prodDbGtin?.codigo_barras || "").trim() !== gtinAnuncio) {
+          await supabaseAdmin
+            .from("produtos")
+            .update({ codigo_barras: gtinAnuncio })
+            .eq("id", produto_id)
+            .eq("loja_id", loja_id);
+        }
       }
 
       // Atualiza o estoque do anúncio no Mercado Livre imediatamente com o saldo local
@@ -963,7 +1006,9 @@ serve(async (req: Request) => {
         JSON.stringify({
           sucesso: true,
           mensagem: `Anúncio ${itemLimpo} vinculado com sucesso e estoque atualizado para ${estoqueAtual} unidades!`,
-          anuncio: novoVinculo || dadosItem,
+          permalink: permalinkFinal,
+          gtin_sincronizado: gtinSincronizado,
+          anuncio: novoVinculo || { ...dadosItem, permalink: permalinkFinal },
         }),
         { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } }
       );
@@ -1299,21 +1344,28 @@ serve(async (req: Request) => {
         );
       }
 
-      // Enriquece produtos.codigo_barras (e variação, se aplicável) quando GTIN válido foi enviado e estava vazio no banco
-      const gtinFinalEnviado = atributosBase.find((a) => a.id === "GTIN")?.value_name || "";
-      if (/^\d{8,14}$/.test(gtinFinalEnviado)) {
-        if (!(resProdDb?.data?.codigo_barras || "").trim()) {
-          await supabaseAdmin
-            .from("produtos")
-            .update({ codigo_barras: gtinFinalEnviado })
-            .eq("id", produto_id)
-            .eq("loja_id", loja_id);
-        }
-        if (variacao_id && !(resVarDb?.data?.codigo_barras || "").trim()) {
+      // Enriquece produtos.codigo_barras e variacoes_produto.codigo_barras quando GTIN válido foi enviado e !sem_gtin
+      const gtinFinalEnviado = String(
+        atributosBase.find((a) => a.id === "GTIN")?.value_name || ""
+      )
+        .replace(/\D/g, "")
+        .trim();
+      const gtinValidoParaSync = !semGtinFlag && validarGtinGs1(gtinFinalEnviado);
+
+      if (gtinValidoParaSync) {
+        if (variacao_id) {
           await supabaseAdmin
             .from("variacoes_produto")
             .update({ codigo_barras: gtinFinalEnviado })
             .eq("id", variacao_id)
+            .eq("loja_id", loja_id);
+        }
+        const codigoBarrasAtualProduto = (resProdDb?.data?.codigo_barras || "").trim();
+        if (!variacao_id || codigoBarrasAtualProduto !== gtinFinalEnviado) {
+          await supabaseAdmin
+            .from("produtos")
+            .update({ codigo_barras: gtinFinalEnviado })
+            .eq("id", produto_id)
             .eq("loja_id", loja_id);
         }
       }
@@ -1333,6 +1385,11 @@ serve(async (req: Request) => {
         });
       }
 
+      const permalinkFinal =
+        typeof dadosCriado.permalink === "string" && dadosCriado.permalink.trim()
+          ? dadosCriado.permalink.trim()
+          : gerarPermalinkFallbackMl(dadosCriado.id);
+
       // Grava o novo anúncio na tabela public.marketplace_anuncios
       await supabaseAdmin
         .from("marketplace_anuncios")
@@ -1349,7 +1406,7 @@ serve(async (req: Request) => {
           margem_sobrepreco_percentual: Number(margem_sobrepreco || 0),
           estoque_ultimo_enviado: dadosCriado.available_quantity || 0,
           status_anuncio: dadosCriado.status || "active",
-          permalink: dadosCriado.permalink || null,
+          permalink: permalinkFinal,
           sincronizacao_ativa: true,
           ultima_sincronizacao_estoque_em: new Date().toISOString(),
         });
@@ -1358,7 +1415,9 @@ serve(async (req: Request) => {
         JSON.stringify({
           sucesso: true,
           mensagem: `Anúncio ${dadosCriado.id} publicado com sucesso no Mercado Livre!`,
-          item: dadosCriado,
+          permalink: permalinkFinal,
+          gtin_sincronizado: gtinValidoParaSync ? gtinFinalEnviado : null,
+          item: { ...dadosCriado, permalink: permalinkFinal },
         }),
         { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } }
       );

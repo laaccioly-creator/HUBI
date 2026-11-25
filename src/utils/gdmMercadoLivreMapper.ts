@@ -110,6 +110,30 @@ export function validarGtinGs1(codigo: string): boolean {
 }
 
 /**
+ * Gera a URL padrão de fallback para um anúncio do Mercado Livre a partir do ml_item_id (ex: MLB123456 -> MLB-123456).
+ */
+export function gerarPermalinkFallbackMl(mlItemId: string): string {
+  const idLimpo = (mlItemId || '').trim().toUpperCase();
+  if (!idLimpo) return '';
+  const slug = idLimpo.replace(/^([A-Z]+)(\d+)$/, '$1-$2');
+  return `https://produto.mercadolivre.com.br/${slug}`;
+}
+
+/**
+ * Retorna o permalink oficial salvo no anúncio ou o fallback construído a partir do ml_item_id.
+ */
+export function obterPermalinkAnuncioMl(
+  permalink: string | null | undefined,
+  mlItemId: string
+): string {
+  const limpo = typeof permalink === 'string' ? permalink.trim() : '';
+  if (/^https?:\/\//i.test(limpo)) {
+    return limpo;
+  }
+  return gerarPermalinkFallbackMl(mlItemId);
+}
+
+/**
  * Converte um produto do HUBI para o Contrato Canônico GdmAnuncioMercadoLivreCanonico
  */
 export function converterProdutoHubiParaGdmMl(

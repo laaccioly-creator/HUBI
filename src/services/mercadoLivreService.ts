@@ -305,7 +305,13 @@ export const mercadoLivreService = {
     produtoId: string;
     variacaoId?: string | null;
     mlItemId: string;
-  }): Promise<{ sucesso: boolean; mensagem: string }> {
+  }): Promise<{
+    sucesso: boolean;
+    mensagem: string;
+    permalink?: string;
+    gtin_sincronizado?: string | null;
+    anuncio?: any;
+  }> {
     try {
       await supabase.auth.refreshSession();
     } catch (errSession) {
@@ -375,7 +381,13 @@ export const mercadoLivreService = {
     semGtin?: boolean;
     categoryId?: string;
     atributosExtras?: Array<{ id: string; value_id?: string; value_name: string }>;
-  }): Promise<{ sucesso: boolean; mensagem: string; item: any }> {
+  }): Promise<{
+    sucesso: boolean;
+    mensagem: string;
+    permalink?: string;
+    gtin_sincronizado?: string | null;
+    item: any;
+  }> {
     try {
       await supabase.auth.refreshSession();
     } catch (errSession) {
