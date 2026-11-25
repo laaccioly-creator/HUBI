@@ -28,7 +28,8 @@ import {
   converterProdutoHubiParaGdmMl,
   converterGdmParaPayloadApiMl,
   calcularBreakdownPrecoMercadoLivre,
-  traduzirErroMercadoLivre
+  traduzirErroMercadoLivre,
+  validarGtinGs1
 } from '../../utils/gdmMercadoLivreMapper';
 import { useFeedbackModal } from '../../contexts/FeedbackContext';
 import { useTheme } from '../../contexts/ThemeContext';
@@ -302,7 +303,7 @@ export const ModalVincularAnuncioMl: React.FC<ModalVincularAnuncioMlProps> = ({
               if (resultadoGemini.modelo) {
                 setModelo((prev) => (prev.trim() ? prev : resultadoGemini.modelo || prev));
               }
-              if (resultadoGemini.gtin && /^\d{8,14}$/.test(resultadoGemini.gtin)) {
+              if (resultadoGemini.gtin && validarGtinGs1(resultadoGemini.gtin)) {
                 if (!gtinRef.current.replace(/\D/g, '').trim()) {
                   gtinRef.current = resultadoGemini.gtin;
                   setGtin(resultadoGemini.gtin);
@@ -393,7 +394,8 @@ export const ModalVincularAnuncioMl: React.FC<ModalVincularAnuncioMlProps> = ({
   const temMarca = Boolean(marca.trim());
   const temModelo = Boolean(modelo.trim());
   const gtinLimpo = gtin.replace(/\D/g, '').trim();
-  const temGtinValido = semGtin || /^\d{8,14}$/.test(gtinLimpo);
+  const gtinDigitadoInvalido = !semGtin && gtinLimpo.length > 0 && !validarGtinGs1(gtinLimpo);
+  const temGtinValido = semGtin || validarGtinGs1(gtinLimpo);
   const temPrecoValido = precoCalculadoMl > 0;
   const temEstoque = estoqueFisico > 0;
 
@@ -402,8 +404,10 @@ export const ModalVincularAnuncioMl: React.FC<ModalVincularAnuncioMlProps> = ({
   if (!temCategoria) camposPendentesPublicacao.push('Categoria oficial no Mercado Livre');
   if (!temMarca) camposPendentesPublicacao.push('Marca (obrigatório)');
   if (!temModelo) camposPendentesPublicacao.push('Modelo (obrigatório)');
-  if (!temGtinValido) {
-    camposPendentesPublicacao.push('Código universal (EAN/GTIN) de 8 a 14 dígitos ou marque "Não possui código de barras"');
+  if (!semGtin && !gtinLimpo) {
+    camposPendentesPublicacao.push('Informe o código universal (EAN/GTIN) ou marque "Não possui código de barras"');
+  } else if (gtinDigitadoInvalido) {
+    camposPendentesPublicacao.push('Código EAN/GTIN inválido (dígito verificador incorreto)');
   }
   for (const attr of atributosDinamicosCategoria) {
     if (!valoresAtributosExtras[attr.id]?.value_name?.trim()) {
@@ -537,7 +541,7 @@ export const ModalVincularAnuncioMl: React.FC<ModalVincularAnuncioMlProps> = ({
       }
 
       // Enriquece o cadastro local no Rubi caso codigo_barras estivesse vazio e um GTIN válido tenha sido informado
-      if (!semGtin && /^\d{8,14}$/.test(gtinLimpo)) {
+      if (!semGtin && validarGtinGs1(gtinLimpo)) {
         try {
           if (!(produto.codigo_barras || '').trim()) {
             await supabase
@@ -994,11 +998,22 @@ export const ModalVincularAnuncioMl: React.FC<ModalVincularAnuncioMlProps> = ({
                     : 'Ex: 7891234567890'
                 }
                 className={`w-full bg-white dark:bg-black border-2 rounded-xl px-3.5 py-2.5 text-sm font-mono font-bold text-slate-900 dark:text-white placeholder:font-sans placeholder:text-xs placeholder:text-slate-500 dark:placeholder:text-slate-400 outline-hidden transition disabled:opacity-70 disabled:bg-slate-100 dark:disabled:bg-zinc-900 ${
-                  !temGtinValido
+                  gtinDigitadoInvalido
+                    ? 'border-rose-500 focus:border-rose-600'
+                    : !temGtinValido
                     ? 'border-amber-500/70 focus:border-amber-500'
                     : 'border-slate-300 dark:border-slate-700 focus:border-emerald-500'
                 }`}
               />
+
+              {gtinDigitadoInvalido && (
+                <p className="text-xs font-bold text-rose-600 dark:text-rose-400 flex items-center gap-1.5">
+                  <AlertCircle className="w-3.5 h-3.5 shrink-0" />
+                  <span>
+                    Código EAN/GTIN inválido (dígito verificador incorreto). Confira os números na etiqueta do produto.
+                  </span>
+                </p>
+              )}
 
               <label className="inline-flex items-center gap-2 text-xs font-bold text-slate-900 dark:text-slate-200 cursor-pointer select-none pt-0.5">
                 <input

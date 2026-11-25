@@ -91,6 +91,25 @@ export function calcularPrecoMercadoLivre(
 }
 
 /**
+ * Valida matematicamente códigos de barras GS1 (EAN-8, UPC-12, EAN-13, GTIN-14)
+ * usando o algoritmo Módulo 10 e rejeitando sequências repetitivas.
+ */
+export function validarGtinGs1(codigo: string): boolean {
+  const digitos = String(codigo || '').replace(/\D/g, '').trim();
+  if (![8, 12, 13, 14].includes(digitos.length)) return false;
+  if (/^(\d)\1+$/.test(digitos)) return false;
+
+  let soma = 0;
+  for (let i = digitos.length - 2; i >= 0; i--) {
+    const num = Number(digitos[i]);
+    const posDaDireita = digitos.length - 2 - i;
+    soma += num * (posDaDireita % 2 === 0 ? 3 : 1);
+  }
+  const digitoVerificadorEsperado = (10 - (soma % 10)) % 10;
+  return digitoVerificadorEsperado === Number(digitos[digitos.length - 1]);
+}
+
+/**
  * Converte um produto do HUBI para o Contrato Canônico GdmAnuncioMercadoLivreCanonico
  */
 export function converterProdutoHubiParaGdmMl(
@@ -127,7 +146,7 @@ export function converterProdutoHubiParaGdmMl(
   const eanCandidato = opcoes.semGtin
     ? ''
     : String(opcoes.gtin ?? variacao?.codigo_barras ?? produto.codigo_barras ?? '').replace(/\D/g, '').trim();
-  const eanValido = /^\d{8,14}$/.test(eanCandidato) ? eanCandidato : null;
+  const eanValido = eanCandidato && validarGtinGs1(eanCandidato) ? eanCandidato : null;
   if (eanValido) {
     atributos.push({ id: 'GTIN', value_name: eanValido });
   } else {
@@ -313,7 +332,7 @@ export function traduzirErroMercadoLivre(mensagemBruta: string): ErroMercadoLivr
     };
   }
 
-  if (/^(Não foi possível publicar|A categoria selecionada)/i.test(texto)) {
+  if (/^(Não foi possível publicar|A categoria selecionada|O código de barras)/i.test(texto)) {
     return { mensagemAmigavel: texto };
   }
 

@@ -33,6 +33,8 @@ import { ModalGerenciarCategorias } from './ModalGerenciarCategorias';
 import { ModalEntradaEstoque } from './ModalEntradaEstoque';
 import { ModalDetalhesProduto } from './ModalDetalhesProduto';
 import { ModalVincularAnuncioMl } from './mercadolivre/ModalVincularAnuncioMl';
+import { ModalConectarMercadoLivre } from './mercadolivre/ModalConectarMercadoLivre';
+import { mercadoLivreService } from '../services/mercadoLivreService';
 import { ProdutosMobile } from './ProdutosMobile';
 import { formatarMoeda } from '../utils/formatters';
 import {
@@ -139,6 +141,25 @@ export const ProdutosEstoque: React.FC = () => {
   const [produtoDetalhes, setProdutoDetalhes] = useState<Produto | null>(null);
   const [produtoGradeModal, setProdutoGradeModal] = useState<Produto | null>(null);
   const [produtoMlModal, setProdutoMlModal] = useState<Produto | null>(null);
+  const [modalConectarMlAberto, setModalConectarMlAberto] = useState<boolean>(false);
+  const [verificandoConexaoMl, setVerificandoConexaoMl] = useState<boolean>(false);
+
+  const handleAbrirModalMercadoLivre = async (produtoAlvo: Produto) => {
+    if (!loja?.id || verificandoConexaoMl) return;
+    try {
+      setVerificandoConexaoMl(true);
+      const contaConectada = await mercadoLivreService.buscarContaConectada(loja.id);
+      if (!contaConectada) {
+        setModalConectarMlAberto(true);
+        return;
+      }
+      setProdutoMlModal(produtoAlvo);
+    } catch {
+      setModalConectarMlAberto(true);
+    } finally {
+      setVerificandoConexaoMl(false);
+    }
+  };
 
   const carregarProdutos = async () => {
     if (!loja?.id) return;
@@ -1064,7 +1085,8 @@ export const ProdutosEstoque: React.FC = () => {
 
                                 <button
                                   type="button"
-                                  onClick={() => setProdutoMlModal(produto)}
+                                  disabled={verificandoConexaoMl}
+                                  onClick={() => handleAbrirModalMercadoLivre(produto)}
                                   className={
                                     anuncioPrincipalMl
                                       ? 'p-1.5 rounded-lg transition cursor-pointer bg-[#FFE600] hover:bg-[#F5DC00] text-slate-950 border border-amber-500 shadow-xs'
@@ -1151,6 +1173,13 @@ export const ProdutosEstoque: React.FC = () => {
         lojaId={loja?.id || ''}
         isDark={isDark}
         onSucesso={carregarProdutos}
+      />
+
+      <ModalConectarMercadoLivre
+        aberto={modalConectarMlAberto}
+        onFechar={() => setModalConectarMlAberto(false)}
+        lojaId={loja?.id || ''}
+        nomeLoja={loja?.nome_fantasia}
       />
 
       {/* Modal de Filtros de Produtos & Estoque */}

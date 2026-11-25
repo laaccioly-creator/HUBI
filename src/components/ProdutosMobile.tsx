@@ -80,6 +80,8 @@ import { MobileHeader } from './layout/MobileHeader';
 import { ModalEntradaEstoque } from './ModalEntradaEstoque';
 import { ModalGerenciarCategorias } from './ModalGerenciarCategorias';
 import { ModalVincularAnuncioMl } from './mercadolivre/ModalVincularAnuncioMl';
+import { ModalConectarMercadoLivre } from './mercadolivre/ModalConectarMercadoLivre';
+import { mercadoLivreService } from '../services/mercadoLivreService';
 import type { AnuncioMlResumo } from './ProdutosEstoque';
 import { pesquisarPrecosMercadoIA, DadosMercadoIA } from './ProdutoCadastro';
 import { UNIDADES_PADRAO } from './CadastrosAuxiliares';
@@ -186,6 +188,25 @@ export const ProdutosMobile: React.FC<ProdutosMobileProps> = ({
   const [modalCatalogoAberto, setModalCatalogoAberto] = useState<boolean>(false); // TELA005
   const [modalGerenciarCategoriasMobileAberto, setModalGerenciarCategoriasMobileAberto] = useState<boolean>(false);
   const [produtoMlModal, setProdutoMlModal] = useState<Produto | null>(null);
+  const [modalConectarMlAberto, setModalConectarMlAberto] = useState<boolean>(false);
+  const [verificandoConexaoMl, setVerificandoConexaoMl] = useState<boolean>(false);
+
+  const handleAbrirModalMercadoLivre = async (produtoAlvo: Produto) => {
+    if (!loja?.id || verificandoConexaoMl) return;
+    try {
+      setVerificandoConexaoMl(true);
+      const contaConectada = await mercadoLivreService.buscarContaConectada(loja.id);
+      if (!contaConectada) {
+        setModalConectarMlAberto(true);
+        return;
+      }
+      setProdutoMlModal(produtoAlvo);
+    } catch {
+      setModalConectarMlAberto(true);
+    } finally {
+      setVerificandoConexaoMl(false);
+    }
+  };
   const [fornecedoresLista, setFornecedoresLista] = useState<Fornecedor[]>([]);
   const [movimentacoesLista, setMovimentacoesLista] = useState<any[]>([]);
   const [carregandoMovimentacoes, setCarregandoMovimentacoes] = useState<boolean>(false);
@@ -3689,7 +3710,8 @@ export const ProdutosMobile: React.FC<ProdutosMobileProps> = ({
               {!isNovo && produtoEditando && formData.tipoItem !== 'servico' && (
                 <button
                   type="button"
-                  onClick={() => setProdutoMlModal(produtoEditando)}
+                  disabled={verificandoConexaoMl}
+                  onClick={() => handleAbrirModalMercadoLivre(produtoEditando)}
                   className="hubi-btn-neutral px-2.5 py-1.5 rounded-xl border text-xs font-extrabold flex items-center gap-1 shadow-xs cursor-pointer transition select-none bg-[#FFE600] hover:bg-[#F5DC00] border-amber-500 text-slate-950"
                   title="Vincular ou publicar no Mercado Livre"
                 >
@@ -6165,6 +6187,13 @@ export const ProdutosMobile: React.FC<ProdutosMobileProps> = ({
             onRecarregarAnunciosMl?.();
             onRecarregar();
           }}
+        />
+
+        <ModalConectarMercadoLivre
+          aberto={modalConectarMlAberto}
+          onFechar={() => setModalConectarMlAberto(false)}
+          lojaId={loja?.id || ''}
+          nomeLoja={loja?.nome_fantasia}
         />
 
         {/* MODAL ONBOARDING SERPAPI (BYOK) */}

@@ -286,6 +286,21 @@ async function prepararPicturesBinariasMl(
   );
 }
 
+function validarGtinGs1(codigo: string): boolean {
+  const digitos = String(codigo || "").replace(/\D/g, "").trim();
+  if (![8, 12, 13, 14].includes(digitos.length)) return false;
+  if (/^(\d)\1+$/.test(digitos)) return false;
+
+  let soma = 0;
+  for (let i = digitos.length - 2; i >= 0; i--) {
+    const num = Number(digitos[i]);
+    const posDaDireita = digitos.length - 2 - i;
+    soma += num * (posDaDireita % 2 === 0 ? 3 : 1);
+  }
+  const digitoVerificadorEsperado = (10 - (soma % 10)) % 10;
+  return digitoVerificadorEsperado === Number(digitos[digitos.length - 1]);
+}
+
 function aplicarAtributoGtinOuIsencao(
   atributos: MlAtributo[],
   opcoes: {
@@ -313,7 +328,7 @@ function aplicarAtributoGtinOuIsencao(
   for (const candidato of candidatos) {
     if (typeof candidato !== "string") continue;
     const somenteDigitos = candidato.replace(/\D/g, "").trim();
-    if (/^\d{8,14}$/.test(somenteDigitos)) {
+    if (validarGtinGs1(somenteDigitos)) {
       return [...filtrados, { id: "GTIN", value_name: somenteDigitos }];
     }
   }
@@ -1008,6 +1023,17 @@ serve(async (req: Request) => {
       const gtinInformadoLimpo = typeof gtin === "string" ? gtin.replace(/\D/g, "").trim() : "";
       const semGtinFlag = sem_gtin === true;
 
+      if (!semGtinFlag && gtinInformadoLimpo.length > 0 && !validarGtinGs1(gtinInformadoLimpo)) {
+        return new Response(
+          JSON.stringify({
+            error: "O código de barras (EAN/GTIN) informado possui formato ou dígito verificador inválido. Confira os números na etiqueta do produto.",
+            campos_faltantes: [],
+            category_id: category_id || payload_ml?.category_id || null,
+          }),
+          { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+        );
+      }
+
       let atributosBase = aplicarAtributoGtinOuIsencao(
         garantirAtributosObrigatorios(
           Array.isArray(restantePayload.attributes) ? restantePayload.attributes : [],
@@ -1230,22 +1256,34 @@ serve(async (req: Request) => {
           causasLegiveis = extrairCausasLegiveisMl(ultimoErroMl, {}, categoriaAlvo);
         }
 
+        const causasErroNaoWarning = Array.isArray(ultimoErroMl?.cause)
+          ? ultimoErroMl.cause.filter((c: any) => String(c?.type || "").toLowerCase() !== "warning")
+          : [];
+        const erroGtinFormatoInvalido = causasErroNaoWarning.some((c: any) => {
+          const msg = `${c?.code || ""} ${c?.message || ""} ${Array.isArray(c?.references) ? c.references.join(" ") : ""}`;
+          return (
+            /\b(gtin|product_identifier)\b/i.test(msg) &&
+            /invalid\s*format|invalid_format|invalid\s*value|invalid_gtin|check\s*digit|formato/i.test(msg)
+          );
+        });
+
         const semGtinEnviado = !atributosBase.some((a) => a.id === "GTIN");
         const apenasFaltaGtin =
           camposFaltantes.length === 1 &&
           camposFaltantes[0] === "Código universal de produto (EAN/GTIN)";
 
-        const erroAmigavel =
-          apenasFaltaGtin && semGtinEnviado
-            ? `A categoria selecionada (${categoriaAlvo}) exige um Código universal de produto (EAN/GTIN) válido de 8 a 14 dígitos. Desmarque a opção 'Não possui código de barras (GTIN)' no modal e informe o código EAN do produto.`
-            : camposFaltantes.length > 0
-            ? `Não foi possível publicar na categoria selecionada (${categoriaAlvo}) porque faltam campos obrigatórios: ${camposFaltantes.join(", ")}.`
-            : `Não foi possível publicar no Mercado Livre (${categoriaAlvo}): ${causasLegiveis.join(" • ") || detalhe}`;
+        const erroAmigavel = erroGtinFormatoInvalido
+          ? "O código de barras (EAN/GTIN) informado possui formato ou dígito verificador inválido. Confira os números na etiqueta do produto."
+          : apenasFaltaGtin && semGtinEnviado
+          ? `A categoria selecionada (${categoriaAlvo}) exige um Código universal de produto (EAN/GTIN) válido de 8 a 14 dígitos. Desmarque a opção 'Não possui código de barras (GTIN)' no modal e informe o código EAN do produto.`
+          : camposFaltantes.length > 0
+          ? `Não foi possível publicar na categoria selecionada (${categoriaAlvo}) porque faltam campos obrigatórios: ${camposFaltantes.join(", ")}.`
+          : `Não foi possível publicar no Mercado Livre (${categoriaAlvo}): ${causasLegiveis.join(" • ") || detalhe}`;
 
         return new Response(
           JSON.stringify({
             error: erroAmigavel,
-            campos_faltantes: camposFaltantes,
+            campos_faltantes: erroGtinFormatoInvalido ? [] : camposFaltantes,
             causas_legiveis: causasLegiveis,
             category_id: categoriaAlvo,
             detail_raw: detalhe,

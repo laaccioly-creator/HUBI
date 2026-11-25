@@ -10,6 +10,7 @@ import {
   MlSugestaoCategoria,
 } from './mercadoLivreService';
 import { PerguntaTypeSafe, typesafeService } from './typesafeService';
+import { validarGtinGs1 } from '../utils/gdmMercadoLivreMapper';
 
 export interface FichaProdutoMlHubi {
   produtoId: string;
@@ -717,28 +718,12 @@ function normalizarModeloIa(valorRaw: unknown, codigoInternoFallback?: string | 
   return limpo.slice(0, 50).trim();
 }
 
-function validarChecksumGs1(digitos: string): boolean {
-  if (!/^\d{8,14}$/.test(digitos)) return false;
-  if (![8, 12, 13, 14].includes(digitos.length)) return true;
-
-  let soma = 0;
-  for (let i = digitos.length - 2; i >= 0; i--) {
-    const num = Number(digitos[i]);
-    const posDaDireita = digitos.length - 2 - i;
-    soma += num * (posDaDireita % 2 === 0 ? 3 : 1);
-  }
-  const digitoVerificadorEsperado = (10 - (soma % 10)) % 10;
-  return digitoVerificadorEsperado === Number(digitos[digitos.length - 1]);
-}
-
 function normalizarGtinIa(valorRaw: unknown): string | undefined {
   if (typeof valorRaw !== 'string' && typeof valorRaw !== 'number') {
     return undefined;
   }
   const digitos = String(valorRaw).replace(/\D/g, '').trim();
-  if (!/^\d{8,14}$/.test(digitos)) return undefined;
-  if (/^(\d)\1+$/.test(digitos)) return undefined;
-  if (!validarChecksumGs1(digitos)) return undefined;
+  if (!validarGtinGs1(digitos)) return undefined;
   return digitos;
 }
 

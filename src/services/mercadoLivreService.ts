@@ -176,6 +176,17 @@ export const mercadoLivreService = {
   },
 
   /**
+   * Retorna a conta do Mercado Livre somente se estiver ativamente conectada (`status_conexao === 'conectado'`).
+   */
+  async buscarContaConectada(lojaId: string): Promise<MarketplaceContaLoja | null> {
+    const conta = await this.obterConta(lojaId);
+    if (!conta || conta.status_conexao !== 'conectado') {
+      return null;
+    }
+    return conta;
+  },
+
+  /**
    * Solicita a URL oficial de consentimento OAuth 2.0 à Edge Function ml-oauth
    */
   async obterUrlAutorizacao(lojaId: string): Promise<string> {
