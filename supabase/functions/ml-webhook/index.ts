@@ -1,5 +1,5 @@
 // Supabase Edge Function: ml-webhook
-// Receptor público e idempotente de notificações de pedidos (orders_v2) do Mercado Livre.
+// Receptor público e idempotente de notificações de pedidos (orders_v2) e anúncios (items) do Mercado Livre.
 // Deploy: npx supabase functions deploy ml-webhook --no-verify-jwt
 
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
@@ -57,15 +57,22 @@ serve(async (req: Request) => {
       );
     }
 
-    if (!conta.importar_pedidos_automatico || conta.status_conexao === "desconectado") {
+    if (conta.status_conexao === "desconectado") {
+      return new Response(
+        JSON.stringify({ sucesso: true, mensagem: "Integração com o Mercado Livre desconectada para esta loja." }),
+        { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      );
+    }
+
+    if (topic === "orders_v2" && !conta.importar_pedidos_automatico) {
       return new Response(
         JSON.stringify({ sucesso: true, mensagem: "Importação de pedidos desativada para esta loja." }),
         { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } }
       );
     }
 
-    // Extrai o ID numérico do recurso a partir da URI (Ex: /orders/2000004928192 -> 2000004928192)
-    const resourceMatch = resource.match(/\d+/);
+    // Extrai o ID numérico do recurso a partir da URI (Ex: /orders/2000004928192 -> 2000004928192 ou /items/MLB5611951261 -> 5611951261)
+    const resourceMatch = String(resource || "").match(/\d+/);
     const mlResourceId = resourceMatch ? parseInt(resourceMatch[0], 10) : 0;
     const notifIdSanitizado = (notificationId || `notif_${Date.now()}_${mlResourceId}`).toString();
 
@@ -95,11 +102,178 @@ serve(async (req: Request) => {
       );
     }
 
-    // Processamento exclusivo do tópico 'orders_v2'
+    // Processamento do tópico 'items' (exclusão, encerramento, pausa, reativação e alteração de preço)
+    if (topic === "items") {
+      const matchItem = String(resource || "").match(/([A-Z]{3}\d+)/i);
+      const mlItemId = matchItem
+        ? matchItem[1].toUpperCase()
+        : mlResourceId > 0
+        ? `MLB${mlResourceId}`
+        : "";
+
+      if (!mlItemId) {
+        if (webhookLog?.id) {
+          await supabaseAdmin
+            .from("marketplace_pedidos_webhook")
+            .update({
+              status_processamento: "ignorado",
+              mensagem_resultado: `URI de anúncio inválida: ${resource}`,
+            })
+            .eq("id", webhookLog.id);
+        }
+        return new Response(
+          JSON.stringify({ sucesso: true, mensagem: "URI de anúncio não reconhecida." }),
+          { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+        );
+      }
+
+      const { data: vinculosItem } = await supabaseAdmin
+        .from("marketplace_anuncios")
+        .select("id, status_anuncio")
+        .eq("loja_id", conta.loja_id)
+        .eq("ml_item_id", mlItemId);
+
+      if (!Array.isArray(vinculosItem) || vinculosItem.length === 0) {
+        if (webhookLog?.id) {
+          await supabaseAdmin
+            .from("marketplace_pedidos_webhook")
+            .update({
+              status_processamento: "ignorado",
+              mensagem_resultado: `Anúncio ${mlItemId} não possui vínculo ativo nesta loja.`,
+            })
+            .eq("id", webhookLog.id);
+        }
+        return new Response(
+          JSON.stringify({ sucesso: true, mensagem: `Anúncio ${mlItemId} sem vínculo nesta loja.` }),
+          { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+        );
+      }
+
+      const { token } = await obterAccessTokenValido(supabaseAdmin, conta.loja_id);
+      const respItem = await fetch(
+        `https://api.mercadolibre.com/items/${mlItemId}?attributes=id,status,sub_status,permalink,price`,
+        {
+          headers: {
+            "Authorization": `Bearer ${token}`,
+            "Accept": "application/json",
+          },
+        }
+      );
+
+      if (respItem.status === 404) {
+        await supabaseAdmin
+          .from("marketplace_anuncios")
+          .delete()
+          .eq("loja_id", conta.loja_id)
+          .eq("ml_item_id", mlItemId);
+
+        if (webhookLog?.id) {
+          await supabaseAdmin
+            .from("marketplace_pedidos_webhook")
+            .update({
+              status_processamento: "processado",
+              mensagem_resultado: `Anúncio ${mlItemId} não encontrado (HTTP 404). Vínculo removido do Rubi.`,
+              processado_em: new Date().toISOString(),
+            })
+            .eq("id", webhookLog.id);
+        }
+
+        return new Response(
+          JSON.stringify({ sucesso: true, acao: "removido", ml_item_id: mlItemId }),
+          { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+        );
+      }
+
+      if (!respItem.ok) {
+        throw new Error(`Falha HTTP ${respItem.status} ao consultar anúncio ${mlItemId} no Mercado Livre.`);
+      }
+
+      const dadosItem = await respItem.json().catch(() => ({}));
+      const statusMl = String(dadosItem?.status || "").trim().toLowerCase();
+      const subStatuses = Array.isArray(dadosItem?.sub_status)
+        ? dadosItem.sub_status.map((s: unknown) => String(s || "").toLowerCase())
+        : [];
+
+      if (statusMl === "closed" || subStatuses.includes("deleted")) {
+        await supabaseAdmin
+          .from("marketplace_anuncios")
+          .delete()
+          .eq("loja_id", conta.loja_id)
+          .eq("ml_item_id", mlItemId);
+
+        if (webhookLog?.id) {
+          await supabaseAdmin
+            .from("marketplace_pedidos_webhook")
+            .update({
+              status_processamento: "processado",
+              mensagem_resultado: `Anúncio ${mlItemId} encerrado/excluído (${statusMl}). Vínculo removido do Rubi.`,
+              processado_em: new Date().toISOString(),
+            })
+            .eq("id", webhookLog.id);
+        }
+
+        return new Response(
+          JSON.stringify({ sucesso: true, acao: "removido", ml_item_id: mlItemId }),
+          { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+        );
+      }
+
+      if (["active", "paused", "under_review"].includes(statusMl)) {
+        const updatePayload: Record<string, any> = {
+          status_anuncio: statusMl,
+          ultima_sincronizacao_estoque_em: new Date().toISOString(),
+        };
+        if (typeof dadosItem?.permalink === "string" && dadosItem.permalink.trim()) {
+          updatePayload.permalink = dadosItem.permalink.trim();
+        }
+        if (typeof dadosItem?.price === "number" && Number.isFinite(dadosItem.price) && dadosItem.price > 0) {
+          updatePayload.preco_anuncio = dadosItem.price;
+        }
+
+        await supabaseAdmin
+          .from("marketplace_anuncios")
+          .update(updatePayload)
+          .eq("loja_id", conta.loja_id)
+          .eq("ml_item_id", mlItemId);
+
+        if (webhookLog?.id) {
+          await supabaseAdmin
+            .from("marketplace_pedidos_webhook")
+            .update({
+              status_processamento: "processado",
+              mensagem_resultado: `Anúncio ${mlItemId} sincronizado com status '${statusMl}'.`,
+              processado_em: new Date().toISOString(),
+            })
+            .eq("id", webhookLog.id);
+        }
+
+        return new Response(
+          JSON.stringify({ sucesso: true, acao: "atualizado", ml_item_id: mlItemId, status: statusMl }),
+          { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+        );
+      }
+
+      if (webhookLog?.id) {
+        await supabaseAdmin
+          .from("marketplace_pedidos_webhook")
+          .update({
+            status_processamento: "ignorado",
+            mensagem_resultado: `Status '${statusMl || "desconhecido"}' para ${mlItemId} não exigiu alteração.`,
+          })
+          .eq("id", webhookLog.id);
+      }
+
+      return new Response(
+        JSON.stringify({ sucesso: true, ml_item_id: mlItemId, status: statusMl }),
+        { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      );
+    }
+
+    // Processamento do tópico 'orders_v2'
     if (topic !== "orders_v2") {
       await supabaseAdmin
         .from("marketplace_pedidos_webhook")
-        .update({ status_processamento: "ignorado", mensagem_resultado: `Tópico ${topic} não requer importação direta.` })
+        .update({ status_processamento: "ignorado", mensagem_resultado: `Tópico ${topic} não requer processamento.` })
         .eq("id", webhookLog.id);
 
       return new Response(

@@ -128,6 +128,8 @@ interface ProdutosMobileProps {
   mapaAnunciosMl?: Record<string, AnuncioMlResumo[]>;
   onRecarregarAnunciosMl?: () => void;
   onAbrirPublicarMassaMl?: (categoriaInicialId?: string | null) => void;
+  onSincronizarMl?: () => void;
+  sincronizandoMl?: boolean;
 }
 
 // 9 Cores da Etiqueta / Tarja (TELA013)
@@ -150,7 +152,9 @@ export const ProdutosMobile: React.FC<ProdutosMobileProps> = ({
   onRecarregar,
   mapaAnunciosMl = {},
   onRecarregarAnunciosMl,
-  onAbrirPublicarMassaMl
+  onAbrirPublicarMassaMl,
+  onSincronizarMl,
+  sincronizandoMl = false
 }) => {
   const navigate = useNavigate();
   const { loja, usuario, setLoja } = useAuth();
@@ -6493,23 +6497,36 @@ export const ProdutosMobile: React.FC<ProdutosMobileProps> = ({
         </div>
       </div>
 
-      {/* Ação rápida: Publicação em Massa no Mercado Livre (Mobile) */}
-      {abaLista === 'itens' && permissions.podeCadastrarAlterarProdutos && onAbrirPublicarMassaMl && (
-        <div className="px-4 py-2 border-b border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-[#08131A] flex items-center justify-end shrink-0">
-          <button
-            type="button"
-            onClick={() => {
-              const catInicial =
-                categoriasPrincipaisFiltro.find((c) =>
-                  c.todosIds.some((id) => categoriasFiltro.includes(id))
-                )?.id || null;
-              onAbrirPublicarMassaMl(catInicial);
-            }}
-            className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-[#FFE600] hover:bg-[#F5DC00] border border-amber-400/70 text-black text-xs font-semibold transition cursor-pointer shadow-sm"
-          >
-            <ShoppingBag className="w-3.5 h-3.5 text-black" />
-            <span>Publicar em Massa no ML</span>
-          </button>
+      {/* Ação rápida: Sincronização e Publicação em Massa no Mercado Livre (Mobile) */}
+      {abaLista === 'itens' && permissions.podeCadastrarAlterarProdutos && (onAbrirPublicarMassaMl || onSincronizarMl) && (
+        <div className="px-4 py-2 border-b border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-[#08131A] flex items-center justify-end gap-2 shrink-0 flex-wrap">
+          {onSincronizarMl && (
+            <button
+              type="button"
+              disabled={sincronizandoMl}
+              onClick={onSincronizarMl}
+              className="hubi-btn-neutral inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-slate-100 hover:bg-slate-200 border border-slate-300 text-black text-xs font-medium transition cursor-pointer shadow-2xs disabled:opacity-50"
+            >
+              <RefreshCw className={`w-3.5 h-3.5 text-black ${sincronizandoMl ? 'animate-spin' : ''}`} />
+              <span>{sincronizandoMl ? 'Sincronizando...' : 'Sincronizar ML'}</span>
+            </button>
+          )}
+          {onAbrirPublicarMassaMl && (
+            <button
+              type="button"
+              onClick={() => {
+                const catInicial =
+                  categoriasPrincipaisFiltro.find((c) =>
+                    c.todosIds.some((id) => categoriasFiltro.includes(id))
+                  )?.id || null;
+                onAbrirPublicarMassaMl(catInicial);
+              }}
+              className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-[#FFE600] hover:bg-[#F5DC00] border border-amber-400/70 text-black text-xs font-semibold transition cursor-pointer shadow-sm"
+            >
+              <ShoppingBag className="w-3.5 h-3.5 text-black" />
+              <span>Publicar em Massa no ML</span>
+            </button>
+          )}
         </div>
       )}
 

@@ -1439,6 +1439,151 @@ serve(async (req: Request) => {
       );
     }
 
+    // =========================================================================
+    // AÇÃO 4: RECONCILIAR STATUS E EXCLUSÕES DOS ANÚNCIOS VINCULADOS
+    // =========================================================================
+    if (action === "sync_listings_status") {
+      const { data: vinculos, error: erroVinculos } = await supabaseAdmin
+        .from("marketplace_anuncios")
+        .select("id, ml_item_id, status_anuncio, permalink, preco_anuncio")
+        .eq("loja_id", loja_id);
+
+      if (erroVinculos) {
+        throw new Error(`Erro ao consultar vínculos do Mercado Livre: ${erroVinculos.message}`);
+      }
+
+      const listaVinculos = Array.isArray(vinculos) ? vinculos : [];
+      if (listaVinculos.length === 0) {
+        return new Response(
+          JSON.stringify({
+            sucesso: true,
+            total_verificados: 0,
+            removidos: 0,
+            atualizados: 0,
+            ids_removidos: [],
+          }),
+          { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+        );
+      }
+
+      const { token } = await obterAccessTokenValido(supabaseAdmin, loja_id);
+
+      const idsUnicos = Array.from(
+        new Set(
+          listaVinculos
+            .map((v: any) => String(v.ml_item_id || "").trim().toUpperCase())
+            .filter((id: string) => /^[A-Z]{3}\d+$/.test(id))
+        )
+      );
+
+      let removidos = 0;
+      let atualizados = 0;
+      const idsRemovidos: string[] = [];
+
+      // Endpoint multiget oficial do Mercado Livre suporta até 20 IDs por chamada
+      for (let i = 0; i < idsUnicos.length; i += 20) {
+        const lote = idsUnicos.slice(i, i + 20);
+        const urlMultiget = `https://api.mercadolibre.com/items?ids=${encodeURIComponent(lote.join(","))}&attributes=id,status,sub_status,permalink,price`;
+
+        const respBatch = await fetch(urlMultiget, {
+          headers: {
+            "Authorization": `Bearer ${token}`,
+            "Accept": "application/json",
+          },
+        });
+
+        if (!respBatch.ok) {
+          console.warn(`[ml-estoque-sync] Multiget de status retornou HTTP ${respBatch.status}`);
+          continue;
+        }
+
+        const resultados = await respBatch.json().catch(() => []);
+        if (!Array.isArray(resultados)) continue;
+
+        for (let idx = 0; idx < resultados.length; idx++) {
+          const entrada = resultados[idx];
+          const code = Number(entrada?.code || 0);
+          const body = entrada?.body || {};
+          const itemId = String(body?.id || lote[idx] || "").trim().toUpperCase();
+          if (!itemId) continue;
+
+          const subStatuses = Array.isArray(body?.sub_status)
+            ? body.sub_status.map((s: any) => String(s || "").toLowerCase())
+            : [];
+          const statusItem = String(body?.status || "").trim().toLowerCase();
+          const foiExcluidoOuEncerrado =
+            code === 404 ||
+            (code === 200 && (statusItem === "closed" || subStatuses.includes("deleted")));
+
+          if (foiExcluidoOuEncerrado) {
+            const { error: erroDelete } = await supabaseAdmin
+              .from("marketplace_anuncios")
+              .delete()
+              .eq("loja_id", loja_id)
+              .eq("ml_item_id", itemId);
+
+            if (!erroDelete) {
+              removidos++;
+              idsRemovidos.push(itemId);
+            }
+            continue;
+          }
+
+          if (code === 200 && ["active", "paused", "under_review"].includes(statusItem)) {
+            const registrosLocais = listaVinculos.filter(
+              (v: any) => String(v.ml_item_id || "").trim().toUpperCase() === itemId
+            );
+            const permalinkNovo =
+              typeof body?.permalink === "string" && body.permalink.trim()
+                ? body.permalink.trim()
+                : null;
+            const precoNovo =
+              typeof body?.price === "number" && Number.isFinite(body.price) && body.price > 0
+                ? body.price
+                : null;
+
+            const houveMudanca = registrosLocais.some((r: any) => {
+              const mudouStatus = String(r.status_anuncio || "").toLowerCase() !== statusItem;
+              const mudouPermalink = Boolean(permalinkNovo && r.permalink !== permalinkNovo);
+              const mudouPreco = Boolean(
+                precoNovo !== null && Number(r.preco_anuncio || 0) !== precoNovo
+              );
+              return mudouStatus || mudouPermalink || mudouPreco;
+            });
+
+            if (houveMudanca) {
+              const payloadUpdate: Record<string, any> = {
+                status_anuncio: statusItem,
+              };
+              if (permalinkNovo) payloadUpdate.permalink = permalinkNovo;
+              if (precoNovo !== null) payloadUpdate.preco_anuncio = precoNovo;
+
+              const { error: erroUpd } = await supabaseAdmin
+                .from("marketplace_anuncios")
+                .update(payloadUpdate)
+                .eq("loja_id", loja_id)
+                .eq("ml_item_id", itemId);
+
+              if (!erroUpd) {
+                atualizados++;
+              }
+            }
+          }
+        }
+      }
+
+      return new Response(
+        JSON.stringify({
+          sucesso: true,
+          total_verificados: idsUnicos.length,
+          removidos,
+          atualizados,
+          ids_removidos: idsRemovidos,
+        }),
+        { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      );
+    }
+
     return new Response(
       JSON.stringify({ error: `Ação '${action}' não reconhecida.` }),
       { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }

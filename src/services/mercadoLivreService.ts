@@ -482,6 +482,73 @@ export const mercadoLivreService = {
   },
 
   /**
+   * Reconcilia status, preço, permalink e exclusões dos anúncios vinculados diretamente com a API do Mercado Livre.
+   */
+  async sincronizarStatusAnuncios(lojaId: string): Promise<{
+    sucesso: boolean;
+    total_verificados: number;
+    removidos: number;
+    atualizados: number;
+    ids_removidos: string[];
+  }> {
+    await obterSessaoValida().catch(() => null);
+
+    const { data, error } = await supabase.functions.invoke('ml-estoque-sync', {
+      body: {
+        action: 'sync_listings_status',
+        loja_id: lojaId,
+      },
+    });
+
+    if (error || !data?.sucesso) {
+      const msgErro = await extrairMensagemErroEdgeFunction(error, data);
+      throw new Error(msgErro);
+    }
+
+    return {
+      sucesso: true,
+      total_verificados: Number(data.total_verificados || 0),
+      removidos: Number(data.removidos || 0),
+      atualizados: Number(data.atualizados || 0),
+      ids_removidos: Array.isArray(data.ids_removidos) ? data.ids_removidos : [],
+    };
+  },
+
+  /**
+   * Remove manualmente o vínculo de um anúncio do Mercado Livre na loja ativa.
+   */
+  async desvincularAnuncio(params: {
+    lojaId: string;
+    anuncioId?: string;
+    produtoId?: string;
+    mlItemId?: string;
+  }): Promise<void> {
+    if (!params.lojaId) return;
+
+    let query = supabase
+      .from('marketplace_anuncios')
+      .delete()
+      .eq('loja_id', params.lojaId);
+
+    if (params.anuncioId) {
+      query = query.eq('id', params.anuncioId);
+    } else if (params.produtoId && params.mlItemId) {
+      query = query.eq('produto_id', params.produtoId).eq('ml_item_id', params.mlItemId);
+    } else if (params.produtoId) {
+      query = query.eq('produto_id', params.produtoId);
+    } else if (params.mlItemId) {
+      query = query.eq('ml_item_id', params.mlItemId);
+    } else {
+      return;
+    }
+
+    const { error } = await query;
+    if (error) {
+      throw new Error('Não foi possível desvincular o anúncio do Mercado Livre.');
+    }
+  },
+
+  /**
    * Dispara a sincronização de estoque no Mercado Livre para um produto específico (assíncrono)
    */
   async sincronizarEstoqueProduto(lojaId: string, produtoId: string): Promise<void> {

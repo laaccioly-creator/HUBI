@@ -21,7 +21,9 @@ import {
   Check,
   X,
   ShoppingBag,
-  ExternalLink
+  ExternalLink,
+  RefreshCw,
+  Unlink
 } from 'lucide-react';
 import { supabase } from '../lib/supabase';
 import { useAuth } from '../contexts/AuthContext';
@@ -76,7 +78,7 @@ export const ProdutosEstoque: React.FC = () => {
   const { loja, usuario } = useAuth();
   const { isDark } = useTheme();
   const permissions = usePermissions();
-  const { confirmar, mostrarErro } = useFeedbackModal();
+  const { confirmar, mostrarErro, mostrarSucesso, mostrarAviso } = useFeedbackModal();
   const navigate = useNavigate();
   const [produtos, setProdutos] = useState<Produto[]>([]);
   const [categorias, setCategorias] = useState<Categoria[]>([]);
@@ -145,6 +147,95 @@ export const ProdutosEstoque: React.FC = () => {
   const [produtoMlModal, setProdutoMlModal] = useState<Produto | null>(null);
   const [modalConectarMlAberto, setModalConectarMlAberto] = useState<boolean>(false);
   const [verificandoConexaoMl, setVerificandoConexaoMl] = useState<boolean>(false);
+  const [sincronizandoMl, setSincronizandoMl] = useState<boolean>(false);
+  const [desvinculandoMlId, setDesvinculandoMlId] = useState<string | null>(null);
+  const syncInicialMlLojaRef = useRef<string | null>(null);
+
+  const recarregarMapaAnunciosMl = async (lojaAlvoId: string) => {
+    try {
+      const { data: anunciosMlData, error: erroAnunciosMl } = await supabase
+        .from('marketplace_anuncios')
+        .select('id, produto_id, variacao_id, ml_item_id, status_anuncio, permalink, sincronizacao_ativa')
+        .eq('loja_id', lojaAlvoId);
+
+      if (!erroAnunciosMl && Array.isArray(anunciosMlData)) {
+        const mapaAgrupado: Record<string, AnuncioMlResumo[]> = {};
+        for (const item of anunciosMlData as AnuncioMlResumo[]) {
+          if (!item.produto_id) continue;
+          if (!mapaAgrupado[item.produto_id]) {
+            mapaAgrupado[item.produto_id] = [];
+          }
+          mapaAgrupado[item.produto_id].push(item);
+        }
+        setMapaAnunciosMl(mapaAgrupado);
+      }
+    } catch (eMl) {
+      console.warn('[ProdutosEstoque] Falha ao atualizar vínculos do Mercado Livre:', eMl);
+    }
+  };
+
+  const sincronizarStatusMl = async (silencioso: boolean) => {
+    if (!loja?.id || sincronizandoMl) return;
+    try {
+      setSincronizandoMl(true);
+      const contaConectada = await mercadoLivreService.buscarContaConectada(loja.id);
+      if (!contaConectada) {
+        if (!silencioso) {
+          setModalConectarMlAberto(true);
+        }
+        return;
+      }
+
+      const resSync = await mercadoLivreService.sincronizarStatusAnuncios(loja.id);
+      if (resSync.removidos > 0 || resSync.atualizados > 0) {
+        await recarregarMapaAnunciosMl(loja.id);
+      }
+
+      if (!silencioso) {
+        if (resSync.total_verificados === 0) {
+          mostrarAviso('Nenhum anúncio vinculado ao Mercado Livre para sincronizar nesta loja.', 'Mercado Livre');
+        } else {
+          mostrarSucesso(
+            `Sincronização concluída (${resSync.total_verificados} verificado(s), ${resSync.atualizados} atualizado(s) e ${resSync.removidos} removido(s)).`,
+            'Mercado Livre Sincronizado'
+          );
+        }
+      }
+    } catch (err: any) {
+      if (!silencioso) {
+        mostrarErro(err?.message || 'Não foi possível sincronizar o status dos anúncios no Mercado Livre.', 'Erro');
+      } else {
+        console.warn('[ProdutosEstoque] Falha na reconciliação silenciosa do ML:', err?.message);
+      }
+    } finally {
+      setSincronizandoMl(false);
+    }
+  };
+
+  const handleDesvincularAnuncioLinha = (anuncio: AnuncioMlResumo, nomeProduto: string) => {
+    if (!loja?.id) return;
+    confirmar({
+      titulo: 'Desvincular do Mercado Livre',
+      mensagem: `Remover o vínculo do anúncio #${anuncio.ml_item_id} de "${nomeProduto}" no Rubi?`,
+      textoConfirmar: 'Desvincular',
+      textoCancelar: 'Cancelar',
+      onConfirmar: async () => {
+        try {
+          setDesvinculandoMlId(anuncio.id);
+          await mercadoLivreService.desvincularAnuncio({
+            lojaId: loja.id,
+            anuncioId: anuncio.id,
+          });
+          await recarregarMapaAnunciosMl(loja.id);
+          mostrarSucesso(`Vínculo #${anuncio.ml_item_id} removido.`, 'Desvinculado');
+        } catch (err: any) {
+          mostrarErro(err?.message || 'Não foi possível desvincular o anúncio.', 'Erro');
+        } finally {
+          setDesvinculandoMlId(null);
+        }
+      },
+    });
+  };
 
   const handleAbrirModalMercadoLivre = async (produtoAlvo: Produto) => {
     if (!loja?.id || verificandoConexaoMl) return;
@@ -251,6 +342,11 @@ export const ProdutosEstoque: React.FC = () => {
             mapaAgrupado[item.produto_id].push(item);
           }
           setMapaAnunciosMl(mapaAgrupado);
+
+          if (anunciosMlData.length > 0 && syncInicialMlLojaRef.current !== loja.id) {
+            syncInicialMlLojaRef.current = loja.id;
+            void sincronizarStatusMl(true);
+          }
         }
       } catch (eMl) {
         console.warn('[ProdutosEstoque] Falha ao carregar vínculos do Mercado Livre:', eMl);
@@ -560,6 +656,8 @@ export const ProdutosEstoque: React.FC = () => {
           mapaAnunciosMl={mapaAnunciosMl}
           onRecarregarAnunciosMl={carregarProdutos}
           onAbrirPublicarMassaMl={handleAbrirPublicarMassaMl}
+          onSincronizarMl={() => void sincronizarStatusMl(false)}
+          sincronizandoMl={sincronizandoMl}
         />
       </div>
 
@@ -594,16 +692,28 @@ export const ProdutosEstoque: React.FC = () => {
           <div className="flex items-center gap-2 flex-wrap">
             {/* Botão Publicar em Massa no ML */}
             {permissions.podeCadastrarAlterarProdutos && (
-              <button
-                type="button"
-                disabled={verificandoConexaoMl}
-                onClick={() => handleAbrirPublicarMassaMl()}
-                className="inline-flex items-center gap-1.5 px-3.5 py-2.5 rounded-xl bg-[#FFE600] hover:bg-[#F5DC00] border border-amber-400/70 text-black text-xs font-semibold transition cursor-pointer shadow-sm disabled:opacity-50"
-                title="Publicar vários produtos em lote no Mercado Livre"
-              >
-                <ShoppingBag className="w-4 h-4 text-black" />
-                <span>Publicar em Massa no ML</span>
-              </button>
+              <>
+                <button
+                  type="button"
+                  disabled={sincronizandoMl}
+                  onClick={() => void sincronizarStatusMl(false)}
+                  className="hubi-btn-neutral inline-flex items-center gap-1.5 px-3 py-2.5 rounded-xl bg-slate-100 hover:bg-slate-200 border border-slate-300 text-black text-xs font-medium transition cursor-pointer shadow-sm disabled:opacity-50"
+                  title="Sincronizar status e remover vínculos excluídos diretamente no Mercado Livre"
+                >
+                  <RefreshCw className={`w-3.5 h-3.5 text-black ${sincronizandoMl ? 'animate-spin' : ''}`} />
+                  <span>{sincronizandoMl ? 'Sincronizando ML...' : 'Sincronizar ML'}</span>
+                </button>
+                <button
+                  type="button"
+                  disabled={verificandoConexaoMl}
+                  onClick={() => handleAbrirPublicarMassaMl()}
+                  className="inline-flex items-center gap-1.5 px-3.5 py-2.5 rounded-xl bg-[#FFE600] hover:bg-[#F5DC00] border border-amber-400/70 text-black text-xs font-semibold transition cursor-pointer shadow-sm disabled:opacity-50"
+                  title="Publicar vários produtos em lote no Mercado Livre"
+                >
+                  <ShoppingBag className="w-4 h-4 text-black" />
+                  <span>Publicar em Massa no ML</span>
+                </button>
+              </>
             )}
 
             {/* Botão Gerenciar Categorias */}
@@ -963,6 +1073,25 @@ export const ProdutosEstoque: React.FC = () => {
                                           <span>Ver no Mercado Livre</span>
                                           <ExternalLink className="w-2.5 h-2.5 shrink-0" />
                                         </a>
+                                      )}
+                                      {permissions.podeCadastrarAlterarProdutos && (
+                                        <button
+                                          type="button"
+                                          disabled={desvinculandoMlId === anuncioPrincipalMl.id}
+                                          onClick={(e) => {
+                                            e.stopPropagation();
+                                            handleDesvincularAnuncioLinha(anuncioPrincipalMl, produto.nome);
+                                          }}
+                                          title={`Desvincular anúncio #${anuncioPrincipalMl.ml_item_id} do Mercado Livre`}
+                                          className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-lg text-[10px] font-medium transition cursor-pointer disabled:opacity-50 ${
+                                            isDark
+                                              ? 'bg-slate-900 hover:bg-slate-800 border border-slate-700 text-slate-300'
+                                              : 'bg-slate-100 hover:bg-slate-200 border border-slate-300 text-black'
+                                          }`}
+                                        >
+                                          <Unlink className="w-2.5 h-2.5 shrink-0" />
+                                          <span>Desvincular do ML</span>
+                                        </button>
                                       )}
                                     </>
                                   )}

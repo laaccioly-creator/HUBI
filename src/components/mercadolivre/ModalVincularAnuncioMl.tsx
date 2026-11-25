@@ -10,7 +10,9 @@ import {
   Layers,
   Tag,
   Search,
-  RefreshCw
+  RefreshCw,
+  ExternalLink,
+  Trash2
 } from 'lucide-react';
 import { Produto, VariacaoProduto } from '../../types';
 import { supabase } from '../../lib/supabase';
@@ -29,7 +31,8 @@ import {
   converterGdmParaPayloadApiMl,
   calcularBreakdownPrecoMercadoLivre,
   traduzirErroMercadoLivre,
-  validarGtinGs1
+  validarGtinGs1,
+  obterPermalinkAnuncioMl
 } from '../../utils/gdmMercadoLivreMapper';
 import { useFeedbackModal } from '../../contexts/FeedbackContext';
 import { useTheme } from '../../contexts/ThemeContext';
@@ -111,11 +114,15 @@ export const ModalVincularAnuncioMl: React.FC<ModalVincularAnuncioMlProps> = ({
   abaInicial = 'vincular',
   onSucesso,
 }) => {
-  const { mostrarErro, mostrarSucesso, mostrarAviso } = useFeedbackModal();
+  const { mostrarErro, mostrarSucesso, mostrarAviso, confirmar } = useFeedbackModal();
   const { isDark } = useTheme();
   useRegisterOverlay(aberto, onFechar, 'modal-vincular-anuncio-ml', 'modal');
   const [abaAtiva, setAbaAtiva] = useState<'vincular' | 'publicar'>(abaInicial);
   const [salvando, setSalvando] = useState<boolean>(false);
+  const [vinculosExistentes, setVinculosExistentes] = useState<
+    Array<{ id: string; ml_item_id: string; status_anuncio: string; permalink?: string | null; variacao_id?: string | null }>
+  >([]);
+  const [desvinculandoId, setDesvinculandoId] = useState<string | null>(null);
 
   // Estados da Aba 1: Vincular Anúncio Existente
   const [mlItemIdInput, setMlItemIdInput] = useState<string>('');
@@ -204,7 +211,50 @@ export const ModalVincularAnuncioMl: React.FC<ModalVincularAnuncioMlProps> = ({
     setAtributosCategoria([]);
     setValoresAtributosExtras({});
     setErroCategoria(null);
-  }, [aberto, produto?.id, abaInicial]);
+    setVinculosExistentes([]);
+
+    if (!lojaId) return;
+    let ativo = true;
+    supabase
+      .from('marketplace_anuncios')
+      .select('id, ml_item_id, status_anuncio, permalink, variacao_id')
+      .eq('loja_id', lojaId)
+      .eq('produto_id', produto.id)
+      .then(({ data }) => {
+        if (ativo && Array.isArray(data)) {
+          setVinculosExistentes(data);
+        }
+      });
+
+    return () => {
+      ativo = false;
+    };
+  }, [aberto, produto?.id, abaInicial, lojaId]);
+
+  const handleDesvincularVinculo = (vinculo: { id: string; ml_item_id: string }) => {
+    confirmar({
+      titulo: 'Desvincular anúncio do Mercado Livre',
+      mensagem: `Deseja remover o vínculo do anúncio #${vinculo.ml_item_id} com este produto no Rubi?`,
+      textoConfirmar: 'Desvincular',
+      textoCancelar: 'Cancelar',
+      onConfirmar: async () => {
+        try {
+          setDesvinculandoId(vinculo.id);
+          await mercadoLivreService.desvincularAnuncio({
+            lojaId,
+            anuncioId: vinculo.id,
+          });
+          setVinculosExistentes((prev) => prev.filter((v) => v.id !== vinculo.id));
+          mostrarSucesso(`Vínculo #${vinculo.ml_item_id} removido do Rubi.`, 'Desvinculado');
+          if (onSucesso) onSucesso();
+        } catch (err: any) {
+          mostrarErro(err?.message || 'Não foi possível desvincular este anúncio.', 'Erro');
+        } finally {
+          setDesvinculandoId(null);
+        }
+      },
+    });
+  };
 
   // Sincroniza o código universal (EAN/GTIN) automaticamente com o cadastro do produto/variação
   useEffect(() => {
@@ -672,6 +722,71 @@ export const ModalVincularAnuncioMl: React.FC<ModalVincularAnuncioMlProps> = ({
                 </option>
               ))}
             </select>
+          </div>
+        )}
+
+        {/* VÍNCULOS EXISTENTES NO MERCADO LIVRE */}
+        {vinculosExistentes.length > 0 && (
+          <div className="mt-4 p-3.5 rounded-2xl bg-slate-50 dark:bg-zinc-950 border-2 border-slate-300 dark:border-slate-700 space-y-2">
+            <div className="flex items-center justify-between gap-2">
+              <span className="text-xs font-black uppercase tracking-wide text-black dark:text-white">
+                Anúncios vinculados a este produto ({vinculosExistentes.length})
+              </span>
+            </div>
+            <div className="space-y-1.5">
+              {vinculosExistentes.map((vinc) => {
+                const link = obterPermalinkAnuncioMl(vinc.permalink, vinc.ml_item_id);
+                const statusLabel =
+                  vinc.status_anuncio === 'active'
+                    ? 'Ativo'
+                    : vinc.status_anuncio === 'paused'
+                    ? 'Pausado'
+                    : vinc.status_anuncio === 'under_review'
+                    ? 'Em revisão'
+                    : vinc.status_anuncio || 'Vinculado';
+                return (
+                  <div
+                    key={vinc.id}
+                    className="flex flex-wrap items-center justify-between gap-2 px-3 py-2 rounded-xl bg-white dark:bg-black border border-slate-300 dark:border-slate-700 text-xs"
+                  >
+                    <div className="flex items-center gap-2 min-w-0">
+                      <span className="font-mono font-bold text-black dark:text-white">
+                        #{vinc.ml_item_id}
+                      </span>
+                      <span className="px-2 py-0.5 rounded-md bg-slate-100 dark:bg-zinc-900 border border-slate-300 dark:border-slate-700 text-[11px] font-semibold text-black dark:text-slate-200">
+                        {statusLabel}
+                      </span>
+                    </div>
+                    <div className="flex items-center gap-1.5">
+                      {link && (
+                        <a
+                          href={link}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg bg-slate-100 hover:bg-slate-200 border border-slate-300 text-black font-medium text-xs transition"
+                        >
+                          <span>Ver no Mercado Livre</span>
+                          <ExternalLink className="w-3 h-3 text-black" />
+                        </a>
+                      )}
+                      <button
+                        type="button"
+                        disabled={desvinculandoId === vinc.id}
+                        onClick={() => handleDesvincularVinculo(vinc)}
+                        className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg bg-slate-100 hover:bg-slate-200 border border-slate-300 text-black font-medium text-xs transition cursor-pointer disabled:opacity-50"
+                      >
+                        {desvinculandoId === vinc.id ? (
+                          <Loader2 className="w-3 h-3 animate-spin text-black" />
+                        ) : (
+                          <Trash2 className="w-3 h-3 text-black" />
+                        )}
+                        <span>Desvincular do ML</span>
+                      </button>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
           </div>
         )}
 
