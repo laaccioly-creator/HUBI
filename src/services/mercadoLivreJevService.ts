@@ -262,7 +262,7 @@ async function buscarDetalhesEAtributosCategoriaDiretoMl(
     for (const attr of attrsArray) {
       if (!ehRegistroObjeto(attr) || !attr.id) continue;
       const idUpper = String(attr.id).trim().toUpperCase();
-      if (idUpper === 'ITEM_CONDITION' || idUpper === 'GTIN') continue;
+      if (idUpper === 'ITEM_CONDITION' || idUpper === 'GTIN' || idUpper === 'EMPTY_GTIN_REASON') continue;
 
       const ehObrigatorio =
         temTagAtributoMl(attr.tags, 'required') ||
@@ -655,10 +655,13 @@ function montarResultadoComValoresAtuais(
   }
 
   const atributosTextoLivrePendentes = atributosObrigatorios.filter((attr) => {
-    if (attr.id === 'BRAND' || attr.id === 'MODEL' || attr.id === 'ITEM_CONDITION' || attr.id === 'GTIN') {
-      return false;
-    }
-    if (attr.value_type === 'boolean' || attr.values.length > 0) {
+    if (
+      attr.id === 'BRAND' ||
+      attr.id === 'MODEL' ||
+      attr.id === 'ITEM_CONDITION' ||
+      attr.id === 'GTIN' ||
+      attr.id === 'EMPTY_GTIN_REASON'
+    ) {
       return false;
     }
     const jaPreenchidoUsuario = Boolean(valoresAtuais?.[attr.id]?.value_name?.trim());
@@ -1093,12 +1096,21 @@ export const mercadoLivreJevService = {
       variacao: fichaProduto.variacaoNome || null,
     };
 
+    const textoNorm = normalizarTextoComparacao(
+      `${fichaProduto.nome} ${fichaProduto.descricao || ''} ${fichaProduto.categoriaLocal || ''} ${fichaProduto.subcategoriaLocal || ''} ${fichaProduto.variacaoNome || ''}`
+    );
+
     const camposSolicitados = atributosPendentes.map((attr) => ({
       id: attr.id,
       nome: attr.name,
       tipo: attr.value_type,
       unidade_padrao: attr.default_unit || null,
       dica: attr.hint || null,
+      ...(attr.values.length > 0
+        ? {
+            opcoes_permitidas: selecionarCandidatosOpcoes(attr.values, textoNorm, 15).map((v) => v.name),
+          }
+        : {}),
     }));
 
     const instrucoesCampos: string[] = [
@@ -1123,7 +1135,8 @@ export const mercadoLivreJevService = {
       const idxBase = 2 + (precisaMarca ? 1 : 0) + (precisaModelo ? 1 : 0);
       instrucoesCampos.push(
         `${idxBase}. Para cada item em "Atributos solicitados", inclua "ATTR_ID": "valor curto" | null (se não houver evidência clara na ficha, retorne null).`,
-        `${idxBase + 1}. Para tipo "number" ou "number_unit" com unidade_padrao informada, retorne apenas o número (ex.: "500").`
+        `${idxBase + 1}. Se o atributo tiver "opcoes_permitidas", retorne EXATAMENTE uma das opções listadas (ou null). Se tipo === "boolean", retorne "Sim" ou "Não".`,
+        `${idxBase + 2}. Para tipo "number" ou "number_unit" com unidade_padrao informada, retorne apenas o número (ex.: "500").`
       );
     }
 
@@ -1147,7 +1160,7 @@ export const mercadoLivreJevService = {
             contents: [{ role: 'user', parts: [{ text: prompt }] }],
             generationConfig: {
               temperature: 0.1,
-              maxOutputTokens: 384,
+              maxOutputTokens: 512,
               responseMimeType: 'application/json',
               thinkingConfig: { thinkingBudget: 0 },
             },
@@ -1179,10 +1192,42 @@ export const mercadoLivreJevService = {
       const atributos: Record<string, ValorAtributoPreenchidoMl> = {};
       for (const attr of atributosPendentes) {
         const valorRaw = parsed[attr.id];
-        if (typeof valorRaw !== 'string' && typeof valorRaw !== 'number') continue;
+        if (typeof valorRaw !== 'string' && typeof valorRaw !== 'number' && typeof valorRaw !== 'boolean') {
+          continue;
+        }
 
         let valorStr = String(valorRaw).trim();
         if (!valorStr || /^(null|undefined|n\/a|nao informado|não informado)$/i.test(valorStr)) continue;
+
+        if (attr.value_type === 'boolean') {
+          const normBool = normalizarTextoComparacao(valorStr);
+          const opcaoSim = attr.values.find(
+            (v) => v.id === '242085' || normalizarTextoComparacao(v.name) === 'sim'
+          );
+          const opcaoNao = attr.values.find(
+            (v) => v.id === '242084' || normalizarTextoComparacao(v.name) === 'nao'
+          );
+          if (/^(sim|true|yes|1)$/.test(normBool)) {
+            atributos[attr.id] = {
+              value_id: opcaoSim?.id || '242085',
+              value_name: opcaoSim?.name || 'Sim',
+            };
+          } else if (/^(nao|false|no|0)$/.test(normBool)) {
+            atributos[attr.id] = {
+              value_id: opcaoNao?.id || '242084',
+              value_name: opcaoNao?.name || 'Não',
+            };
+          }
+          continue;
+        }
+
+        if (attr.values.length > 0) {
+          const opcao = resolverOpcaoPermitida(attr.values, valorStr);
+          if (opcao) {
+            atributos[attr.id] = { value_id: opcao.id, value_name: opcao.name };
+          }
+          continue;
+        }
 
         if (attr.value_type === 'number') {
           const matchNum = valorStr.replace(',', '.').match(/-?\d+(?:\.\d+)?/);

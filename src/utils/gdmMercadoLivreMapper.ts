@@ -12,6 +12,8 @@ export interface OpcoesMapeamentoMl {
   taxaFixaMl?: number;
   marca?: string;
   modelo?: string;
+  gtin?: string | null;
+  semGtin?: boolean;
   atributosExtras?: Array<{ id: string; value_id?: string; value_name: string }>;
 }
 
@@ -122,8 +124,10 @@ export function converterProdutoHubiParaGdmMl(
     atributos.push({ id: 'MODEL', value_name: modeloLimpo });
   }
 
-  const eanLimpo = (variacao?.codigo_barras || produto.codigo_barras || '').trim();
-  const eanValido = /^\d{8,14}$/.test(eanLimpo) ? eanLimpo : null;
+  const eanCandidato = opcoes.semGtin
+    ? ''
+    : String(opcoes.gtin ?? variacao?.codigo_barras ?? produto.codigo_barras ?? '').replace(/\D/g, '').trim();
+  const eanValido = /^\d{8,14}$/.test(eanCandidato) ? eanCandidato : null;
   if (eanValido) {
     atributos.push({ id: 'GTIN', value_name: eanValido });
   } else {
@@ -307,6 +311,10 @@ export function traduzirErroMercadoLivre(mensagemBruta: string): ErroMercadoLivr
     return {
       mensagemAmigavel: 'Não foi possível concluir a operação no Mercado Livre. Tente novamente em instantes.',
     };
+  }
+
+  if (/^(Não foi possível publicar|A categoria selecionada)/i.test(texto)) {
+    return { mensagemAmigavel: texto };
   }
 
   if (

@@ -115,6 +115,8 @@ export const ModalVincularAnuncioMl: React.FC<ModalVincularAnuncioMlProps> = ({
   const [taxaFixa, setTaxaFixa] = useState<number>(6.0);
   const [marca, setMarca] = useState<string>('');
   const [modelo, setModelo] = useState<string>('');
+  const [gtin, setGtin] = useState<string>('');
+  const [semGtin, setSemGtin] = useState<boolean>(true);
 
   // Estados de Categoria Real e Atributos Dinâmicos do Mercado Livre
   const [carregandoCategoria, setCarregandoCategoria] = useState<boolean>(false);
@@ -188,6 +190,18 @@ export const ModalVincularAnuncioMl: React.FC<ModalVincularAnuncioMlProps> = ({
     setValoresAtributosExtras({});
     setErroCategoria(null);
   }, [aberto, produto?.id]);
+
+  // Sincroniza o código universal (EAN/GTIN) automaticamente com o cadastro do produto/variação
+  useEffect(() => {
+    if (!aberto || !produto) return;
+    const varSel = produto.variacoes?.find((v) => v.id === variacaoSelecionadaId) || null;
+    const codigoInicial = String(varSel?.codigo_barras || produto.codigo_barras || '')
+      .replace(/\D/g, '')
+      .trim()
+      .slice(0, 14);
+    setGtin(codigoInicial);
+    setSemGtin(!codigoInicial);
+  }, [aberto, produto?.id, variacaoSelecionadaId]);
 
   const consultarCategoriaMl = useCallback(
     async (tituloConsulta?: string, categoryIdEspecifico?: string) => {
@@ -339,9 +353,14 @@ export const ModalVincularAnuncioMl: React.FC<ModalVincularAnuncioMlProps> = ({
 
   const formatarMoeda = (valor: number) => `R$ ${valor.toFixed(2).replace('.', ',')}`;
 
-  // Atributos obrigatórios dinâmicos da categoria (excluindo BRAND e MODEL que têm campos próprios)
+  // Atributos obrigatórios dinâmicos da categoria (excluindo BRAND, MODEL e GTIN que têm campos próprios)
   const atributosDinamicosCategoria = atributosCategoria.filter(
-    (attr) => attr.id !== 'BRAND' && attr.id !== 'MODEL' && attr.id !== 'ITEM_CONDITION' && attr.id !== 'GTIN'
+    (attr) =>
+      attr.id !== 'BRAND' &&
+      attr.id !== 'MODEL' &&
+      attr.id !== 'ITEM_CONDITION' &&
+      attr.id !== 'GTIN' &&
+      attr.id !== 'EMPTY_GTIN_REASON'
   );
 
   // Validações estritas para publicação no Mercado Livre
@@ -353,6 +372,8 @@ export const ModalVincularAnuncioMl: React.FC<ModalVincularAnuncioMlProps> = ({
   const temCategoria = Boolean(categoriaSelecionadaId.trim());
   const temMarca = Boolean(marca.trim());
   const temModelo = Boolean(modelo.trim());
+  const gtinLimpo = gtin.replace(/\D/g, '').trim();
+  const temGtinValido = semGtin || /^\d{8,14}$/.test(gtinLimpo);
   const temPrecoValido = precoCalculadoMl > 0;
   const temEstoque = estoqueFisico > 0;
 
@@ -361,6 +382,9 @@ export const ModalVincularAnuncioMl: React.FC<ModalVincularAnuncioMlProps> = ({
   if (!temCategoria) camposPendentesPublicacao.push('Categoria oficial no Mercado Livre');
   if (!temMarca) camposPendentesPublicacao.push('Marca (obrigatório)');
   if (!temModelo) camposPendentesPublicacao.push('Modelo (obrigatório)');
+  if (!temGtinValido) {
+    camposPendentesPublicacao.push('Código universal (EAN/GTIN) de 8 a 14 dígitos ou marque "Não possui código de barras"');
+  }
   for (const attr of atributosDinamicosCategoria) {
     if (!valoresAtributosExtras[attr.id]?.value_name?.trim()) {
       camposPendentesPublicacao.push(`${attr.name} (obrigatório na categoria)`);
@@ -453,6 +477,8 @@ export const ModalVincularAnuncioMl: React.FC<ModalVincularAnuncioMlProps> = ({
         taxaFixaMl: taxaFixa,
         marca: marca.trim() || undefined,
         modelo: modelo.trim() || undefined,
+        gtin: semGtin ? null : gtinLimpo,
+        semGtin,
         atributosExtras,
       });
 
@@ -464,6 +490,10 @@ export const ModalVincularAnuncioMl: React.FC<ModalVincularAnuncioMlProps> = ({
         variacaoId: variacaoSelecionadaId || null,
         payloadMl,
         margemSobrepreco: margemComissao,
+        marca: marca.trim(),
+        modelo: modelo.trim(),
+        gtin: semGtin ? null : gtinLimpo,
+        semGtin,
         categoryId: categoriaSelecionadaId,
         atributosExtras,
       });
@@ -872,6 +902,53 @@ export const ModalVincularAnuncioMl: React.FC<ModalVincularAnuncioMlProps> = ({
                   }`}
                 />
               </div>
+            </div>
+
+            {/* Código Universal (EAN / GTIN) */}
+            <div className="p-3.5 rounded-2xl bg-slate-50 dark:bg-zinc-950 border-2 border-slate-300 dark:border-slate-700 space-y-2">
+              <div className="flex items-center justify-between gap-2">
+                <label className="text-xs font-black text-slate-900 dark:text-slate-200">
+                  Código Universal (EAN / GTIN)
+                </label>
+                <span className="text-[11px] font-bold text-slate-700 dark:text-slate-300">
+                  {semGtin ? 'Isenção automática ativa' : '8 a 14 dígitos'}
+                </span>
+              </div>
+
+              <input
+                type="text"
+                inputMode="numeric"
+                maxLength={14}
+                disabled={semGtin}
+                value={semGtin ? '' : gtin}
+                onChange={(e) => {
+                  const somenteDigitos = e.target.value.replace(/\D/g, '').slice(0, 14);
+                  setGtin(somenteDigitos);
+                  if (somenteDigitos && semGtin) {
+                    setSemGtin(false);
+                  }
+                }}
+                placeholder={
+                  semGtin
+                    ? 'Produto sem código de barras (isenção automática enviada ao ML)'
+                    : 'Ex: 7891234567890'
+                }
+                className={`w-full bg-white dark:bg-black border-2 rounded-xl px-3.5 py-2.5 text-sm font-mono font-bold text-slate-900 dark:text-white placeholder:font-sans placeholder:text-xs placeholder:text-slate-500 dark:placeholder:text-slate-400 outline-hidden transition disabled:opacity-70 disabled:bg-slate-100 dark:disabled:bg-zinc-900 ${
+                  !temGtinValido
+                    ? 'border-amber-500/70 focus:border-amber-500'
+                    : 'border-slate-300 dark:border-slate-700 focus:border-emerald-500'
+                }`}
+              />
+
+              <label className="inline-flex items-center gap-2 text-xs font-bold text-slate-900 dark:text-slate-200 cursor-pointer select-none pt-0.5">
+                <input
+                  type="checkbox"
+                  checked={semGtin}
+                  onChange={(e) => setSemGtin(e.target.checked)}
+                  className="w-4 h-4 rounded border-slate-400 text-emerald-600 focus:ring-emerald-500 cursor-pointer"
+                />
+                <span>Não possui código de barras (GTIN)</span>
+              </label>
             </div>
 
             {/* Atributos Obrigatórios Dinâmicos da Categoria no ML */}

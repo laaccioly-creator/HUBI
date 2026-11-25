@@ -288,26 +288,34 @@ async function prepararPicturesBinariasMl(
 
 function aplicarAtributoGtinOuIsencao(
   atributos: MlAtributo[],
-  codigoBarrasPreferencial?: string | null
+  opcoes: {
+    gtinInformado?: string | null;
+    semGtin?: boolean;
+    codigoBarrasBanco?: string | null;
+  } = {}
 ): MlAtributo[] {
-  const codigoPreferencialLimpo =
-    typeof codigoBarrasPreferencial === "string" ? codigoBarrasPreferencial.trim() : "";
-  const gtinExistente = atributos.find((a) => a.id?.trim().toUpperCase() === "GTIN")?.value_name;
-  const codigoPayloadLimpo = typeof gtinExistente === "string" ? gtinExistente.trim() : "";
-
-  const codigoValido = /^\d{8,14}$/.test(codigoPreferencialLimpo)
-    ? codigoPreferencialLimpo
-    : /^\d{8,14}$/.test(codigoPayloadLimpo)
-    ? codigoPayloadLimpo
-    : null;
-
   const filtrados = atributos.filter((a) => {
     const idUpper = String(a?.id || "").trim().toUpperCase();
     return idUpper !== "GTIN" && idUpper !== "EMPTY_GTIN_REASON";
   });
 
-  if (codigoValido) {
-    return [...filtrados, { id: "GTIN", value_name: codigoValido }];
+  if (opcoes.semGtin === true) {
+    return [...filtrados, { id: "EMPTY_GTIN_REASON", value_id: "17055160" }];
+  }
+
+  const gtinExistente = atributos.find((a) => a.id?.trim().toUpperCase() === "GTIN")?.value_name;
+  const candidatos = [
+    opcoes.gtinInformado,
+    typeof gtinExistente === "string" ? gtinExistente : null,
+    opcoes.codigoBarrasBanco,
+  ];
+
+  for (const candidato of candidatos) {
+    if (typeof candidato !== "string") continue;
+    const somenteDigitos = candidato.replace(/\D/g, "").trim();
+    if (/^\d{8,14}$/.test(somenteDigitos)) {
+      return [...filtrados, { id: "GTIN", value_name: somenteDigitos }];
+    }
   }
 
   return [...filtrados, { id: "EMPTY_GTIN_REASON", value_id: "17055160" }];
@@ -380,7 +388,7 @@ async function consultarDetalhesEAtributosCategoria(
     const nomeAtributo = String(attr.name || idUpper).trim();
     mapaNomesAtributos[idUpper] = nomeAtributo;
 
-    if (idUpper === "ITEM_CONDITION" || idUpper === "GTIN") continue;
+    if (idUpper === "ITEM_CONDITION" || idUpper === "GTIN" || idUpper === "EMPTY_GTIN_REASON") continue;
 
     const ehObrigatorio =
       temTagAtributoMl(attr.tags, "required") ||
@@ -487,9 +495,55 @@ function extrairTextoErroMl(dadosErro: any): string {
   return partes.join(" | ");
 }
 
+const NOMES_AMIGAVEIS_ATRIBUTOS_ML: Record<string, string> = {
+  GTIN: "Código universal de produto (EAN/GTIN)",
+  PRODUCT_IDENTIFIER: "Código universal de produto (EAN/GTIN)",
+  EMPTY_GTIN_REASON: "Motivo de ausência do código de barras (GTIN)",
+  BRAND: "Marca",
+  MODEL: "Modelo",
+  LINE: "Linha",
+  COLOR: "Cor",
+  SIZE: "Tamanho",
+  GENDER: "Gênero",
+  VOLTAGE: "Voltagem",
+  SCREEN_SIZE: "Tamanho da tela",
+  DISPLAY_TYPE: "Tipo de tela",
+  ITEM_CONDITION: "Condição do item",
+};
+
+const TOKENS_ESTRUTURAIS_ML = new Set([
+  "MLB",
+  "BODY",
+  "ATTRIBUTES",
+  "ITEM",
+  "VARIATIONS",
+  "PICTURES",
+  "TITLE",
+  "FAMILY_NAME",
+]);
+
+function ehCodigoCategoriaOuInternoMl(token: string, categoriaAlvo?: string): boolean {
+  const upper = token.trim().toUpperCase();
+  if (!upper) return true;
+  if (categoriaAlvo && upper === categoriaAlvo.trim().toUpperCase()) return true;
+  if (/^ML[A-Z]\d+$/i.test(upper)) return true;
+  if (/^ML[A-Z]$/i.test(upper)) return true;
+  if (TOKENS_ESTRUTURAIS_ML.has(upper)) return true;
+  return false;
+}
+
+function resolverNomeAmigavelAtributoMl(
+  token: string,
+  mapaNomesAtributos: Record<string, string>
+): string {
+  const upper = token.trim().toUpperCase();
+  return NOMES_AMIGAVEIS_ATRIBUTOS_ML[upper] || mapaNomesAtributos[upper] || upper;
+}
+
 function extrairCamposFaltantesMl(
   dadosErro: any,
-  mapaNomesAtributos: Record<string, string>
+  mapaNomesAtributos: Record<string, string>,
+  categoriaAlvo?: string
 ): string[] {
   const encontrados = new Set<string>();
   const textos: string[] = [];
@@ -497,6 +551,7 @@ function extrairCamposFaltantesMl(
   if (typeof dadosErro?.message === "string") textos.push(dadosErro.message);
   if (Array.isArray(dadosErro?.cause)) {
     for (const c of dadosErro.cause) {
+      if (String(c?.type || "").toLowerCase() === "warning") continue;
       if (typeof c?.message === "string") textos.push(c.message);
       if (Array.isArray(c?.references)) {
         for (const ref of c.references) {
@@ -513,9 +568,10 @@ function extrairCamposFaltantesMl(
   for (const m of matchesColchetes) {
     const tokens = m[1].split(",").map((t) => t.trim().toUpperCase()).filter(Boolean);
     for (const token of tokens) {
-      if (mapaNomesAtributos[token]) {
-        encontrados.add(mapaNomesAtributos[token]);
-      } else if (/^[A-Z][A-Z0-9_]{1,40}$/.test(token) && token !== "MLB") {
+      if (ehCodigoCategoriaOuInternoMl(token, categoriaAlvo)) continue;
+      if (NOMES_AMIGAVEIS_ATRIBUTOS_ML[token] || mapaNomesAtributos[token]) {
+        encontrados.add(resolverNomeAmigavelAtributoMl(token, mapaNomesAtributos));
+      } else if (/^[A-Z][A-Z0-9_]{1,40}$/.test(token)) {
         encontrados.add(token);
       }
     }
@@ -525,18 +581,58 @@ function extrairCamposFaltantesMl(
   const matchesRefs = textoCompleto.matchAll(/attributes\.([A-Z0-9_]+)/gi);
   for (const m of matchesRefs) {
     const token = m[1].trim().toUpperCase();
-    encontrados.add(mapaNomesAtributos[token] || token);
+    if (ehCodigoCategoriaOuInternoMl(token, categoriaAlvo)) continue;
+    encontrados.add(resolverNomeAmigavelAtributoMl(token, mapaNomesAtributos));
   }
 
-  // Varredura por IDs conhecidos da categoria mencionados no texto do erro
-  for (const [idAttr, nomeAttr] of Object.entries(mapaNomesAtributos)) {
+  // Varredura por IDs conhecidos da categoria ou do dicionário mencionados no texto do erro
+  const todosIdsConhecidos = new Set<string>([
+    ...Object.keys(mapaNomesAtributos),
+    ...Object.keys(NOMES_AMIGAVEIS_ATRIBUTOS_ML),
+  ]);
+  for (const idAttr of todosIdsConhecidos) {
+    if (ehCodigoCategoriaOuInternoMl(idAttr, categoriaAlvo)) continue;
     const regexId = new RegExp(`\\b${idAttr}\\b`);
     if (regexId.test(textoCompleto)) {
-      encontrados.add(nomeAttr);
+      encontrados.add(resolverNomeAmigavelAtributoMl(idAttr, mapaNomesAtributos));
     }
   }
 
   return Array.from(encontrados);
+}
+
+function extrairCausasLegiveisMl(
+  dadosErro: any,
+  mapaNomesAtributos: Record<string, string>,
+  categoriaAlvo?: string
+): string[] {
+  const causasLegiveis = new Set<string>();
+  const causas = Array.isArray(dadosErro?.cause) ? dadosErro.cause : [];
+
+  for (const c of causas) {
+    if (String(c?.type || "").toLowerCase() === "warning") continue;
+    let msg = typeof c?.message === "string" ? c.message.trim() : "";
+    if (!msg) continue;
+
+    if (categoriaAlvo) {
+      msg = msg.replace(new RegExp(`\\b${categoriaAlvo.trim()}\\b`, "gi"), "categoria selecionada");
+    }
+
+    const todosIds = new Set<string>([
+      ...Object.keys(mapaNomesAtributos),
+      ...Object.keys(NOMES_AMIGAVEIS_ATRIBUTOS_ML),
+    ]);
+    for (const idAttr of todosIds) {
+      if (ehCodigoCategoriaOuInternoMl(idAttr, categoriaAlvo)) continue;
+      const nomeAmigavel = resolverNomeAmigavelAtributoMl(idAttr, mapaNomesAtributos);
+      msg = msg.replace(new RegExp(`\\b${idAttr}\\b`, "g"), nomeAmigavel);
+    }
+
+    msg = msg.replace(/\s+/g, " ").trim();
+    if (msg) causasLegiveis.add(msg);
+  }
+
+  return Array.from(causasLegiveis);
 }
 
 serve(async (req: Request) => {
@@ -869,6 +965,8 @@ serve(async (req: Request) => {
         margem_sobrepreco,
         marca,
         modelo,
+        gtin,
+        sem_gtin,
         category_id,
         atributos_extras,
       } = corpo;
@@ -912,7 +1010,11 @@ serve(async (req: Request) => {
           modelo,
           Array.isArray(atributos_extras) ? atributos_extras : []
         ),
-        resVarDb?.data?.codigo_barras || resProdDb?.data?.codigo_barras || null
+        {
+          gtinInformado: typeof gtin === "string" ? gtin : null,
+          semGtin: sem_gtin === true,
+          codigoBarrasBanco: resVarDb?.data?.codigo_barras || resProdDb?.data?.codigo_barras || null,
+        }
       );
 
       // Bloqueio estrito do fallback para "Outros" (MLB3530 / MLB1953)
@@ -1054,21 +1156,33 @@ serve(async (req: Request) => {
         const detalhe = ultimoErroMl?.cause?.[0]?.message || ultimoErroMl?.message || "Erro desconhecido na API do Mercado Livre.";
 
         let camposFaltantes: string[] = [];
+        let causasLegiveis: string[] = [];
         try {
           const infoCat = await consultarDetalhesEAtributosCategoria(categoriaAlvo, token);
-          camposFaltantes = extrairCamposFaltantesMl(ultimoErroMl, infoCat.mapa_nomes_atributos);
+          camposFaltantes = extrairCamposFaltantesMl(ultimoErroMl, infoCat.mapa_nomes_atributos, categoriaAlvo);
+          causasLegiveis = extrairCausasLegiveisMl(ultimoErroMl, infoCat.mapa_nomes_atributos, categoriaAlvo);
         } catch {
-          camposFaltantes = extrairCamposFaltantesMl(ultimoErroMl, {});
+          camposFaltantes = extrairCamposFaltantesMl(ultimoErroMl, {}, categoriaAlvo);
+          causasLegiveis = extrairCausasLegiveisMl(ultimoErroMl, {}, categoriaAlvo);
         }
 
-        const erroAmigavel = camposFaltantes.length > 0
-          ? `Não foi possível publicar na categoria selecionada (${categoriaAlvo}) porque faltam campos obrigatórios: ${camposFaltantes.join(", ")}.`
-          : `Não foi possível publicar no Mercado Livre (${categoriaAlvo}): ${detalhe}`;
+        const semGtinEnviado = !atributosBase.some((a) => a.id === "GTIN");
+        const apenasFaltaGtin =
+          camposFaltantes.length === 1 &&
+          camposFaltantes[0] === "Código universal de produto (EAN/GTIN)";
+
+        const erroAmigavel =
+          apenasFaltaGtin && semGtinEnviado
+            ? `A categoria selecionada (${categoriaAlvo}) exige um Código universal de produto (EAN/GTIN) válido de 8 a 14 dígitos. Desmarque a opção 'Não possui código de barras (GTIN)' no modal e informe o código EAN do produto.`
+            : camposFaltantes.length > 0
+            ? `Não foi possível publicar na categoria selecionada (${categoriaAlvo}) porque faltam campos obrigatórios: ${camposFaltantes.join(", ")}.`
+            : `Não foi possível publicar no Mercado Livre (${categoriaAlvo}): ${causasLegiveis.join(" • ") || detalhe}`;
 
         return new Response(
           JSON.stringify({
             error: erroAmigavel,
             campos_faltantes: camposFaltantes,
+            causas_legiveis: causasLegiveis,
             category_id: categoriaAlvo,
             detail_raw: detalhe,
             ml_cause: ultimoErroMl?.cause || null,

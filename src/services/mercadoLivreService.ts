@@ -358,6 +358,10 @@ export const mercadoLivreService = {
     variacaoId?: string | null;
     payloadMl: any;
     margemSobrepreco?: number;
+    marca?: string;
+    modelo?: string;
+    gtin?: string | null;
+    semGtin?: boolean;
     categoryId?: string;
     atributosExtras?: Array<{ id: string; value_id?: string; value_name: string }>;
   }): Promise<{ sucesso: boolean; mensagem: string; item: any }> {
@@ -375,6 +379,10 @@ export const mercadoLivreService = {
         variacao_id: params.variacaoId,
         payload_ml: params.payloadMl,
         margem_sobrepreco: params.margemSobrepreco,
+        marca: params.marca,
+        modelo: params.modelo,
+        gtin: params.gtin,
+        sem_gtin: params.semGtin,
         category_id: params.categoryId,
         atributos_extras: params.atributosExtras,
       },
