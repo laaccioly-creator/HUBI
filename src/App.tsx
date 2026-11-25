@@ -33,6 +33,15 @@ import { CadastrosAuxiliares } from './components/CadastrosAuxiliares';
 import { UsuariosGestao } from './components/UsuariosGestao';
 import { AgendaServicosLoja } from './components/agendamento/AgendaServicosLoja';
 import { ConfirmarAgendamentoPublico } from './pages/ConfirmarAgendamentoPublico';
+import { CadastroPdv } from './components/CadastroPdv';
+
+const RotaLogin: React.FC = () => {
+  const { loja, session, carregando } = useAuth();
+  if (!carregando && loja && session) {
+    return <Navigate to="/" replace />;
+  }
+  return <CadastroPdv />;
+};
 
 interface RotaProtegidaProps {
   permitido: boolean;
@@ -114,6 +123,9 @@ const AppRotasInternas: React.FC = () => {
       {/* Rota Pública de Confirmação, Remarcação e Gestão de Agendamento */}
       <Route path="/confirmar-agendamento/:token" element={<ConfirmarAgendamentoPublico />} />
       <Route path="/agendamento/:token" element={<ConfirmarAgendamentoPublico />} />
+
+      {/* Rota de Login / Renovação de Sessão */}
+      <Route path="/login" element={<RotaLogin />} />
 
       {/* Rotas Internas do HUBI */}
       <Route path="/" element={<AppLayout />}>

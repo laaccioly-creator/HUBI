@@ -12,11 +12,15 @@ import {
   Users,
   AlertTriangle,
   ShieldAlert,
-  Menu
+  Menu,
+  LogIn
 } from 'lucide-react';
+import { supabase } from '../lib/supabase';
+import { useAuth } from '../contexts/AuthContext';
 import { useTheme } from '../contexts/ThemeContext';
 import { useFeedbackModal } from '../contexts/FeedbackContext';
 import { useMenu } from '../contexts/MenuContext';
+import { configuracoesPlataformaService } from '../services/configuracoesPlataformaService';
 import {
   dashboardService,
   TipoPeriodoDashboard,
@@ -47,6 +51,7 @@ const METAS_HUBI_VAZIAS: MetasAreaHubi = {
 
 export const AreaHubiCockpit: React.FC = () => {
   const navigate = useNavigate();
+  const { desconectarPdv } = useAuth();
   const { tema } = useTheme();
   const isDark = tema === 'dark';
   const { mostrarSucesso } = useFeedbackModal();
@@ -62,6 +67,8 @@ export const AreaHubiCockpit: React.FC = () => {
   // Dados do Cockpit Executivo
   const [carregando, setCarregando] = useState<boolean>(true);
   const [erro, setErro] = useState<string | null>(null);
+  const [sessaoAuthAusente, setSessaoAuthAusente] = useState<boolean>(false);
+  const [renovandoSessao, setRenovandoSessao] = useState<boolean>(false);
   const [payload, setPayload] = useState<PayloadCockpitAreaHubi | null>(null);
 
   // Overlays / Drawer / Modais
@@ -83,17 +90,54 @@ export const AreaHubiCockpit: React.FC = () => {
     try {
       setCarregando(true);
       setErro(null);
+
+      const verificacao = await configuracoesPlataformaService.garantirSessaoSuperAdmin();
+      if (verificacao.motivo === 'sessao_ausente') {
+        setSessaoAuthAusente(true);
+        setErro(
+          'Sessão segura expirada ou não encontrada neste dispositivo. Faça login novamente para acessar a Área Rubi.'
+        );
+        return;
+      }
+      if (verificacao.motivo === 'nao_autorizado') {
+        setSessaoAuthAusente(false);
+        setErro('Acesso restrito ao Super Admin da plataforma Rubi.');
+        return;
+      }
+
+      setSessaoAuthAusente(false);
       const dados = await areaHubiService.obterDadosCockpit(
         infoIntervalo.dataInicioIso,
         infoIntervalo.dataFimIso
       );
       setPayload(dados);
     } catch (err: unknown) {
-      const msg =
+      const rawMsg =
         err instanceof Error
           ? err.message
           : 'Não foi possível carregar os dados executivos da Área Rubi.';
-      setErro(msg);
+
+      if (rawMsg === 'SESSAO_AUTH_AUSENTE') {
+        setSessaoAuthAusente(true);
+        setErro(
+          'Sessão segura expirada ou não encontrada neste dispositivo. Faça login novamente para acessar a Área Rubi.'
+        );
+      } else {
+        try {
+          const { data: { session } } = await supabase.auth.getSession();
+          if (!session?.user) {
+            setSessaoAuthAusente(true);
+            setErro(
+              'Sessão segura expirada ou não encontrada neste dispositivo. Faça login novamente para acessar a Área Rubi.'
+            );
+            return;
+          }
+        } catch {
+          // Mantém erro original abaixo
+        }
+        setSessaoAuthAusente(false);
+        setErro(rawMsg);
+      }
     } finally {
       setCarregando(false);
     }
@@ -102,6 +146,30 @@ export const AreaHubiCockpit: React.FC = () => {
   useEffect(() => {
     carregarDados();
   }, [carregarDados]);
+
+  useEffect(() => {
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
+      if (
+        session?.user &&
+        (event === 'SIGNED_IN' || event === 'TOKEN_REFRESHED' || event === 'INITIAL_SESSION')
+      ) {
+        void carregarDados();
+      }
+    });
+    return () => {
+      subscription.unsubscribe();
+    };
+  }, [carregarDados]);
+
+  const handleRenovarSessao = async () => {
+    try {
+      setRenovandoSessao(true);
+      await desconectarPdv();
+      navigate('/login', { replace: true });
+    } finally {
+      setRenovandoSessao(false);
+    }
+  };
 
   const metricas = payload?.metricas || {
     faturamento_bruto_hubi: 0,
@@ -376,13 +444,28 @@ export const AreaHubiCockpit: React.FC = () => {
               <AlertTriangle className="w-5 h-5 text-red-600 dark:text-red-400 shrink-0" />
               <span className="font-semibold">{erro}</span>
             </div>
-            <button
-              type="button"
-              onClick={() => carregarDados()}
-              className={`px-3 py-1.5 rounded-xl transition cursor-pointer ${neutralBtnClass}`}
-            >
-              Tentar Novamente
-            </button>
+            <div className="flex flex-wrap items-center gap-2">
+              {(sessaoAuthAusente || erro.includes('Acesso restrito ao Super Admin')) && (
+                <button
+                  type="button"
+                  onClick={handleRenovarSessao}
+                  disabled={renovandoSessao}
+                  className="px-3.5 py-1.5 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white font-bold flex items-center gap-1.5 transition cursor-pointer disabled:opacity-50"
+                >
+                  <LogIn className="w-3.5 h-3.5" />
+                  <span>
+                    {renovandoSessao ? 'Redirecionando...' : 'Renovar Sessão / Fazer Login Novamente'}
+                  </span>
+                </button>
+              )}
+              <button
+                type="button"
+                onClick={() => carregarDados()}
+                className={`px-3 py-1.5 rounded-xl transition cursor-pointer ${neutralBtnClass}`}
+              >
+                Tentar Novamente
+              </button>
+            </div>
           </div>
         )}
 

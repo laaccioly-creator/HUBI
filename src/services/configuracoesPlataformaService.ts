@@ -21,6 +21,22 @@ const COLUNAS_SUPER_ADMIN_COMPLETAS =
 
 const EMAIL_SUPER_ADMIN_MESTRE = '5585997374372@hubi.app';
 
+export interface ResultadoSessaoSuperAdmin {
+  autenticado: boolean;
+  ehSuperAdmin: boolean;
+  emailUsuario: string | null;
+  emailMestre: string;
+  motivo: 'ok' | 'sessao_ausente' | 'nao_autorizado';
+}
+
+export interface ResultadoParametrosSuperAdmin {
+  dados: ConfiguracoesPlataformaHubi | null;
+  origem: 'banco' | 'sessao_ausente' | 'nao_autorizado' | 'erro';
+  emailMestre: string;
+  emailUsuario: string | null;
+  mensagemErro?: string;
+}
+
 export interface ResultadoTesteCredencialMp {
   sucesso: boolean;
   mensagem: string;
@@ -154,15 +170,99 @@ export const configuracoesPlataformaService = {
   },
 
   /**
-   * Obtém todos os parâmetros globais (incluindo credenciais privadas do Mercado Pago)
-   * exclusivamente quando o usuário autenticado for o Super Admin mestre.
+   * Aguarda a restauração da sessão do Supabase Auth (renovando JWT expirado quando possível)
+   * e valida o e-mail autenticado contra `email_super_admin` na plataforma.
    */
-  async obterParametrosSuperAdmin(): Promise<ConfiguracoesPlataformaHubi> {
+  async garantirSessaoSuperAdmin(): Promise<ResultadoSessaoSuperAdmin> {
     try {
-      const { data: { user } } = await supabase.auth.getUser();
-      const emailAtual = (user?.email || '').toLowerCase().trim();
-      if (emailAtual !== EMAIL_SUPER_ADMIN_MESTRE) {
-        return await this.obterParametros();
+      let { data: { session } } = await supabase.auth.getSession();
+
+      const expirandoOuExpirado = Boolean(
+        session?.expires_at && session.expires_at * 1000 <= Date.now() + 60_000
+      );
+
+      if (!session || expirandoOuExpirado) {
+        const { data: refreshed } = await supabase.auth.refreshSession().catch(() => ({
+          data: { session: null },
+        }));
+        if (refreshed?.session) {
+          session = refreshed.session;
+        }
+      }
+
+      if (!session?.user) {
+        return {
+          autenticado: false,
+          ehSuperAdmin: false,
+          emailUsuario: null,
+          emailMestre: EMAIL_SUPER_ADMIN_MESTRE,
+          motivo: 'sessao_ausente',
+        };
+      }
+
+      let emailMestre = EMAIL_SUPER_ADMIN_MESTRE;
+      try {
+        const { data: cfg } = await supabase
+          .from('configuracoes_plataforma')
+          .select('email_super_admin')
+          .eq('id', 1)
+          .maybeSingle();
+        if (cfg?.email_super_admin) {
+          emailMestre = String(cfg.email_super_admin).trim() || EMAIL_SUPER_ADMIN_MESTRE;
+        }
+      } catch {
+        // Mantém fallback EMAIL_SUPER_ADMIN_MESTRE caso a leitura falhe
+      }
+
+      const emailUsuario = (session.user.email || '').toLowerCase().trim() || null;
+      const ehSuperAdmin = Boolean(
+        emailUsuario && emailUsuario === emailMestre.toLowerCase().trim()
+      );
+
+      return {
+        autenticado: true,
+        ehSuperAdmin,
+        emailUsuario,
+        emailMestre,
+        motivo: ehSuperAdmin ? 'ok' : 'nao_autorizado',
+      };
+    } catch {
+      return {
+        autenticado: false,
+        ehSuperAdmin: false,
+        emailUsuario: null,
+        emailMestre: EMAIL_SUPER_ADMIN_MESTRE,
+        motivo: 'sessao_ausente',
+      };
+    }
+  },
+
+  /**
+   * Obtém todos os parâmetros globais com diagnóstico explícito de sessão e autorização,
+   * sem mascarar falhas de autenticação ou RLS com valores padrão hardcoded.
+   */
+  async obterParametrosSuperAdminDetalhado(): Promise<ResultadoParametrosSuperAdmin> {
+    try {
+      const verificacao = await this.garantirSessaoSuperAdmin();
+      if (!verificacao.autenticado) {
+        return {
+          dados: null,
+          origem: 'sessao_ausente',
+          emailMestre: verificacao.emailMestre,
+          emailUsuario: null,
+          mensagemErro:
+            'Sessão de autenticação expirada ou ausente neste dispositivo. Renove o login para carregar os parâmetros globais.',
+        };
+      }
+
+      if (!verificacao.ehSuperAdmin) {
+        return {
+          dados: null,
+          origem: 'nao_autorizado',
+          emailMestre: verificacao.emailMestre,
+          emailUsuario: verificacao.emailUsuario,
+          mensagemErro: 'Acesso restrito ao Super Admin da plataforma Rubi.',
+        };
       }
 
       let { data, error } = await supabase
@@ -182,14 +282,46 @@ export const configuracoesPlataformaService = {
       }
 
       if (error || !data) {
-        return CONFIG_PLATAFORMA_PADRAO;
+        return {
+          dados: null,
+          origem: 'erro',
+          emailMestre: verificacao.emailMestre,
+          emailUsuario: verificacao.emailUsuario,
+          mensagemErro: 'Não foi possível carregar os parâmetros globais da plataforma.',
+        };
       }
 
-      return mapearLinhaPlataforma(data, true);
+      return {
+        dados: mapearLinhaPlataforma(data, true),
+        origem: 'banco',
+        emailMestre: verificacao.emailMestre,
+        emailUsuario: verificacao.emailUsuario,
+      };
     } catch (err) {
       console.error('[configuracoesPlataformaService] Erro ao obter parâmetros Super Admin:', err);
-      return CONFIG_PLATAFORMA_PADRAO;
+      return {
+        dados: null,
+        origem: 'erro',
+        emailMestre: EMAIL_SUPER_ADMIN_MESTRE,
+        emailUsuario: null,
+        mensagemErro: 'Erro inesperado ao consultar os parâmetros globais da plataforma.',
+      };
     }
+  },
+
+  /**
+   * Obtém todos os parâmetros globais (incluindo credenciais privadas do Mercado Pago)
+   * exclusivamente quando o usuário autenticado for o Super Admin mestre.
+   */
+  async obterParametrosSuperAdmin(): Promise<ConfiguracoesPlataformaHubi> {
+    const detalhe = await this.obterParametrosSuperAdminDetalhado();
+    if (detalhe.dados) {
+      return detalhe.dados;
+    }
+    if (detalhe.origem === 'nao_autorizado') {
+      return await this.obterParametros();
+    }
+    return CONFIG_PLATAFORMA_PADRAO;
   },
 
   /**

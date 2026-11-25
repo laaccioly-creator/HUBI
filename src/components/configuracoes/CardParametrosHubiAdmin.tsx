@@ -2,7 +2,7 @@
 // Painel restrito de parâmetros comerciais globais da plataforma HUBI (Super Admin)
 // Governança: supabase-rls-guard, anti-jsonb-linter, pii-leak-detector
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import {
   ShieldAlert,
@@ -23,10 +23,15 @@ import {
   Shield,
   AlertTriangle,
   Sliders,
-  Gauge
+  Gauge,
+  LogIn,
+  RefreshCw
 } from 'lucide-react';
+import { supabase } from '../../lib/supabase';
 import { configuracoesPlataformaService } from '../../services/configuracoesPlataformaService';
 import { testarConexaoMeta, salvarConfiguracoesWhatsApp } from '../../services/whatsappIaService';
+import { ConfiguracoesPlataformaHubi } from '../../types';
+import { useAuth } from '../../contexts/AuthContext';
 import { useTheme } from '../../contexts/ThemeContext';
 import { useFeedbackModal } from '../../contexts/FeedbackContext';
 import { usePermissions } from '../../hooks/usePermissions';
@@ -34,19 +39,38 @@ import { usePermissions } from '../../hooks/usePermissions';
 interface CardParametrosHubiAdminProps {
   emailLogado: string;
   lojaId?: string;
+  parametrosGlobais?: ConfiguracoesPlataformaHubi | null;
+  carregandoExterno?: boolean;
+  origemExterna?: 'banco' | 'sessao_ausente' | 'nao_autorizado' | 'erro';
+  erroExterno?: string | null;
+  onRecarregarExterno?: () => Promise<void> | void;
+  onParametrosGlobaisSalvos?: (atualizado: ConfiguracoesPlataformaHubi) => void;
 }
 
 export const CardParametrosHubiAdmin: React.FC<CardParametrosHubiAdminProps> = ({
   emailLogado,
   lojaId,
+  parametrosGlobais,
+  carregandoExterno,
+  origemExterna,
+  erroExterno,
+  onRecarregarExterno,
+  onParametrosGlobaisSalvos,
 }) => {
   const navigate = useNavigate();
+  const { desconectarPdv } = useAuth();
   const { isDark } = useTheme();
   const { mostrarSucesso, mostrarErro } = useFeedbackModal();
   const { ehSuperAdmin } = usePermissions();
 
-  const [carregando, setCarregando] = useState<boolean>(true);
+  const modoExterno = Boolean(onRecarregarExterno);
+  const [carregandoLocal, setCarregandoLocal] = useState<boolean>(!modoExterno);
+  const [origemLocal, setOrigemLocal] = useState<
+    'banco' | 'sessao_ausente' | 'nao_autorizado' | 'erro'
+  >('banco');
+  const [erroLocal, setErroLocal] = useState<string | null>(null);
   const [salvando, setSalvando] = useState<boolean>(false);
+  const [renovandoSessao, setRenovandoSessao] = useState<boolean>(false);
 
   // Estados dos campos comerciais
   const [diasTrial, setDiasTrial] = useState<number>(7);
@@ -91,41 +115,93 @@ export const CardParametrosHubiAdmin: React.FC<CardParametrosHubiAdminProps> = (
   // Calcula valor total anual dinâmico (12x mensal anual)
   const valorAnualCalculado = Number((valorMensalAnual * 12).toFixed(2));
 
-  // Carrega parâmetros iniciais do banco (visão completa Super Admin)
-  const carregarParametros = async () => {
+  const aplicarParametrosNoFormulario = useCallback((params: ConfiguracoesPlataformaHubi) => {
+    setDiasTrial(params.dias_trial);
+    setValorMensalAnual(params.valor_mensal_anual);
+    setValorPlanoMensalAvulso(params.valor_plano_mensal_avulso);
+    setDescontoPixPercentual(params.desconto_pix_percentual);
+    setAceitaDebito(params.aceita_cartao_debito);
+    setMaxParcelas(params.max_parcelas_cartao);
+    setParcelasSemJuros(params.parcelas_sem_juros);
+    setEmailSuperAdmin(params.email_super_admin);
+    setCustoDisparoWhatsapp(Number(params.custo_disparo_whatsapp ?? 0.15));
+    setValorMinimoRecargaWhatsapp(Number(params.valor_minimo_recarga_whatsapp ?? 10.0));
+    setCreditoBonusTrialWhatsapp(Number(params.credito_bonus_trial_whatsapp ?? 2.0));
+    setMetaPhoneNumberId(params.meta_phone_number_id || '');
+    setMetaWabaId(params.meta_waba_id || '');
+    setMetaAccessToken(params.meta_access_token || '');
+    setMetaVerifyToken(params.meta_verify_token || 'hubi_whatsapp_webhook_token');
+    setMpAmbiente(params.mp_ambiente === 'producao' ? 'producao' : 'sandbox');
+    setMpPublicKey(params.mp_public_key || '');
+    setMpAccessToken(params.mp_access_token || '');
+    setMpWebhookSecret(params.mp_webhook_secret || '');
+    setUltimaAtualizacao(params.atualizado_em || null);
+  }, []);
+
+  // Carrega parâmetros iniciais do banco (modo autônomo com validação explícita de sessão)
+  const carregarParametros = useCallback(async () => {
     try {
-      setCarregando(true);
-      const params = await configuracoesPlataformaService.obterParametrosSuperAdmin();
-      setDiasTrial(params.dias_trial);
-      setValorMensalAnual(params.valor_mensal_anual);
-      setValorPlanoMensalAvulso(params.valor_plano_mensal_avulso);
-      setDescontoPixPercentual(params.desconto_pix_percentual);
-      setAceitaDebito(params.aceita_cartao_debito);
-      setMaxParcelas(params.max_parcelas_cartao);
-      setParcelasSemJuros(params.parcelas_sem_juros);
-      setEmailSuperAdmin(params.email_super_admin);
-      setCustoDisparoWhatsapp(Number(params.custo_disparo_whatsapp ?? 0.15));
-      setValorMinimoRecargaWhatsapp(Number(params.valor_minimo_recarga_whatsapp ?? 10.0));
-      setCreditoBonusTrialWhatsapp(Number(params.credito_bonus_trial_whatsapp ?? 2.0));
-      setMetaPhoneNumberId(params.meta_phone_number_id || '');
-      setMetaWabaId(params.meta_waba_id || '');
-      setMetaAccessToken(params.meta_access_token || '');
-      setMetaVerifyToken(params.meta_verify_token || 'hubi_whatsapp_webhook_token');
-      setMpAmbiente(params.mp_ambiente === 'producao' ? 'producao' : 'sandbox');
-      setMpPublicKey(params.mp_public_key || '');
-      setMpAccessToken(params.mp_access_token || '');
-      setMpWebhookSecret(params.mp_webhook_secret || '');
-      setUltimaAtualizacao(params.atualizado_em || null);
+      setCarregandoLocal(true);
+      const res = await configuracoesPlataformaService.obterParametrosSuperAdminDetalhado();
+      setOrigemLocal(res.origem);
+      setErroLocal(res.mensagemErro || null);
+      if (res.dados) {
+        aplicarParametrosNoFormulario(res.dados);
+      }
     } catch (err: unknown) {
       console.error('[CardParametrosHubiAdmin] Falha ao carregar parâmetros:', err);
+      setOrigemLocal('erro');
+      setErroLocal('Falha ao carregar os parâmetros globais da plataforma.');
     } finally {
-      setCarregando(false);
+      setCarregandoLocal(false);
     }
-  };
+  }, [aplicarParametrosNoFormulario]);
 
   useEffect(() => {
-    carregarParametros();
-  }, []);
+    if (modoExterno) {
+      if (parametrosGlobais) {
+        aplicarParametrosNoFormulario(parametrosGlobais);
+      }
+      return;
+    }
+
+    void carregarParametros();
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((event, novaSessao) => {
+      if (
+        novaSessao?.user &&
+        (event === 'SIGNED_IN' || event === 'TOKEN_REFRESHED' || event === 'INITIAL_SESSION')
+      ) {
+        void carregarParametros();
+      }
+    });
+    return () => {
+      subscription.unsubscribe();
+    };
+  }, [modoExterno, parametrosGlobais, aplicarParametrosNoFormulario, carregarParametros]);
+
+  const carregandoAtual = modoExterno
+    ? Boolean(carregandoExterno && !parametrosGlobais)
+    : carregandoLocal;
+  const origemAtual = modoExterno ? (origemExterna || 'banco') : origemLocal;
+  const erroAtual = modoExterno ? erroExterno : erroLocal;
+
+  const handleTentarRecarregar = async () => {
+    if (onRecarregarExterno) {
+      await onRecarregarExterno();
+      return;
+    }
+    await carregarParametros();
+  };
+
+  const handleRenovarSessao = async () => {
+    try {
+      setRenovandoSessao(true);
+      await desconectarPdv();
+      navigate('/login', { replace: true });
+    } finally {
+      setRenovandoSessao(false);
+    }
+  };
 
   const copiarParaClipboard = async (
     texto: string,
@@ -173,6 +249,13 @@ export const CardParametrosHubiAdmin: React.FC<CardParametrosHubiAdminProps> = (
 
   const handleSalvar = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (origemAtual !== 'banco') {
+      mostrarErro(
+        erroAtual || 'Renove sua sessão antes de salvar os parâmetros globais.',
+        'Sessão Necessária'
+      );
+      return;
+    }
     try {
       setSalvando(true);
       const atualizado = await configuracoesPlataformaService.salvarParametros({
@@ -208,6 +291,7 @@ export const CardParametrosHubiAdmin: React.FC<CardParametrosHubiAdminProps> = (
       }
 
       setUltimaAtualizacao(atualizado.atualizado_em || null);
+      onParametrosGlobaisSalvos?.(atualizado);
       mostrarSucesso(
         'Os parâmetros comerciais e credenciais da Meta Cloud API foram atualizados com sucesso.',
         'Parâmetros Globais Salvos'
@@ -220,7 +304,7 @@ export const CardParametrosHubiAdmin: React.FC<CardParametrosHubiAdminProps> = (
     }
   };
 
-  if (carregando) {
+  if (carregandoAtual) {
     return (
       <div
         className={`p-6 rounded-2xl border flex items-center justify-center gap-2 text-xs ${
@@ -272,6 +356,49 @@ export const CardParametrosHubiAdmin: React.FC<CardParametrosHubiAdminProps> = (
           </span>
         )}
       </div>
+
+      {origemAtual !== 'banco' && (
+        <div
+          className={`mt-4 p-3.5 rounded-xl border flex flex-col sm:flex-row sm:items-center justify-between gap-3 text-xs ${
+            isDark
+              ? 'bg-amber-950/30 border-amber-700/70 text-amber-200'
+              : 'bg-amber-50 border-amber-300 text-amber-900'
+          }`}
+        >
+          <div className="flex items-start sm:items-center gap-2.5">
+            <AlertTriangle className="w-4 h-4 text-amber-500 shrink-0 mt-0.5 sm:mt-0" />
+            <span className="font-semibold leading-relaxed">
+              {erroAtual ||
+                'Não foi possível validar a sessão autenticada para carregar os parâmetros reais da plataforma.'}
+            </span>
+          </div>
+          <div className="flex flex-wrap items-center gap-2 shrink-0">
+            <button
+              type="button"
+              onClick={() => void handleTentarRecarregar()}
+              className={`px-3 py-1.5 rounded-lg border font-bold flex items-center gap-1.5 transition cursor-pointer ${
+                isDark
+                  ? 'bg-slate-800 hover:bg-slate-700 border-slate-700 text-slate-100'
+                  : 'bg-white hover:bg-slate-100 border-slate-300 text-slate-900'
+              }`}
+            >
+              <RefreshCw className="w-3.5 h-3.5" />
+              <span>Tentar Novamente</span>
+            </button>
+            <button
+              type="button"
+              onClick={() => void handleRenovarSessao()}
+              disabled={renovandoSessao}
+              className="px-3 py-1.5 rounded-lg bg-emerald-600 hover:bg-emerald-700 text-white font-bold flex items-center gap-1.5 transition cursor-pointer disabled:opacity-50"
+            >
+              <LogIn className="w-3.5 h-3.5" />
+              <span>
+                {renovandoSessao ? 'Redirecionando...' : 'Renovar Sessão / Fazer Login Novamente'}
+              </span>
+            </button>
+          </div>
+        </div>
+      )}
 
       <form onSubmit={handleSalvar} className="mt-5 space-y-5">
         {/* Bloco 1: Degustação Gratuita (Trial) */}
@@ -1184,7 +1311,7 @@ export const CardParametrosHubiAdmin: React.FC<CardParametrosHubiAdminProps> = (
 
             <button
               type="submit"
-              disabled={salvando}
+              disabled={salvando || origemAtual !== 'banco'}
               className="w-full sm:w-auto bg-emerald-600 hover:bg-emerald-700 text-white font-medium px-4 py-2.5 sm:py-2 rounded-lg flex items-center justify-center gap-2 transition cursor-pointer disabled:opacity-50 text-xs shadow-sm"
             >
               {salvando ? (

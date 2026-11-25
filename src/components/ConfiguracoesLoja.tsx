@@ -67,7 +67,8 @@ import {
   StatusPedidoPersonalizado,
   ModoExibicaoCatalogo,
   ComportamentoSemEstoque,
-  CicloCaderneta
+  CicloCaderneta,
+  ConfiguracoesPlataformaHubi
 } from '../types';
 import {
   DIAS_SEMANA_CADERNETA,
@@ -77,6 +78,7 @@ import {
 import { PrintService } from '../services/printService';
 import { feedExportService } from '../services/feedExportService';
 import { paymentGatewayService } from '../services/paymentGatewayService';
+import { configuracoesPlataformaService } from '../services/configuracoesPlataformaService';
 import { ImportarExportarProdutos } from './ImportarExportarProdutos';
 import { CentralImportarExportar } from './CentralImportarExportar';
 import { ConfiguracoesMetas } from './configuracoes/ConfiguracoesMetas';
@@ -383,6 +385,51 @@ export const ConfiguracoesLoja: React.FC<ConfiguracoesLojaProps> = ({ subTelaIni
   const salvouRecenteRef = useRef<boolean>(false);
   const whatsappIaRef = useRef<{ salvar: () => Promise<void> } | null>(null);
   const [salvandoWhatsAppIA, setSalvandoWhatsAppIA] = useState<boolean>(false);
+
+  const [parametrosGlobais, setParametrosGlobais] = useState<ConfiguracoesPlataformaHubi | null>(null);
+  const [carregandoParametrosGlobais, setCarregandoParametrosGlobais] = useState<boolean>(false);
+  const [origemParametrosGlobais, setOrigemParametrosGlobais] = useState<
+    'banco' | 'sessao_ausente' | 'nao_autorizado' | 'erro'
+  >('banco');
+  const [erroParametrosGlobais, setErroParametrosGlobais] = useState<string | null>(null);
+
+  const carregarParametrosGlobais = useCallback(async () => {
+    if (!permissions.ehSuperAdmin) return;
+    try {
+      setCarregandoParametrosGlobais(true);
+      const res = await configuracoesPlataformaService.obterParametrosSuperAdminDetalhado();
+      setOrigemParametrosGlobais(res.origem);
+      setErroParametrosGlobais(res.mensagemErro || null);
+      if (res.dados) {
+        setParametrosGlobais(res.dados);
+      }
+    } catch {
+      setOrigemParametrosGlobais('erro');
+      setErroParametrosGlobais('Falha ao carregar os parâmetros globais da plataforma.');
+    } finally {
+      setCarregandoParametrosGlobais(false);
+    }
+  }, [permissions.ehSuperAdmin]);
+
+  useEffect(() => {
+    if (!permissions.ehSuperAdmin) return;
+    void carregarParametrosGlobais();
+  }, [permissions.ehSuperAdmin, session?.access_token, carregarParametrosGlobais]);
+
+  useEffect(() => {
+    if (!permissions.ehSuperAdmin) return;
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((event, novaSessao) => {
+      if (
+        novaSessao?.user &&
+        (event === 'SIGNED_IN' || event === 'TOKEN_REFRESHED' || event === 'INITIAL_SESSION')
+      ) {
+        void carregarParametrosGlobais();
+      }
+    });
+    return () => {
+      subscription.unsubscribe();
+    };
+  }, [permissions.ehSuperAdmin, carregarParametrosGlobais]);
 
   useEffect(() => {
     const tabParam = searchParams.get('tab');
@@ -2508,6 +2555,16 @@ export const ConfiguracoesLoja: React.FC<ConfiguracoesLojaProps> = ({ subTelaIni
                   <CardParametrosHubiAdmin
                     emailLogado={session?.user?.email || usuario?.email || loja?.email || '5585997374372@hubi.app'}
                     lojaId={loja?.id}
+                    parametrosGlobais={parametrosGlobais}
+                    carregandoExterno={carregandoParametrosGlobais}
+                    origemExterna={origemParametrosGlobais}
+                    erroExterno={erroParametrosGlobais}
+                    onRecarregarExterno={carregarParametrosGlobais}
+                    onParametrosGlobaisSalvos={(atualizado) => {
+                      setParametrosGlobais(atualizado);
+                      setOrigemParametrosGlobais('banco');
+                      setErroParametrosGlobais(null);
+                    }}
                   />
                 </div>
               )}
@@ -4537,6 +4594,16 @@ export const ConfiguracoesLoja: React.FC<ConfiguracoesLojaProps> = ({ subTelaIni
                 <CardParametrosHubiAdmin
                   emailLogado={session?.user?.email || usuario?.email || loja?.email || '5585997374372@hubi.app'}
                   lojaId={loja?.id}
+                  parametrosGlobais={parametrosGlobais}
+                  carregandoExterno={carregandoParametrosGlobais}
+                  origemExterna={origemParametrosGlobais}
+                  erroExterno={erroParametrosGlobais}
+                  onRecarregarExterno={carregarParametrosGlobais}
+                  onParametrosGlobaisSalvos={(atualizado) => {
+                    setParametrosGlobais(atualizado);
+                    setOrigemParametrosGlobais('banco');
+                    setErroParametrosGlobais(null);
+                  }}
                 />
               </div>
             )}

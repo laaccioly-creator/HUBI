@@ -163,6 +163,14 @@ export const areaHubiService = {
     dataInicioIso: string,
     dataFimIso: string
   ): Promise<PayloadCockpitAreaHubi> {
+    const sessao = await configuracoesPlataformaService.garantirSessaoSuperAdmin();
+    if (!sessao.autenticado) {
+      throw new Error('SESSAO_AUTH_AUSENTE');
+    }
+    if (!sessao.ehSuperAdmin) {
+      throw new Error('Acesso restrito ao Super Admin da plataforma Rubi.');
+    }
+
     const { data, error } = await supabase.rpc('obter_dados_cockpit_area_hubi', {
       p_data_inicio: dataInicioIso,
       p_data_fim: dataFimIso,
