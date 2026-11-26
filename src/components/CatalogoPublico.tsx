@@ -64,6 +64,18 @@ import { obterDataLocalYYYYMMDD } from '../utils/dateTime';
 import { isUuidValido } from '../services/syncService';
 import { formatarMoeda, ehProdutoFracionado, formatarQuantidadeUnidade, obterSiglaUnidade, formatarLinhaCalculoItem } from '../utils/formatters';
 import { filterOutCanaryItems, loadShieldConfig } from '../../packages/anti-rea-shield/src';
+import {
+  SELECT_AGENDAMENTO_PUBLICO,
+  SELECT_CATEGORIA_PUBLICA,
+  SELECT_CLIENTE_PUBLICO,
+  SELECT_FORMA_ENTREGA_PUBLICA,
+  SELECT_ITEM_PEDIDO_PUBLICO,
+  SELECT_LOJA_PUBLICA,
+  SELECT_PAGAMENTO_PREVISTO_PUBLICO,
+  SELECT_PEDIDO_ENTREGA_PUBLICO,
+  SELECT_PEDIDO_PUBLICO,
+  SELECT_PRODUTO_CATALOGO_COM_VARIACOES,
+} from '../lib/publicSelects';
 import { calcularTaxaVisitaPedido } from '../utils/taxaDomicilioUtils';
 import { ModalInputPesoFracionado } from './ui/ModalInputPesoFracionado';
 import { SeletorCategoriasHibrido } from './ui/SeletorCategoriasHibrido';
@@ -349,7 +361,7 @@ export const CatalogoPublico: React.FC = () => {
       const [resCli, resumoCad] = await Promise.all([
         supabase
           .from('clientes')
-          .select('*')
+          .select(SELECT_CLIENTE_PUBLICO)
           .eq('id', clienteSelecionado.id)
           .eq('loja_id', loja.id)
           .maybeSingle(),
@@ -990,7 +1002,7 @@ export const CatalogoPublico: React.FC = () => {
     const carregarCatalogo = async () => {
       try {
         setCarregando(true);
-        let query = supabase.from('lojas').select('*');
+        let query = supabase.from('lojas').select(SELECT_LOJA_PUBLICA);
         if (slug && slug.trim()) {
           const termo = slug.trim();
           const isUUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(termo);
@@ -1010,7 +1022,7 @@ export const CatalogoPublico: React.FC = () => {
           l.frete_gratis_ativo = Boolean(l.frete_gratis_ativo);
           l.frete_gratis_valor_minimo = Number(l.frete_gratis_valor_minimo || 0);
           l.retirada_loja_ativa = Boolean(l.retirada_loja_ativa);
-          setLoja(l);
+          setLoja(l as unknown as Loja);
 
           // Hidrata imediatamente as configurações consolidadas de frete
           try {
@@ -1058,7 +1070,7 @@ export const CatalogoPublico: React.FC = () => {
 
           const { data: prods } = await supabase
             .from('produtos')
-            .select('*, variacoes:variacoes_produto(*)')
+            .select(SELECT_PRODUTO_CATALOGO_COM_VARIACOES)
             .eq('loja_id', l.id)
             .eq('exibir_catalogo', true)
             .eq('ativo', true);
@@ -1074,7 +1086,7 @@ export const CatalogoPublico: React.FC = () => {
 
           const { data: cats } = await supabase
             .from('categorias')
-            .select('*')
+            .select(SELECT_CATEGORIA_PUBLICA)
             .eq('loja_id', l.id)
             .eq('ativo', true)
             .order('ordem_exibicao');
@@ -1082,7 +1094,7 @@ export const CatalogoPublico: React.FC = () => {
 
           const { data: fretes } = await supabase
             .from('formas_entrega')
-            .select('*')
+            .select(SELECT_FORMA_ENTREGA_PUBLICA)
             .eq('loja_id', l.id)
             .eq('ativo', true);
           if (fretes) {
@@ -1157,11 +1169,11 @@ export const CatalogoPublico: React.FC = () => {
         const { data: pedDb, error: pedErr } = await supabase
           .from('pedidos')
           .select(`
-            *,
-            cliente:clientes(*),
-            itens:itens_pedido(*),
-            pedido_entregas:pedido_entregas(*),
-            pagamentos_previstos:pedidos_pagamentos_previstos(*)
+            ${SELECT_PEDIDO_PUBLICO},
+            cliente:clientes(${SELECT_CLIENTE_PUBLICO}),
+            itens:itens_pedido(${SELECT_ITEM_PEDIDO_PUBLICO}),
+            pedido_entregas:pedido_entregas(${SELECT_PEDIDO_ENTREGA_PUBLICO}),
+            pagamentos_previstos:pedidos_pagamentos_previstos(${SELECT_PAGAMENTO_PREVISTO_PUBLICO})
           `)
           .eq('id', pagarPedidoId)
           .eq('loja_id', loja.id)
@@ -1193,7 +1205,7 @@ export const CatalogoPublico: React.FC = () => {
       } else if (ped.cliente_id && !clienteSelecionado?.id) {
         const { data: cliData } = await supabase
           .from('clientes')
-          .select('*')
+          .select(SELECT_CLIENTE_PUBLICO)
           .eq('id', ped.cliente_id)
           .maybeSingle();
         if (cliData) {
@@ -2187,85 +2199,165 @@ export const CatalogoPublico: React.FC = () => {
         atualizado_em: dataOperacaoIso
       };
 
-      let { data: pedidoCriado, error: erroPedido } = await supabase
-        .from('pedidos')
-        .insert([payloadPedido])
-        .select()
-        .single();
+      // Montar itens de exibição / fallback (em modo RPC os preços são recalculados no servidor)
+      const montarItensFormatados = (pedidoIdRef: string) =>
+        carrinho.map((item) => {
+          const precoUnitario = calcularPrecoUnitarioPorTabela(
+            item.produto,
+            item.variacao,
+            avaliacaoCarrinho.tabelaAtiva,
+            avaliacaoCarrinho.tabelaAtiva === 'autoatacado' ? regrasAtivas.descontoAutoatacado : regrasAtivas.descontoAtacado,
+            item.quantidade,
+            regrasAtivas
+          );
+          const tipoUnidade = String(item.produto?.tipo_unidade || item.produto?.unidade_medida || 'un').toLowerCase();
+          const ehKg = tipoUnidade === 'kg';
+          return {
+            loja_id: loja.id,
+            pedido_id: pedidoIdRef,
+            produto_id: item.produto.id,
+            tipo_item: item.produto?.tipo_item || 'produto',
+            variacao_id: item.variacao?.id || null,
+            tabela_preco_utilizada: avaliacaoCarrinho.tabelaAtiva,
+            nome_produto: item.produto.nome,
+            rotulo_variacao: item.variacao ? `${item.variacao.valor_variacao_1} ${item.variacao.valor_variacao_2 || ''}`.trim() : null,
+            preco_custo_unitario: item.variacao?.preco_custo || item.produto.preco_custo || 0,
+            preco_venda_unitario: precoUnitario,
+            quantidade: item.quantidade,
+            quantidade_solicitada: item.quantidade,
+            unidade_medida: ehKg ? 'KG' : (item.produto?.unidade_medida ? item.produto.unidade_medida.toUpperCase() : 'UN'),
+            tipo_unidade: tipoUnidade,
+            peso_solicitado_kg: ehKg ? item.quantidade : null,
+            subtotal: precoUnitario * item.quantidade,
+            criado_em: dataOperacaoIso
+          };
+        });
 
-      // Fallback defensivo se a coluna forma_pagamento_catalogo não for reconhecida pelo schema cache
-      if (erroPedido && (erroPedido.message?.includes('forma_pagamento') || (erroPedido as any).details?.includes('forma_pagamento'))) {
-        console.warn('Campo forma_pagamento_catalogo ausente na tabela pedidos. Tentando salvar sem ele...');
-        const { forma_pagamento_catalogo, ...payloadSemForma } = payloadPedido;
-        const retry = await supabase.from('pedidos').insert([payloadSemForma]).select().single();
-        pedidoCriado = retry.data;
-        erroPedido = retry.error;
+      let pedidoCriado: any = null;
+      let itensInseridos: any[] | null = null;
+      let itensFormatados: any[] = [];
+
+      // 1. Tentativa Zero-Trust via RPC SECURITY DEFINER (recalcula preços, cupom e frete no servidor)
+      const { data: rpcPedidoRows, error: erroRpcPedido } = await supabase.rpc(
+        'rpc_criar_pedido_catalogo_seguro',
+        {
+          p_loja_id: loja.id,
+          p_produto_ids: carrinho.map((item) => item.produto.id),
+          p_variacao_ids: carrinho.map((item) => item.variacao?.id || null),
+          p_quantidades: carrinho.map((item) => Number(item.quantidade || 0)),
+          p_cliente_id: payloadPedido.cliente_id,
+          p_tabela_preco_solicitada: avaliacaoCarrinho.tabelaAtiva,
+          p_cupom_id: payloadPedido.cupom_id,
+          p_forma_entrega_id: payloadPedido.forma_entrega_id,
+          p_valor_frete: payloadPedido.valor_frete,
+          p_valor_taxa_domicilio: payloadPedido.valor_taxa_domicilio,
+          p_levar_produto_no_atendimento: payloadPedido.levar_produto_no_atendimento,
+          p_status_pagamento: payloadPedido.status_pagamento,
+          p_forma_pagamento_catalogo: payloadPedido.forma_pagamento_catalogo,
+          p_eh_venda_caderneta: payloadPedido.eh_venda_caderneta,
+          p_ciclo_referencia_caderneta: payloadPedido.ciclo_referencia_caderneta,
+          p_data_vencimento_fiado: payloadPedido.data_vencimento_fiado,
+          p_endereco_entrega: payloadPedido.endereco_entrega,
+          p_observacoes: payloadPedido.observacoes,
+          p_nome_transportadora: payloadPedido.nome_transportadora,
+          p_servico_correios: payloadPedido.servico_correios,
+          p_tipo_operacao: payloadPedido.tipo_operacao,
+          p_cliente_nome_avulso: payloadPedido.cliente_nome_avulso,
+          p_cliente_telefone_avulso: payloadPedido.cliente_telefone_avulso,
+          p_cliente_documento_avulso: payloadPedido.cliente_documento_avulso,
+          p_cliente_email_avulso: payloadPedido.cliente_email_avulso,
+          p_data_venda: payloadPedido.data_venda,
+        }
+      );
+
+      if (!erroRpcPedido && rpcPedidoRows) {
+        const rpcRes = Array.isArray(rpcPedidoRows) ? rpcPedidoRows[0] : rpcPedidoRows;
+        if (rpcRes?.pedido_id) {
+          pedidoCriado = {
+            ...payloadPedido,
+            id: rpcRes.pedido_id,
+            numero_pedido: rpcRes.numero_pedido,
+            subtotal: Number(rpcRes.subtotal ?? payloadPedido.subtotal),
+            subtotal_produtos: Number(rpcRes.subtotal ?? payloadPedido.subtotal_produtos),
+            valor_desconto: Number(rpcRes.valor_desconto ?? payloadPedido.valor_desconto),
+            valor_desconto_cupom: Number(rpcRes.valor_desconto ?? payloadPedido.valor_desconto_cupom),
+            valor_frete: Number(rpcRes.valor_frete ?? payloadPedido.valor_frete),
+            valor_total: Number(rpcRes.valor_total ?? payloadPedido.valor_total),
+            saldo_devedor: Number(rpcRes.valor_total ?? payloadPedido.saldo_devedor),
+          };
+          itensFormatados = montarItensFormatados(pedidoCriado.id);
+          const idsGerados: string[] = Array.isArray(rpcRes.itens_ids) ? rpcRes.itens_ids : [];
+          itensInseridos = itensFormatados.map((item, idx) => ({
+            ...item,
+            id: idsGerados[idx] || undefined,
+          }));
+        }
+      } else if (
+        erroRpcPedido &&
+        erroRpcPedido.code !== 'PGRST202' &&
+        erroRpcPedido.code !== '42883'
+      ) {
+        throw erroRpcPedido;
       }
 
-      if (erroPedido || !pedidoCriado) throw erroPedido;
+      // 2. Fallback seguro caso a migration da RPC ainda não tenha sido aplicada no banco
+      if (!pedidoCriado) {
+        let { data: pedFallback, error: erroPedido } = await supabase
+          .from('pedidos')
+          .insert([payloadPedido])
+          .select('id, numero_pedido, loja_id, cliente_id, status, status_pagamento, subtotal, valor_desconto, valor_frete, valor_total, saldo_devedor')
+          .single();
 
-      // Montar itens e entrega para gravação atômica em paralelo
-      const itensFormatados = carrinho.map(item => {
-        const precoUnitario = calcularPrecoUnitarioPorTabela(
-          item.produto,
-          item.variacao,
-          avaliacaoCarrinho.tabelaAtiva,
-          avaliacaoCarrinho.tabelaAtiva === 'autoatacado' ? regrasAtivas.descontoAutoatacado : regrasAtivas.descontoAtacado,
-          item.quantidade,
-          regrasAtivas
-        );
-        const tipoUnidade = String(item.produto?.tipo_unidade || item.produto?.unidade_medida || 'un').toLowerCase();
-        const ehKg = tipoUnidade === 'kg';
-        return {
-          loja_id: loja.id,
-          pedido_id: pedidoCriado.id,
-          produto_id: item.produto.id,
-          tipo_item: item.produto?.tipo_item || 'produto',
-          variacao_id: item.variacao?.id || null,
-          tabela_preco_utilizada: avaliacaoCarrinho.tabelaAtiva,
-          nome_produto: item.produto.nome,
-          rotulo_variacao: item.variacao ? `${item.variacao.valor_variacao_1} ${item.variacao.valor_variacao_2 || ''}`.trim() : null,
-          preco_custo_unitario: item.variacao?.preco_custo || item.produto.preco_custo || 0,
-          preco_venda_unitario: precoUnitario,
-          quantidade: item.quantidade,
-          quantidade_solicitada: item.quantidade,
-          unidade_medida: ehKg ? 'KG' : (item.produto?.unidade_medida ? item.produto.unidade_medida.toUpperCase() : 'UN'),
-          tipo_unidade: tipoUnidade,
-          peso_solicitado_kg: ehKg ? item.quantidade : null,
-          subtotal: precoUnitario * item.quantidade,
-          criado_em: dataOperacaoIso
-        };
-      });
+        if (erroPedido && (erroPedido.message?.includes('forma_pagamento') || (erroPedido as any).details?.includes('forma_pagamento'))) {
+          console.warn('Campo forma_pagamento_catalogo ausente na tabela pedidos. Tentando salvar sem ele...');
+          const { forma_pagamento_catalogo, ...payloadSemForma } = payloadPedido;
+          const retry = await supabase
+            .from('pedidos')
+            .insert([payloadSemForma])
+            .select('id, numero_pedido, loja_id, cliente_id, status, status_pagamento, subtotal, valor_desconto, valor_frete, valor_total, saldo_devedor')
+            .single();
+          pedFallback = retry.data;
+          erroPedido = retry.error;
+        }
+
+        if (erroPedido || !pedFallback) throw erroPedido;
+        pedidoCriado = { ...payloadPedido, ...pedFallback };
+        itensFormatados = montarItensFormatados(pedidoCriado.id);
+      }
 
       const ehEntregaFallback = formaEntregaEscolhida?.tipo === 'entrega' || Boolean(enderecoEntrega && !enderecoEntrega.toLowerCase().includes('retirada'));
       const entregaPayload = pedidoEntrega ? {
         ...pedidoEntrega,
         pedido_id: pedidoCriado.id,
-        valor_frete: valorFreteEfetivo,
+        valor_frete: pedidoCriado.valor_frete ?? valorFreteEfetivo,
         forma_entrega_id: formaEntregaIdSanitizada,
         servico_correios: pedidoEntrega.servico_correios || (
           pedidoEntrega.transportadora_nome?.toUpperCase().includes('SEDEX') ? 'SEDEX' :
           pedidoEntrega.transportadora_nome?.toUpperCase().includes('PAC') ? 'PAC' : null
         ),
-        is_frete_gratis: valorFreteEfetivo === 0 && (freteGratisCupom || elegivelFreteGratisLoja)
+        is_frete_gratis: (pedidoCriado.valor_frete ?? valorFreteEfetivo) === 0 && (freteGratisCupom || elegivelFreteGratisLoja)
       } : {
         pedido_id: pedidoCriado.id,
-        tipo_atendimento: (ehEntregaFallback || valorFreteEfetivo > 0 ? 'entrega' : 'retirada') as any,
-        valor_frete: valorFreteEfetivo,
-        provedor: (ehEntregaFallback || valorFreteEfetivo > 0 ? 'uber' : 'retirada_loja') as any,
-        transportadora_nome: (ehEntregaFallback || valorFreteEfetivo > 0) ? (formaEntregaEscolhida?.nome || 'Entrega Padrão') : 'Retirada na Loja',
+        tipo_atendimento: (ehEntregaFallback || (pedidoCriado.valor_frete ?? valorFreteEfetivo) > 0 ? 'entrega' : 'retirada') as any,
+        valor_frete: pedidoCriado.valor_frete ?? valorFreteEfetivo,
+        provedor: (ehEntregaFallback || (pedidoCriado.valor_frete ?? valorFreteEfetivo) > 0 ? 'uber' : 'retirada_loja') as any,
+        transportadora_nome: (ehEntregaFallback || (pedidoCriado.valor_frete ?? valorFreteEfetivo) > 0) ? (formaEntregaEscolhida?.nome || 'Entrega Padrão') : 'Retirada na Loja',
         status_envio: 'pendente',
         forma_entrega_id: formaEntregaIdSanitizada,
-        is_frete_gratis: valorFreteEfetivo === 0 && (freteGratisCupom || elegivelFreteGratisLoja)
+        is_frete_gratis: (pedidoCriado.valor_frete ?? valorFreteEfetivo) === 0 && (freteGratisCupom || elegivelFreteGratisLoja)
       };
 
-      // Disparar inserções essenciais em batch simultâneo (só grava pedido_entregas se houver entrega/retirada separada de produto físico)
+      // Disparar entrega (e inserção de itens apenas no fallback legado)
       const deveGravarEntrega = temProdutoFisicoCatalogo && !isEntregaIntegradaNaVisita;
-      const [itensResult] = await Promise.all([
-        supabase.from('itens_pedido').insert(itensFormatados).select(),
-        deveGravarEntrega ? ShippingOrchestrator.salvarPedidoEntrega(pedidoCriado.id, entregaPayload) : Promise.resolve(null)
-      ]);
-      const itensInseridos = itensResult?.data;
+      if (!itensInseridos) {
+        const [itensResult] = await Promise.all([
+          supabase.from('itens_pedido').insert(itensFormatados).select('id, pedido_id, produto_id, variacao_id, nome_produto, quantidade, preco_venda_unitario, subtotal'),
+          deveGravarEntrega ? ShippingOrchestrator.salvarPedidoEntrega(pedidoCriado.id, entregaPayload) : Promise.resolve(null)
+        ]);
+        itensInseridos = itensResult?.data || null;
+      } else if (deveGravarEntrega) {
+        await ShippingOrchestrator.salvarPedidoEntrega(pedidoCriado.id, entregaPayload);
+      }
 
       // Gravação dos agendamentos de serviços
       try {
@@ -2314,7 +2406,7 @@ export const CatalogoPublico: React.FC = () => {
           const { data: agsGravados, error: erroAgs } = await supabase
             .from('agendamentos_servicos')
             .insert(agendamentosParaGravar)
-            .select('*, produto:produtos(nome), profissional:usuarios_loja(nome_completo)');
+            .select(`${SELECT_AGENDAMENTO_PUBLICO}, produto:produtos(nome), profissional:usuarios_loja(nome_completo)`);
 
           if (erroAgs) {
             console.error('Erro ao gravar agendamentos no catálogo:', erroAgs);

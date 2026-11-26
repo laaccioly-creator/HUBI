@@ -22,6 +22,18 @@ import {
   Clock
 } from 'lucide-react';
 import { supabase } from '../lib/supabase';
+import {
+  SELECT_AGENDAMENTO_PUBLICO_COM_RELACOES,
+  SELECT_CLIENTE_PUBLICO,
+  SELECT_HISTORICO_PEDIDO_PUBLICO,
+  SELECT_ITEM_PEDIDO_PUBLICO,
+  SELECT_LOJA_PUBLICA,
+  SELECT_PAGAMENTO_PEDIDO_COM_FORMA,
+  SELECT_PAGAMENTO_PREVISTO_PUBLICO,
+  SELECT_PEDIDO_ENTREGA_PUBLICO,
+  SELECT_PEDIDO_PUBLICO,
+  SELECT_PEDIDO_PUBLICO_COMPLETO,
+} from '../lib/publicSelects';
 import { Pedido, Loja, ItemPedido } from '../types';
 import { formatarDataPtBr } from '../services/agendamentoService';
 import { formatarDataLocal, formatarHoraLocal } from '../utils/dateTime';
@@ -80,16 +92,7 @@ export const PedidoAndamentoPublico: React.FC = () => {
 
         let query = supabase
           .from('pedidos')
-          .select(`
-            *,
-            cliente:clientes(*),
-            itens:itens_pedido(*),
-            vendedor:usuarios_loja!pedidos_vendedor_id_fkey(*),
-            pagamentos:pagamentos_pedido(*, forma_pagamento:formas_pagamento(*)),
-            pedido_entregas:pedido_entregas(*),
-            pagamentos_previstos:pedidos_pagamentos_previstos(*),
-            agendamentos:agendamentos_servicos(*, produto:produtos(nome), profissional:usuarios_loja!agendamentos_servicos_profissional_id_fkey(nome_completo))
-          `);
+          .select(SELECT_PEDIDO_PUBLICO_COMPLETO);
 
         query = aplicarFiltro(query);
 
@@ -99,19 +102,19 @@ export const PedidoAndamentoPublico: React.FC = () => {
         // Fallback resiliente: caso a query com todas as relações aninhadas falhe
         if (error || !ped) {
           console.warn('[PedidoAndamentoPublico] Tentando busca direta resiliente do pedido...', error);
-          let simpleQuery = supabase.from('pedidos').select('*');
+          let simpleQuery = supabase.from('pedidos').select(SELECT_PEDIDO_PUBLICO);
           simpleQuery = aplicarFiltro(simpleQuery);
           const { data: simplePed, error: simpleErr } = await simpleQuery.maybeSingle();
 
           if (simplePed && !simpleErr) {
-            ped = simplePed;
+            ped = simplePed as any;
             const [itensRes, clienteRes, pagRes, entregaRes, prevRes, agendRes] = await Promise.allSettled([
-              supabase.from('itens_pedido').select('*').eq('pedido_id', simplePed.id),
-              simplePed.cliente_id ? supabase.from('clientes').select('*').eq('id', simplePed.cliente_id).maybeSingle() : Promise.resolve({ data: null }),
-              supabase.from('pagamentos_pedido').select('*, forma_pagamento:formas_pagamento(*)').eq('pedido_id', simplePed.id),
-              supabase.from('pedido_entregas').select('*').eq('pedido_id', simplePed.id),
-              supabase.from('pedidos_pagamentos_previstos').select('*').eq('pedido_id', simplePed.id),
-              supabase.from('agendamentos_servicos').select('*, produto:produtos(nome), profissional:usuarios_loja!agendamentos_servicos_profissional_id_fkey(nome_completo)').eq('pedido_id', simplePed.id)
+              supabase.from('itens_pedido').select(SELECT_ITEM_PEDIDO_PUBLICO).eq('pedido_id', simplePed.id),
+              simplePed.cliente_id ? supabase.from('clientes').select(SELECT_CLIENTE_PUBLICO).eq('id', simplePed.cliente_id).maybeSingle() : Promise.resolve({ data: null }),
+              supabase.from('pagamentos_pedido').select(SELECT_PAGAMENTO_PEDIDO_COM_FORMA).eq('pedido_id', simplePed.id),
+              supabase.from('pedido_entregas').select(SELECT_PEDIDO_ENTREGA_PUBLICO).eq('pedido_id', simplePed.id),
+              supabase.from('pedidos_pagamentos_previstos').select(SELECT_PAGAMENTO_PREVISTO_PUBLICO).eq('pedido_id', simplePed.id),
+              supabase.from('agendamentos_servicos').select(SELECT_AGENDAMENTO_PUBLICO_COM_RELACOES).eq('pedido_id', simplePed.id)
             ]);
 
             if (itensRes.status === 'fulfilled' && (itensRes.value as any)?.data) {
@@ -145,16 +148,16 @@ export const PedidoAndamentoPublico: React.FC = () => {
           if (ped.loja_id) {
             const { data: lojaData } = await supabase
               .from('lojas')
-              .select('*')
+              .select(SELECT_LOJA_PUBLICA)
               .eq('id', ped.loja_id)
               .single();
-            if (lojaData && !cancelado) setLoja(lojaData as Loja);
+            if (lojaData && !cancelado) setLoja(lojaData as unknown as Loja);
           }
 
           // Carrega histórico real do pedido
           const { data: histData } = await supabase
             .from('historico_pedidos')
-            .select('*')
+            .select(SELECT_HISTORICO_PEDIDO_PUBLICO)
             .eq('pedido_id', ped.id)
             .order('criado_em', { ascending: true });
 

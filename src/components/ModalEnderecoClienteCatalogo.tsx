@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { X, MapPin, Navigation, HelpCircle, Check, Loader2, AlertCircle } from 'lucide-react';
 import { supabase } from '../lib/supabase';
+import { SELECT_CLIENTE_ENDERECO_PUBLICO } from '../lib/publicSelects';
 import { ShippingOrchestrator } from '../services/shippingOrchestrator';
 import { Cliente } from '../types';
 
@@ -91,7 +92,7 @@ export const ModalEnderecoClienteCatalogo: React.FC<ModalEnderecoClienteCatalogo
           // 1. Tenta buscar da tabela cliente_enderecos o endereço principal ou mais recente
           const { data: ends } = await supabase
             .from('cliente_enderecos')
-            .select('*')
+            .select(SELECT_CLIENTE_ENDERECO_PUBLICO)
             .eq('cliente_id', idCli)
             .order('is_principal', { ascending: false })
             .order('criado_em', { ascending: false });

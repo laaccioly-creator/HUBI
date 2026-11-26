@@ -18,6 +18,7 @@ import {
   Home
 } from 'lucide-react';
 import { supabase } from '../../lib/supabase';
+import { SELECT_CLIENTE_PUBLICO } from '../../lib/publicSelects';
 import { useTheme } from '../../contexts/ThemeContext';
 import { Cliente } from '../../types';
 import { ClienteEndereco, NovoEnderecoFormInput } from '../../types/shipping';
@@ -144,7 +145,7 @@ export const ModalMeusDadosCliente: React.FC<ModalMeusDadosClienteProps> = ({
         })
         .eq('id', cliente.id)
         .eq('loja_id', lojaId)
-        .select('*')
+        .select(SELECT_CLIENTE_PUBLICO)
         .single();
 
       if (error) throw error;

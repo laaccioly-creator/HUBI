@@ -14,6 +14,11 @@ import { Cliente, CadernetaLancamento, Loja, Pedido } from '../types';
 import { CadernetaService, ResumoCadernetaCliente } from '../services/cadernetaService';
 import { formatarMoeda } from '../utils/formatters';
 import { supabase } from '../lib/supabase';
+import {
+  SELECT_ITEM_PEDIDO_PUBLICO,
+  SELECT_PAGAMENTO_PEDIDO_COM_FORMA,
+  SELECT_PEDIDO_PUBLICO,
+} from '../lib/publicSelects';
 import { ModalPagamentoFechamentoCatalogo } from './catalogo/ModalPagamentoFechamentoCatalogo';
 import { ReciboPedidoModal } from './pedidos/ReciboPedidoModal';
 import { formatarResumoCicloCaderneta, obterConfigCicloCliente } from '../utils/cadernetaCiclo';
@@ -59,7 +64,7 @@ export const ModalCadernetaClienteCatalogo: React.FC<ModalCadernetaClienteCatalo
 
       const { data: pedidosFiado } = await supabase
         .from('pedidos')
-        .select('id, numero_pedido, valor_total, valor_pago, saldo_devedor, status, status_pagamento, eh_venda_caderneta, data_venda, criado_em, itens:itens_pedido(*)')
+        .select(`id, numero_pedido, valor_total, valor_pago, saldo_devedor, status, status_pagamento, eh_venda_caderneta, data_venda, criado_em, itens:itens_pedido(${SELECT_ITEM_PEDIDO_PUBLICO})`)
         .eq('loja_id', loja.id)
         .eq('cliente_id', cliente.id)
         .neq('status', 'cancelado')
@@ -317,16 +322,16 @@ export const ModalCadernetaClienteCatalogo: React.FC<ModalCadernetaClienteCatalo
                                         if (!pedAlvo || !pedAlvo.itens || pedAlvo.itens.length === 0) {
                                           try {
                                             const [resPed, resItens, resPags] = await Promise.all([
-                                              supabase.from('pedidos').select('*').eq('id', lanc.pedido_id).eq('loja_id', loja?.id).single(),
-                                              supabase.from('itens_pedido').select('*').eq('pedido_id', lanc.pedido_id).eq('loja_id', loja?.id),
-                                              supabase.from('pagamentos_pedido').select('*, forma_pagamento:formas_pagamento(*)').eq('pedido_id', lanc.pedido_id).eq('loja_id', loja?.id)
+                                              supabase.from('pedidos').select(SELECT_PEDIDO_PUBLICO).eq('id', lanc.pedido_id).eq('loja_id', loja?.id).single(),
+                                              supabase.from('itens_pedido').select(SELECT_ITEM_PEDIDO_PUBLICO).eq('pedido_id', lanc.pedido_id).eq('loja_id', loja?.id),
+                                              supabase.from('pagamentos_pedido').select(SELECT_PAGAMENTO_PEDIDO_COM_FORMA).eq('pedido_id', lanc.pedido_id).eq('loja_id', loja?.id)
                                             ]);
                                             if (resPed.data) {
                                               pedAlvo = {
                                                 ...resPed.data,
                                                 itens: resItens.data || [],
                                                 pagamentos: resPags.data || []
-                                              } as Pedido;
+                                              } as unknown as Pedido;
                                             }
                                           } catch (e) {
                                             console.warn('Erro ao carregar dados do pedido para recibo:', e);
@@ -351,7 +356,7 @@ export const ModalCadernetaClienteCatalogo: React.FC<ModalCadernetaClienteCatalo
                                       if (proximoEstado && itensCompra.length === 0 && lanc.pedido_id && loja?.id) {
                                         const { data: itensBanco } = await supabase
                                           .from('itens_pedido')
-                                          .select('*')
+                                          .select(SELECT_ITEM_PEDIDO_PUBLICO)
                                           .eq('pedido_id', lanc.pedido_id)
                                           .eq('loja_id', loja.id);
                                         if (itensBanco && itensBanco.length > 0) {

@@ -1,4 +1,16 @@
 import { supabase } from '../lib/supabase';
+import {
+  SELECT_CLIENTE_CARRINHO_PUBLICO,
+  SELECT_CLIENTE_NOTIFICACAO_PUBLICA,
+  SELECT_CLIENTE_PUBLICO,
+  SELECT_FORMA_ENTREGA_PUBLICA,
+  SELECT_ITEM_PEDIDO_PUBLICO,
+  SELECT_PAGAMENTO_PEDIDO_COM_FORMA,
+  SELECT_PAGAMENTO_PREVISTO_PUBLICO,
+  SELECT_PEDIDO_ENTREGA_PUBLICO,
+  SELECT_PEDIDO_PUBLICO,
+  SELECT_PRODUTO_PUBLICO,
+} from '../lib/publicSelects';
 import { Cliente, ClienteFavorito, ClienteNotificacao, ClienteCarrinhoItem, Pedido } from '../types';
 import { normalizarTelefoneComDDI } from '../utils/formatters';
 
@@ -50,46 +62,6 @@ export const ClienteCatalogoService = {
       const telDDI = normalizarTelefoneComDDI(telefone);
       const telSemDDI = telDDI.startsWith('55') ? telDDI.slice(2) : telDDI;
 
-      // Consulta multitenant obrigatória com .eq('loja_id', lojaId)
-      const { data: clientesEncontrados, error } = await supabase
-        .from('clientes')
-        .select('*')
-        .eq('loja_id', lojaId)
-        .or(`telefone.eq.${telDDI},whatsapp.eq.${telDDI},telefone.eq.${telSemDDI},whatsapp.eq.${telSemDDI}`)
-        .limit(2);
-
-      if (error) {
-        console.error('Erro ao consultar cliente por telefone:', error);
-        return { sucesso: false, erro: 'Não foi possível verificar suas credenciais. Tente novamente.' };
-      }
-
-      if (!clientesEncontrados || clientesEncontrados.length === 0) {
-        return { sucesso: false, erro: 'Nenhum cadastro encontrado com este celular nesta loja. Crie sua conta rapidinho!' };
-      }
-
-      const cliente = clientesEncontrados[0] as Cliente;
-
-      // Se o cliente foi pré-cadastrado no PDV e ainda não tem senha configurada
-      if (!cliente.senha_hash) {
-        // Gera o hash e define a primeira senha para este cliente com telefone normalizado
-        const salt = `${lojaId}:${telDDI}`;
-        const novoHash = await gerarHashSenhaCliente(senha, salt);
-        await supabase
-          .from('clientes')
-          .update({
-            senha_hash: novoHash,
-            telefone: telDDI,
-            whatsapp: telDDI,
-            telefone_is_whatsapp: true,
-            email: cliente.email && cliente.email.includes('@hubi.app') ? null : cliente.email
-          })
-          .eq('loja_id', lojaId)
-          .eq('id', cliente.id);
-
-        return { sucesso: true, cliente: { ...cliente, senha_hash: novoHash, telefone: telDDI, whatsapp: telDDI } };
-      }
-
-      // Validação com salt normalizado ou legado para garantir compatibilidade
       const saltDDI = `${lojaId}:${telDDI}`;
       const saltSemDDI = `${lojaId}:${telSemDDI}`;
       const [hashDDI, hashSemDDI] = await Promise.all([
@@ -97,15 +69,60 @@ export const ClienteCatalogoService = {
         gerarHashSenhaCliente(senha, saltSemDDI)
       ]);
 
-      if (
-        cliente.senha_hash !== hashDDI &&
-        cliente.senha_hash !== hashSemDDI &&
-        cliente.senha_hash !== senha.trim()
-      ) {
-        return { sucesso: false, erro: 'Senha incorreta. Verifique e tente novamente.' };
+      // Autenticação Zero-Trust via RPC SECURITY DEFINER (sem trafegar senha_hash no cliente)
+      const { data: authRows, error: rpcError } = await supabase.rpc('rpc_autenticar_cliente_catalogo', {
+        p_loja_id: lojaId,
+        p_tel_ddi: telDDI,
+        p_tel_sem_ddi: telSemDDI,
+        p_hash_ddi: hashDDI,
+        p_hash_sem_ddi: hashSemDDI,
+        p_senha_legado: senha.trim()
+      });
+
+      if (rpcError) {
+        console.error('Erro na RPC de autenticação do catálogo:', rpcError);
+        return { sucesso: false, erro: 'Não foi possível verificar suas credenciais. Tente novamente.' };
       }
 
-      return { sucesso: true, cliente };
+      const resultado = Array.isArray(authRows) ? authRows[0] : authRows;
+      if (!resultado) {
+        return { sucesso: false, erro: 'Nenhum cadastro encontrado com este celular nesta loja. Crie sua conta rapidinho!' };
+      }
+
+      if (!resultado.sucesso) {
+        return {
+          sucesso: false,
+          erro: resultado.mensagem || 'Senha incorreta. Verifique e tente novamente.'
+        };
+      }
+
+      const clientePublico: Cliente = {
+        id: resultado.id,
+        loja_id: resultado.loja_id,
+        nome: resultado.nome,
+        telefone: resultado.telefone,
+        whatsapp: resultado.whatsapp,
+        email: resultado.email,
+        numero_documento: resultado.numero_documento,
+        tabela_preco_padrao: resultado.tabela_preco_padrao,
+        endereco_principal: resultado.endereco_principal,
+        endereco_secundario: resultado.endereco_secundario,
+        saldo_devedor_fiado: Number(resultado.saldo_devedor_fiado || 0),
+        limite_credito: Number(resultado.limite_credito || 0),
+        permite_fiado: Boolean(resultado.permite_fiado),
+        data_aniversario: resultado.data_aniversario,
+        observacoes: resultado.observacoes,
+        permite_caderneta: Boolean(resultado.permite_caderneta),
+        limite_caderneta: Number(resultado.limite_caderneta || 0),
+        saldo_devedor_caderneta: Number(resultado.saldo_devedor_caderneta || 0),
+        dia_vencimento_caderneta: resultado.dia_vencimento_caderneta,
+        ciclo_caderneta: resultado.ciclo_caderneta,
+        dia_semana_caderneta: resultado.dia_semana_caderneta,
+        dia_vencimento_2_caderneta: resultado.dia_vencimento_2_caderneta,
+        criado_em: resultado.criado_em,
+      };
+
+      return { sucesso: true, cliente: clientePublico };
     } catch (err: any) {
       console.error('Exceção ao autenticar cliente:', err);
       return { sucesso: false, erro: 'Falha na comunicação com o servidor. Verifique sua conexão.' };
@@ -146,7 +163,7 @@ export const ClienteCatalogoService = {
       // 1. Regra de Chave Única: Bloquear tentativas de cadastro com número já existente
       const { data: existente } = await supabase
         .from('clientes')
-        .select('id, nome, senha_hash, telefone, whatsapp')
+        .select('id, nome, telefone, whatsapp')
         .eq('loja_id', lojaId)
         .or(`telefone.eq.${telDDI},whatsapp.eq.${telDDI},telefone.eq.${telSemDDI},whatsapp.eq.${telSemDDI}`)
         .limit(1)
@@ -193,7 +210,7 @@ export const ClienteCatalogoService = {
             endereco_principal: enderecoFormatado
           }
         ])
-        .select()
+        .select(SELECT_CLIENTE_PUBLICO)
         .single();
 
       if (errIns) throw errIns;
@@ -260,7 +277,7 @@ export const ClienteCatalogoService = {
     try {
       const { data, error } = await supabase
         .from('cliente_favoritos')
-        .select('id, cliente_id, produto_id, loja_id, criado_em, produto:produtos(*)')
+        .select(`id, cliente_id, produto_id, loja_id, criado_em, produto:produtos(${SELECT_PRODUTO_PUBLICO})`)
         .eq('loja_id', lojaId)
         .eq('cliente_id', clienteId)
         .order('criado_em', { ascending: false });
@@ -320,7 +337,7 @@ export const ClienteCatalogoService = {
     try {
       const { data, error } = await supabase
         .from('cliente_notificacoes')
-        .select('*')
+        .select(SELECT_CLIENTE_NOTIFICACAO_PUBLICA)
         .eq('loja_id', lojaId)
         .eq('cliente_id', clienteId)
         .order('criado_em', { ascending: false })
@@ -372,26 +389,30 @@ export const ClienteCatalogoService = {
     try {
       const { data, error } = await supabase
         .from('pedidos')
-        .select('*, cliente:clientes(*), forma_entrega:formas_entrega(*), pedido_entrega:pedido_entregas(*), itens:itens_pedido(*), pagamentos:pagamentos_pedido(*, forma_pagamento:formas_pagamento(*)), pagamentos_previstos:pedidos_pagamentos_previstos(*)')
+        .select(
+          `${SELECT_PEDIDO_PUBLICO}, cliente:clientes(${SELECT_CLIENTE_PUBLICO}), forma_entrega:formas_entrega(${SELECT_FORMA_ENTREGA_PUBLICA}), pedido_entrega:pedido_entregas(${SELECT_PEDIDO_ENTREGA_PUBLICO}), itens:itens_pedido(${SELECT_ITEM_PEDIDO_PUBLICO}), pagamentos:pagamentos_pedido(${SELECT_PAGAMENTO_PEDIDO_COM_FORMA}), pagamentos_previstos:pedidos_pagamentos_previstos(${SELECT_PAGAMENTO_PREVISTO_PUBLICO})`
+        )
         .eq('loja_id', lojaId)
         .eq('cliente_id', clienteId)
         .order('criado_em', { ascending: false })
         .limit(30);
 
       if (!error && data) {
-        return data as Pedido[];
+        return data as unknown as Pedido[];
       }
 
       const { data: fallbackData, error: fallbackError } = await supabase
         .from('pedidos')
-        .select('*, itens:itens_pedido(*), pagamentos:pagamentos_pedido(*, forma_pagamento:formas_pagamento(*)), pagamentos_previstos:pedidos_pagamentos_previstos(*)')
+        .select(
+          `${SELECT_PEDIDO_PUBLICO}, itens:itens_pedido(${SELECT_ITEM_PEDIDO_PUBLICO}), pagamentos:pagamentos_pedido(${SELECT_PAGAMENTO_PEDIDO_COM_FORMA}), pagamentos_previstos:pedidos_pagamentos_previstos(${SELECT_PAGAMENTO_PREVISTO_PUBLICO})`
+        )
         .eq('loja_id', lojaId)
         .eq('cliente_id', clienteId)
         .order('criado_em', { ascending: false })
         .limit(30);
 
       if (fallbackError) throw fallbackError;
-      return (fallbackData as Pedido[]) || [];
+      return (fallbackData as unknown as Pedido[]) || [];
     } catch (err) {
       console.warn('Erro ao carregar pedidos do cliente:', err);
       return [];
@@ -405,7 +426,7 @@ export const ClienteCatalogoService = {
     try {
       const { data, error } = await supabase
         .from('cliente_carrinho_itens')
-        .select('*')
+        .select(SELECT_CLIENTE_CARRINHO_PUBLICO)
         .eq('loja_id', lojaId)
         .eq('cliente_id', clienteId)
         .order('criado_em', { ascending: true });

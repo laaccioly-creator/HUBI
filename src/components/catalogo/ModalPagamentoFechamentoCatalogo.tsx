@@ -21,6 +21,16 @@ import {
   MapPin
 } from 'lucide-react';
 import { supabase } from '../../lib/supabase';
+import {
+  SELECT_AGENDAMENTO_PUBLICO_COM_RELACOES,
+  SELECT_CLIENTE_PUBLICO,
+  SELECT_FORMA_PAGAMENTO_PUBLICA,
+  SELECT_ITEM_PEDIDO_PUBLICO,
+  SELECT_PAGAMENTO_PEDIDO_PUBLICO,
+  SELECT_PEDIDO_ENTREGA_PUBLICO,
+  SELECT_PEDIDO_PUBLICO,
+  SELECT_VENDEDOR_PUBLICO,
+} from '../../lib/publicSelects';
 import { useAuth } from '../../contexts/AuthContext';
 import { useTheme } from '../../contexts/ThemeContext';
 import { useFeedbackModal } from '../../contexts/FeedbackContext';
@@ -202,13 +212,13 @@ export const ModalPagamentoFechamentoCatalogo: React.FC<ModalPagamentoFechamento
       const { data, error } = await supabase
         .from('pedidos')
         .select(`
-          *,
-          cliente:clientes(*),
-          vendedor:usuarios_loja!pedidos_vendedor_id_fkey(*),
-          itens:itens_pedido(*),
-          pedido_entregas(*),
-          pagamentos:pagamentos_pedido(*),
-          agendamentos:agendamentos_servicos(*, produto:produtos(nome), profissional:usuarios_loja!agendamentos_servicos_profissional_id_fkey(nome_completo))
+          ${SELECT_PEDIDO_PUBLICO},
+          cliente:clientes(${SELECT_CLIENTE_PUBLICO}),
+          vendedor:usuarios_loja!pedidos_vendedor_id_fkey(${SELECT_VENDEDOR_PUBLICO}),
+          itens:itens_pedido(${SELECT_ITEM_PEDIDO_PUBLICO}),
+          pedido_entregas(${SELECT_PEDIDO_ENTREGA_PUBLICO}),
+          pagamentos:pagamentos_pedido(${SELECT_PAGAMENTO_PEDIDO_PUBLICO}),
+          agendamentos:agendamentos_servicos(${SELECT_AGENDAMENTO_PUBLICO_COM_RELACOES})
         `)
         .eq('loja_id', loja.id)
         .eq('id', pedSeguro.id)
@@ -248,7 +258,7 @@ export const ModalPagamentoFechamentoCatalogo: React.FC<ModalPagamentoFechamento
       try {
         const { data, error } = await supabase
           .from('formas_pagamento')
-          .select('*')
+          .select(SELECT_FORMA_PAGAMENTO_PUBLICA)
           .eq('loja_id', loja.id)
           .eq('ativo', true)
           .order('nome');
@@ -1073,12 +1083,12 @@ export const ModalPagamentoFechamentoCatalogo: React.FC<ModalPagamentoFechamento
           .eq('id', pedSeguro.id)
           .eq('loja_id', lojaIdEfetivo)
           .select(`
-            *,
-            cliente:clientes(*),
-            vendedor:usuarios_loja!pedidos_vendedor_id_fkey(*),
-            itens:itens_pedido(*),
-            pagamentos:pagamentos_pedido(*),
-            agendamentos:agendamentos_servicos(*, produto:produtos(nome), profissional:usuarios_loja!agendamentos_servicos_profissional_id_fkey(nome_completo))
+            ${SELECT_PEDIDO_PUBLICO},
+            cliente:clientes(${SELECT_CLIENTE_PUBLICO}),
+            vendedor:usuarios_loja!pedidos_vendedor_id_fkey(${SELECT_VENDEDOR_PUBLICO}),
+            itens:itens_pedido(${SELECT_ITEM_PEDIDO_PUBLICO}),
+            pagamentos:pagamentos_pedido(${SELECT_PAGAMENTO_PEDIDO_PUBLICO}),
+            agendamentos:agendamentos_servicos(${SELECT_AGENDAMENTO_PUBLICO_COM_RELACOES})
           `)
           .single();
 

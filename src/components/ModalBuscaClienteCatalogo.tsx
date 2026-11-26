@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { Search, X, User, Phone, Check, Loader2, AlertCircle } from 'lucide-react';
 import { supabase } from '../lib/supabase';
+import { SELECT_CLIENTE_PUBLICO } from '../lib/publicSelects';
 import { Cliente } from '../types';
 
 interface ModalBuscaClienteCatalogoProps {
@@ -36,7 +37,7 @@ export const ModalBuscaClienteCatalogo: React.FC<ModalBuscaClienteCatalogoProps>
 
       const { data, error: err } = await supabase
         .from('clientes')
-        .select('*')
+        .select(SELECT_CLIENTE_PUBLICO)
         .eq('loja_id', lojaId)
         .ilike('nome', `%${termo}%`)
         .limit(20);

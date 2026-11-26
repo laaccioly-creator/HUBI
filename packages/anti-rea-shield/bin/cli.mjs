@@ -147,6 +147,9 @@ async function runAstAudit() {
 
 if (command === 'audit') {
   await runAstAudit();
+} else if (command === 'test-clone') {
+  const { runCloneVerification } = await import('./test-clone.mjs');
+  await runCloneVerification();
 } else {
   runStatus();
 }

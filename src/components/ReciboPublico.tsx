@@ -10,6 +10,17 @@ import {
   User
 } from 'lucide-react';
 import { supabase } from '../lib/supabase';
+import {
+  SELECT_AGENDAMENTO_PUBLICO_COM_RELACOES,
+  SELECT_CLIENTE_PUBLICO,
+  SELECT_ITEM_PEDIDO_PUBLICO,
+  SELECT_LOJA_PUBLICA,
+  SELECT_PAGAMENTO_PEDIDO_COM_FORMA,
+  SELECT_PAGAMENTO_PREVISTO_PUBLICO,
+  SELECT_PEDIDO_ENTREGA_PUBLICO,
+  SELECT_PEDIDO_PUBLICO,
+  SELECT_PEDIDO_PUBLICO_COMPLETO,
+} from '../lib/publicSelects';
 import { Pedido, Loja, ItemPedido } from '../types';
 import {
   formatarDataRecibo,
@@ -118,16 +129,7 @@ export const ReciboPublico: React.FC = () => {
 
         let query = supabase
           .from('pedidos')
-          .select(`
-            *,
-            cliente:clientes(*),
-            vendedor:usuarios_loja!pedidos_vendedor_id_fkey(*),
-            itens:itens_pedido(*),
-            pagamentos:pagamentos_pedido(*, forma_pagamento:formas_pagamento(*)),
-            pedido_entregas:pedido_entregas(*),
-            pagamentos_previstos:pedidos_pagamentos_previstos(*),
-            agendamentos:agendamentos_servicos(*, produto:produtos(nome), profissional:usuarios_loja!agendamentos_servicos_profissional_id_fkey(nome_completo))
-          `);
+          .select(SELECT_PEDIDO_PUBLICO_COMPLETO);
 
         query = aplicarFiltroIdentificador(query);
 
@@ -138,21 +140,21 @@ export const ReciboPublico: React.FC = () => {
         // busca o pedido isoladamente e agrega as entidades filhas de forma segura.
         if (pedErr || !pedData) {
           console.warn('[ReciboPublico] Tentando busca direta resiliente do pedido...', pedErr);
-          let simpleQuery = supabase.from('pedidos').select('*');
+          let simpleQuery = supabase.from('pedidos').select(SELECT_PEDIDO_PUBLICO);
           simpleQuery = aplicarFiltroIdentificador(simpleQuery);
           const { data: simplePed, error: simpleErr } = await simpleQuery.maybeSingle();
 
           if (simplePed && !simpleErr) {
-            pedData = simplePed;
+            pedData = simplePed as any;
             const [itensRes, clienteRes, pagRes, entregaRes, prevRes, agendRes] = await Promise.allSettled([
-              supabase.from('itens_pedido').select('*').eq('pedido_id', simplePed.id),
-              simplePed.cliente_id ? supabase.from('clientes').select('*').eq('id', simplePed.cliente_id).maybeSingle() : Promise.resolve({ data: null }),
-              supabase.from('pagamentos_pedido').select('*, forma_pagamento:formas_pagamento(*)').eq('pedido_id', simplePed.id),
-              supabase.from('pedido_entregas').select('*').eq('pedido_id', simplePed.id),
-              supabase.from('pedidos_pagamentos_previstos').select('*').eq('pedido_id', simplePed.id),
+              supabase.from('itens_pedido').select(SELECT_ITEM_PEDIDO_PUBLICO).eq('pedido_id', simplePed.id),
+              simplePed.cliente_id ? supabase.from('clientes').select(SELECT_CLIENTE_PUBLICO).eq('id', simplePed.cliente_id).maybeSingle() : Promise.resolve({ data: null }),
+              supabase.from('pagamentos_pedido').select(SELECT_PAGAMENTO_PEDIDO_COM_FORMA).eq('pedido_id', simplePed.id),
+              supabase.from('pedido_entregas').select(SELECT_PEDIDO_ENTREGA_PUBLICO).eq('pedido_id', simplePed.id),
+              supabase.from('pedidos_pagamentos_previstos').select(SELECT_PAGAMENTO_PREVISTO_PUBLICO).eq('pedido_id', simplePed.id),
               supabase
                 .from('agendamentos_servicos')
-                .select('*, produto:produtos(nome), profissional:usuarios_loja!agendamentos_servicos_profissional_id_fkey(nome_completo)')
+                .select(SELECT_AGENDAMENTO_PUBLICO_COM_RELACOES)
                 .eq('pedido_id', simplePed.id)
                 .neq('status_agendamento', 'cancelado')
                 .order('atualizado_em', { ascending: false })
@@ -180,7 +182,7 @@ export const ReciboPublico: React.FC = () => {
               ).data;
             }
             if (pedData && typeof pedData === 'object') {
-              const pedTipado = pedData as {
+              const pedTipado = pedData as unknown as {
                 agendamentos?: AgendamentoReciboInput[] | null;
                 itens?: ItemPedido[] | null;
                 itens_pedido?: ItemPedido[] | null;
@@ -229,14 +231,14 @@ export const ReciboPublico: React.FC = () => {
         setPedido(pedData as unknown as Pedido);
 
         // Busca os dados da loja
-        if (pedData.loja_id) {
+        if ((pedData as any).loja_id) {
           const { data: lojaData } = await supabase
             .from('lojas')
-            .select('*')
-            .eq('id', pedData.loja_id)
+            .select(SELECT_LOJA_PUBLICA)
+            .eq('id', (pedData as any).loja_id)
             .maybeSingle();
 
-          if (lojaData) setLoja(lojaData as Loja);
+          if (lojaData) setLoja(lojaData as unknown as Loja);
         }
       } catch (err: unknown) {
         console.error('Erro ao carregar recibo público:', err);
