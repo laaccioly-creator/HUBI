@@ -1343,7 +1343,7 @@ export const ProdutosMobile: React.FC<ProdutosMobileProps> = ({
         precoCusto: precoCustoFmt,
         precoAtacado: atacadoSugerido !== undefined ? atacadoSugerido : prev.precoAtacado,
         precoAutoatacado: autoSugerido !== undefined ? autoSugerido : prev.precoAutoatacado,
-        codigoBarras: parcial.codigo_barras || prev.codigoBarras,
+        codigoBarras: !prev.codigoBarras.trim() && parcial.codigo_barras ? parcial.codigo_barras : prev.codigoBarras,
         tipoUnidade: (parcial.tipo_unidade as TipoUnidade) || prev.tipoUnidade
       }));
     };

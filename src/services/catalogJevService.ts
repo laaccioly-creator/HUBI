@@ -6,12 +6,15 @@ import {
 } from './geminiService';
 import {
   buscarPrecosShoppingSerpApi,
+  buscarCandidatosEanSerper,
   ehCompraInternacional,
   extrairTermoPrincipalProduto,
   extrairPartNumbersProduto,
+  type CandidatoEanSerper,
   type FotoResultadoSerpApi,
   type ItemShoppingSerpApi
 } from './serpApiService';
+import { validarGtinGs1 } from '../utils/gdmMercadoLivreMapper';
 
 /**
  * Limiar oficial de aprovação de probabilidade do HUBI JEV (50%)
@@ -1442,5 +1445,175 @@ export const catalogJevService = {
     }
 
     return resultadoContexto;
-  }
+  },
+
+  /**
+   * Pipeline híbrido reutilizável Serper.dev + JEV (TypeSafe):
+   * Busca candidatos EAN/GTIN no Google via Serper.dev, audita correspondência exata
+   * com o produto via JEV e aprova somente códigos GS1 com confiança >= 85%.
+   */
+  async descobrirEAuditarEanComSerperJev(params: {
+    nomeProduto: string;
+    marca?: string | null;
+    modelo?: string | null;
+    sku?: string | null;
+    categoriaNome?: string | null;
+    loja?: { id?: string; serper_api_key?: string | null } | null;
+  }): Promise<ResultadoDescobertaEanJev> {
+    const nomeLimpo = (params.nomeProduto || '').trim();
+    if (nomeLimpo.length < 3) {
+      return { ean: null, confiancaPercentual: 0, origem: 'nenhum', candidatosAvaliados: 0 };
+    }
+
+    const partesBusca = [nomeLimpo];
+    const nomeLower = nomeLimpo.toLowerCase();
+    if (params.marca && !nomeLower.includes(params.marca.trim().toLowerCase())) {
+      partesBusca.push(params.marca.trim());
+    }
+    if (params.modelo && !nomeLower.includes(params.modelo.trim().toLowerCase())) {
+      partesBusca.push(params.modelo.trim());
+    }
+    const termoBusca = partesBusca.join(' ').trim();
+
+    const chaveCache = criarChaveCacheEscopada('hubi_ean_jev_v1', termoBusca, params.loja?.id);
+    const emCache = cacheResultadoEanJev.get(chaveCache);
+    if (emCache && Date.now() < emCache.expiraEm) {
+      return emCache.valor;
+    }
+
+    const candidatos = await buscarCandidatosEanSerper(termoBusca, params.loja);
+    if (candidatos.length === 0) {
+      const vazio: ResultadoDescobertaEanJev = {
+        ean: null,
+        confiancaPercentual: 0,
+        origem: 'nenhum',
+        candidatosAvaliados: 0,
+      };
+      return vazio;
+    }
+
+    const partNumbersProduto = extrairPartNumbersProduto(termoBusca).map((p) => p.toLowerCase());
+    const skuNorm = (params.sku || '').trim().toLowerCase();
+
+    const candidatosCompat = candidatos.filter((cand) => {
+      if (!validarGtinGs1(cand.ean)) return false;
+      const textoCand = `${cand.titulo} ${cand.snippet}`.toLowerCase();
+      const possuiPnExato =
+        (skuNorm.length >= 4 && textoCand.includes(skuNorm)) ||
+        partNumbersProduto.some((pn) => textoCand.includes(pn));
+      const estrito = calcularScoreEstritoModeloJev(nomeLimpo, cand.titulo);
+      return !estrito.penalizado || possuiPnExato;
+    });
+
+    const candidatosParaAuditoria: CandidatoEanSerper[] =
+      candidatosCompat.length > 0 ? candidatosCompat : candidatos;
+
+    const estadoAuditoria = {
+      produto_rubi: {
+        nome: nomeLimpo,
+        marca: params.marca || null,
+        modelo: params.modelo || null,
+        sku: params.sku || null,
+        categoria: params.categoriaNome || null,
+      },
+      candidatos_serper: candidatosParaAuditoria.map((c, idx) => ({
+        indice: idx + 1,
+        ean: c.ean,
+        titulo_pagina: c.titulo,
+        trecho: c.snippet.slice(0, 260),
+        fonte: c.fonte,
+        ocorrencias_google: c.ocorrencias,
+        menciona_ean_ou_gtin: c.mencionaTermoEan,
+      })),
+    };
+
+    const perguntas: Record<string, PerguntaTypeSafe> = {};
+    candidatosParaAuditoria.forEach((cand, idx) => {
+      perguntas[`ean_${idx}`] = {
+        type: 'noul',
+        instructions:
+          `O código EAN/GTIN "${cand.ean}" encontrado em "${cand.fonte}" ` +
+          `(título: "${cand.titulo}", trecho: "${cand.snippet.slice(0, 180)}") pertence EXATAMENTE ao produto comercial "${nomeLimpo}" ` +
+          `(mesma marca, modelo e especificação, descartando peças, acessórios ou versões diferentes)?`,
+      };
+    });
+
+    try {
+      const resultadoJev = await typesafeService.avaliar(
+        estadoAuditoria,
+        perguntas,
+        'jev-latest',
+        4500
+      );
+
+      let melhorCand: CandidatoEanSerper | null = null;
+      let melhorScore = 0;
+
+      if (resultadoJev?.answers) {
+        candidatosParaAuditoria.forEach((cand, idx) => {
+          const resp = resultadoJev.answers[`ean_${idx}`];
+          const score =
+            resp?.type === 'noul' && typeof resp.noul === 'number'
+              ? resp.noul
+              : resp?.type === 'score' && typeof resp.score === 'number'
+              ? resp.score
+              : 0;
+          if (score > melhorScore) {
+            melhorScore = score;
+            melhorCand = cand;
+          }
+        });
+      }
+
+      const candFinal = melhorCand as CandidatoEanSerper | null;
+      if (candFinal && melhorScore >= LIMIAR_CONFIANCA_EAN_JEV && validarGtinGs1(candFinal.ean)) {
+        const aprovado: ResultadoDescobertaEanJev = {
+          ean: candFinal.ean,
+          confiancaPercentual: Math.round(melhorScore * 100),
+          origem: 'serper_jev',
+          fonte: candFinal.fonte,
+          candidatosAvaliados: candidatos.length,
+        };
+        cacheResultadoEanJev.set(chaveCache, {
+          expiraEm: Date.now() + 15 * 60 * 1000,
+          valor: aprovado,
+        });
+        return aprovado;
+      }
+
+      const reprovado: ResultadoDescobertaEanJev = {
+        ean: null,
+        confiancaPercentual: Math.round(melhorScore * 100),
+        origem: 'nenhum',
+        candidatosAvaliados: candidatos.length,
+      };
+      cacheResultadoEanJev.set(chaveCache, {
+        expiraEm: Date.now() + 5 * 60 * 1000,
+        valor: reprovado,
+      });
+      return reprovado;
+    } catch {
+      return {
+        ean: null,
+        confiancaPercentual: 0,
+        origem: 'nenhum',
+        candidatosAvaliados: candidatos.length,
+      };
+    }
+  },
 };
+
+export const LIMIAR_CONFIANCA_EAN_JEV = 0.85;
+
+export interface ResultadoDescobertaEanJev {
+  ean: string | null;
+  confiancaPercentual: number;
+  origem: 'serper_jev' | 'nenhum';
+  fonte?: string;
+  candidatosAvaliados: number;
+}
+
+const cacheResultadoEanJev = new Map<
+  string,
+  { expiraEm: number; valor: ResultadoDescobertaEanJev }
+>();

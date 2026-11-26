@@ -1,5 +1,6 @@
 import { supabase } from '../lib/supabase';
 import { Loja } from '../types';
+import { validarGtinGs1 } from '../utils/gdmMercadoLivreMapper';
 
 export const STORAGE_KEY_SERPAPI_KEY = 'hubi_serper_api_key';
 
@@ -1639,4 +1640,220 @@ export const buscarPrecosShoppingSerpApi = async (
   }
 
   return [];
+};
+
+export interface CandidatoEanSerper {
+  ean: string;
+  titulo: string;
+  snippet: string;
+  fonte: string;
+  url: string;
+  ocorrencias: number;
+  mencionaTermoEan: boolean;
+}
+
+const cacheCandidatosEanMemoria = new Map<
+  string,
+  { expiraEm: number; dados: CandidatoEanSerper[] }
+>();
+
+/**
+ * Busca candidatos de código de barras (EAN/GTIN) na pesquisa orgânica do Serper.dev
+ * filtrando imediatamente pelo dígito verificador GS1 Módulo 10.
+ */
+export const buscarCandidatosEanSerper = async (
+  termo: string,
+  loja?: Loja | { id?: string; serper_api_key?: string | null } | null
+): Promise<CandidatoEanSerper[]> => {
+  const termoLimpo = (termo || '').trim();
+  if (termoLimpo.length < 3) return [];
+
+  const queryPrincipal =
+    extrairTermoPrincipalProduto(termoLimpo) ||
+    limparTermoParaBuscaGoogle(termoLimpo) ||
+    termoLimpo;
+  if (!queryPrincipal) return [];
+
+  const chaveCache = `${loja?.id || 'global'}::${normalizarSemAcentos(queryPrincipal)}`;
+  const emCache = cacheCandidatosEanMemoria.get(chaveCache);
+  if (emCache && Date.now() < emCache.expiraEm) {
+    return emCache.dados;
+  }
+
+  let chaveApi = obterSerpApiKey(loja as Loja);
+  if (!chaveApi && loja?.id) {
+    try {
+      chaveApi = await obterOuBuscarSerpApiKey(loja as Loja);
+    } catch {
+      chaveApi = '';
+    }
+  }
+
+  if (!chaveApi) {
+    return [];
+  }
+
+  const extrairDominioUrl = (urlStr: string, fallbackFonte: string): string => {
+    if (urlStr) {
+      try {
+        return new URL(urlStr).hostname.replace(/^www\./i, '').toLowerCase();
+      } catch {
+        // Fallback para fonte textual
+      }
+    }
+    return fallbackFonte || 'Pesquisa Web';
+  };
+
+  const consultarSerperEan = async (
+    queryStr: string
+  ): Promise<
+    Array<{ titulo: string; snippet: string; url: string; fonte: string }>
+  > => {
+    const ctrl = new AbortController();
+    const timer = window.setTimeout(() => ctrl.abort(), 4500);
+    try {
+      const resp = await fetch('https://google.serper.dev/search', {
+        method: 'POST',
+        headers: {
+          'X-API-KEY': chaveApi,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          q: queryStr,
+          gl: 'br',
+          hl: 'pt-br',
+          num: 10,
+        }),
+        signal: ctrl.signal,
+      });
+
+      if (!resp.ok) return [];
+      const data = await resp.json().catch(() => null);
+      if (!data || typeof data !== 'object') return [];
+
+      const entradas: Array<{
+        titulo: string;
+        snippet: string;
+        url: string;
+        fonte: string;
+      }> = [];
+
+      if (data.knowledgeGraph && typeof data.knowledgeGraph === 'object') {
+        const kg = data.knowledgeGraph as Record<string, unknown>;
+        const attrs =
+          kg.attributes && typeof kg.attributes === 'object'
+            ? Object.entries(kg.attributes as Record<string, unknown>)
+                .map(([k, v]) => `${k}: ${String(v ?? '')}`)
+                .join(' | ')
+            : '';
+        entradas.push({
+          titulo: String(kg.title || queryPrincipal),
+          snippet: `${String(kg.description || '')} ${attrs}`.trim(),
+          url: String(kg.website || ''),
+          fonte: 'Google Knowledge Graph',
+        });
+      }
+
+      if (data.answerBox && typeof data.answerBox === 'object') {
+        const ab = data.answerBox as Record<string, unknown>;
+        entradas.push({
+          titulo: String(ab.title || queryPrincipal),
+          snippet: `${String(ab.answer || '')} ${String(ab.snippet || '')}`.trim(),
+          url: String(ab.link || ''),
+          fonte: extrairDominioUrl(String(ab.link || ''), 'Google Answer Box'),
+        });
+      }
+
+      const organic = Array.isArray(data.organic) ? data.organic : [];
+      for (const item of organic) {
+        if (!item || typeof item !== 'object') continue;
+        const link = String((item as Record<string, unknown>).link || '');
+        const fonteRaw = String(
+          (item as Record<string, unknown>).source ||
+            (item as Record<string, unknown>).displayLink ||
+            ''
+        );
+        entradas.push({
+          titulo: String((item as Record<string, unknown>).title || ''),
+          snippet: String((item as Record<string, unknown>).snippet || ''),
+          url: link,
+          fonte: extrairDominioUrl(link, fonteRaw),
+        });
+      }
+
+      return entradas;
+    } catch {
+      return [];
+    } finally {
+      window.clearTimeout(timer);
+    }
+  };
+
+  const mapearCandidatos = (
+    entradas: Array<{ titulo: string; snippet: string; url: string; fonte: string }>
+  ): CandidatoEanSerper[] => {
+    const mapa = new Map<string, CandidatoEanSerper>();
+
+    for (const entrada of entradas) {
+      const textoCompleto = `${entrada.titulo} ${entrada.snippet} ${entrada.url}`;
+      const matches = textoCompleto.match(/\b(\d{8}|\d{12}|\d{13}|\d{14})\b/g);
+      if (!matches) continue;
+
+      const mencionaTermoEan = /(ean|gtin|c[oó]digo\s+de\s+barras|barcode|upc)/i.test(
+        `${entrada.titulo} ${entrada.snippet}`
+      );
+      const unicosNaEntrada = new Set(matches.filter((m) => validarGtinGs1(m)));
+
+      for (const ean of unicosNaEntrada) {
+        const existente = mapa.get(ean);
+        if (existente) {
+          existente.ocorrencias += 1;
+          existente.mencionaTermoEan = existente.mencionaTermoEan || mencionaTermoEan;
+          if (!existente.snippet && entrada.snippet) {
+            existente.snippet = entrada.snippet;
+          }
+        } else {
+          mapa.set(ean, {
+            ean,
+            titulo: entrada.titulo,
+            snippet: entrada.snippet,
+            fonte: entrada.fonte,
+            url: entrada.url,
+            ocorrencias: 1,
+            mencionaTermoEan,
+          });
+        }
+      }
+    }
+
+    return Array.from(mapa.values())
+      .sort((a, b) => {
+        if (a.mencionaTermoEan !== b.mencionaTermoEan) {
+          return a.mencionaTermoEan ? -1 : 1;
+        }
+        return b.ocorrencias - a.ocorrencias;
+      })
+      .slice(0, 5);
+  };
+
+  const queryLimpa = queryPrincipal.replace(/["'`:;+=!?()[\]{}\\/|@#%^&*~<>]/g, ' ').replace(/\s+/g, ' ').trim();
+  const entradas1 = await consultarSerperEan(`${queryLimpa} EAN GTIN codigo de barras`);
+  let candidatos = mapearCandidatos(entradas1);
+
+  if (candidatos.length === 0) {
+    const partNumbers = extrairPartNumbersProduto(termoLimpo);
+    if (partNumbers.length > 0) {
+      const pn = partNumbers[partNumbers.length - 1];
+      const baseCurta = queryLimpa.split(/\s+/).slice(0, 3).join(' ');
+      const entradas2 = await consultarSerperEan(`${baseCurta} ${pn} EAN`);
+      candidatos = mapearCandidatos([...entradas1, ...entradas2]);
+    }
+  }
+
+  cacheCandidatosEanMemoria.set(chaveCache, {
+    expiraEm: Date.now() + 15 * 60 * 1000,
+    dados: candidatos,
+  });
+
+  return candidatos;
 };

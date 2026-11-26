@@ -43,6 +43,7 @@ import {
   type PayloadBase64IA
 } from '../utils/imageCompressor';
 import { formatarDataLocal } from '../utils/dateTime';
+import { validarGtinGs1 } from '../utils/gdmMercadoLivreMapper';
 
 export {
   SerpApiQuotaError,
@@ -1913,10 +1914,14 @@ export const atualizarProdutoExistenteComIA = async (dados: {
     };
   }
 
+  const eanAtualDigitos = String(dados.codigoBarras || '').replace(/\D/g, '').trim();
+  const eanAtualValido = validarGtinGs1(eanAtualDigitos);
+
   // 1. Disparo 100% paralelo (Promise.all):
   //    a) Pipeline Unificado Serper + JEV (passada única em PREENCHER_IA)
   //    b) Unidade de venda JEV
-  //    c) Chamada enxuta via Edge Function gemini-proxy (thinkingBudget: 0, maxOutputTokens: 450)
+  //    c) Descoberta e auditoria de EAN/GTIN via Serper + JEV (>= 85% + GS1) quando ausente/inválido
+  //    d) Chamada enxuta via Edge Function gemini-proxy (thinkingBudget: 0, maxOutputTokens: 450)
   //    Obs.: Desacoplado de busca de fotos (especialmente quando jaPossuiImagens === true).
   const unidadeJevPromise = catalogJevService.classificarUnidadeVenda({ nome: termoReferencia, descricao: dados.descricao }).catch(() => 'un');
   const contextoUnificadoPromise = catalogJevService.obterContextoUnificadoProdutoJev({
@@ -1927,6 +1932,15 @@ export const atualizarProdutoExistenteComIA = async (dados: {
     etapa: 'PREENCHER_IA',
     permitirComplementoGemini: false
   });
+  const eanSerperJevPromise = eanAtualValido
+    ? Promise.resolve(null)
+    : catalogJevService
+        .descobrirEAuditarEanComSerperJev({
+          nomeProduto: termoReferencia,
+          categoriaNome: dados.categoriaNome,
+          loja: dados.loja ?? undefined,
+        })
+        .catch(() => null);
 
   const geminiPromise = (async (): Promise<RespostaGeminiPreencherIA | null> => {
     if (termoReferencia.length < 2) return null;
@@ -2034,10 +2048,19 @@ Campos obrigatórios do JSON:
     }
   );
 
-  const [[contextoJev, unidadeJev], parsedIA] = await Promise.all([
+  const [[contextoJev, unidadeJev], parsedIA, resultadoEanSerperJev] = await Promise.all([
     estagio1Promise,
-    geminiPromise
+    geminiPromise,
+    eanSerperJevPromise
   ]);
+
+  const eanAprovadoSerperJev =
+    resultadoEanSerperJev?.ean && validarGtinGs1(resultadoEanSerperJev.ean)
+      ? resultadoEanSerperJev.ean
+      : '';
+  const codigoBarrasFinal = eanAtualValido
+    ? eanAtualDigitos
+    : eanAprovadoSerperJev || (dados.codigoBarras || '').trim();
 
   const ofertasAprovadas = contextoJev.ofertasAprovadas;
   let precoMedioSerp = 0;
@@ -2126,7 +2149,7 @@ Campos obrigatórios do JSON:
     preco_custo_estimado: margemBlindada.preco_custo > 0 ? Math.floor(margemBlindada.preco_custo) : 0,
     descricao: descricaoFinal,
     tipo_unidade: parsedIA?.tipo_unidade || unidadeJev || 'un',
-    codigo_barras: dados.codigoBarras || '',
+    codigo_barras: codigoBarrasFinal,
     peso_kg: Number(parsedIA?.peso_kg) > 0 ? Number(Number(parsedIA?.peso_kg).toFixed(3)) : (dimsFallback.peso_kg || 0.35),
     altura_cm: Number(parsedIA?.altura_cm) > 0 ? Math.max(4, Math.round(Number(parsedIA?.altura_cm))) : (dimsFallback.altura_cm || 10),
     largura_cm: Number(parsedIA?.largura_cm) > 0 ? Math.max(10, Math.round(Number(parsedIA?.largura_cm))) : (dimsFallback.largura_cm || 15),

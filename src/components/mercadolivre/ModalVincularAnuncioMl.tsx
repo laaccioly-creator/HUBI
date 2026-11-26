@@ -26,6 +26,7 @@ import {
   FichaProdutoMlHubi,
   ValorAtributoPreenchidoMl
 } from '../../services/mercadoLivreJevService';
+import { catalogJevService } from '../../services/catalogJevService';
 import {
   converterProdutoHubiParaGdmMl,
   converterGdmParaPayloadApiMl,
@@ -34,6 +35,7 @@ import {
   validarGtinGs1,
   obterPermalinkAnuncioMl
 } from '../../utils/gdmMercadoLivreMapper';
+import { useAuth } from '../../contexts/AuthContext';
 import { useFeedbackModal } from '../../contexts/FeedbackContext';
 import { useTheme } from '../../contexts/ThemeContext';
 import { useRegisterOverlay } from '../../hooks/useRegisterOverlay';
@@ -115,6 +117,7 @@ export const ModalVincularAnuncioMl: React.FC<ModalVincularAnuncioMlProps> = ({
   onSucesso,
 }) => {
   const { mostrarErro, mostrarSucesso, mostrarAviso, confirmar } = useFeedbackModal();
+  const { loja } = useAuth();
   const { isDark } = useTheme();
   useRegisterOverlay(aberto, onFechar, 'modal-vincular-anuncio-ml', 'modal');
   const [abaAtiva, setAbaAtiva] = useState<'vincular' | 'publicar'>(abaInicial);
@@ -136,6 +139,10 @@ export const ModalVincularAnuncioMl: React.FC<ModalVincularAnuncioMlProps> = ({
   const [modelo, setModelo] = useState<string>('');
   const [gtin, setGtin] = useState<string>('');
   const [semGtin, setSemGtin] = useState<boolean>(true);
+  const [origemEanConfirmado, setOrigemEanConfirmado] = useState<{
+    fonte?: string;
+    confianca: number;
+  } | null>(null);
 
   // Estados de Categoria Real e Atributos Dinâmicos do Mercado Livre
   const [carregandoCategoria, setCarregandoCategoria] = useState<boolean>(false);
@@ -212,6 +219,7 @@ export const ModalVincularAnuncioMl: React.FC<ModalVincularAnuncioMlProps> = ({
     setValoresAtributosExtras({});
     setErroCategoria(null);
     setVinculosExistentes([]);
+    setOrigemEanConfirmado(null);
 
     if (!lojaId) return;
     let ativo = true;
@@ -337,48 +345,90 @@ export const ModalVincularAnuncioMl: React.FC<ModalVincularAnuncioMlProps> = ({
         const gtinAtualLimpo =
           gtinRef.current.replace(/\D/g, '').trim() ||
           (fichaConsulta.codigoBarras || '').replace(/\D/g, '').trim();
+        const gtinAtualValido = validarGtinGs1(gtinAtualLimpo);
 
-        // Chamada única não-bloqueante via gemini-proxy para preencher marca, modelo, GTIN e atributos de texto livre pendentes
-        if (
+        const precisaGemini =
           preenchimento.atributosTextoLivrePendentes.length > 0 ||
           !marcaEfetiva ||
           !modeloEfetivo ||
-          !gtinAtualLimpo
-        ) {
-          void mercadoLivreJevService
-            .preencherAtributosTextoLivreViaGemini({
-              lojaId,
-              categoryId: res.categoria.id,
-              fichaProduto: fichaConsulta,
-              marcaAtual: marcaEfetiva || undefined,
-              modeloAtual: modeloEfetivo || undefined,
-              gtinAtual: gtinAtualLimpo || undefined,
-              atributosPendentes: preenchimento.atributosTextoLivrePendentes,
-            })
-            .then((resultadoGemini) => {
+          !gtinAtualValido;
+
+        if (!gtinAtualValido || precisaGemini) {
+          const promessaEanSerperJev = !gtinAtualValido
+            ? catalogJevService
+                .descobrirEAuditarEanComSerperJev({
+                  nomeProduto: fichaConsulta.nome,
+                  marca: marcaEfetiva || undefined,
+                  modelo: modeloEfetivo || undefined,
+                  sku: fichaConsulta.codigoInterno,
+                  categoriaNome: fichaConsulta.categoriaLocal,
+                  loja: loja || { id: lojaId },
+                })
+                .catch(() => null)
+            : Promise.resolve(null);
+
+          const promessaGemini = precisaGemini
+            ? mercadoLivreJevService
+                .preencherAtributosTextoLivreViaGemini({
+                  lojaId,
+                  categoryId: res.categoria.id,
+                  fichaProduto: fichaConsulta,
+                  marcaAtual: marcaEfetiva || undefined,
+                  modeloAtual: modeloEfetivo || undefined,
+                  gtinAtual: gtinAtualValido ? gtinAtualLimpo : undefined,
+                  atributosPendentes: preenchimento.atributosTextoLivrePendentes,
+                })
+                .catch(() => null)
+            : Promise.resolve(null);
+
+          void Promise.all([promessaEanSerperJev, promessaGemini])
+            .then(([resultadoEanSerperJev, resultadoGemini]) => {
               if (requisicaoCategoriaSeqRef.current !== seq) return;
 
-              if (resultadoGemini.marca) {
+              if (resultadoGemini?.marca) {
                 setMarca((prev) => (prev.trim() ? prev : resultadoGemini.marca || prev));
               }
-              if (resultadoGemini.modelo) {
+              if (resultadoGemini?.modelo) {
                 setModelo((prev) => (prev.trim() ? prev : resultadoGemini.modelo || prev));
               }
-              if (resultadoGemini.gtin && validarGtinGs1(resultadoGemini.gtin)) {
-                if (!gtinRef.current.replace(/\D/g, '').trim()) {
+
+              const gtinJaValidoNoInput = validarGtinGs1(
+                gtinRef.current.replace(/\D/g, '').trim()
+              );
+
+              if (!gtinJaValidoNoInput) {
+                if (
+                  resultadoEanSerperJev?.ean &&
+                  validarGtinGs1(resultadoEanSerperJev.ean)
+                ) {
+                  gtinRef.current = resultadoEanSerperJev.ean;
+                  setGtin(resultadoEanSerperJev.ean);
+                  setSemGtin(false);
+                  setOrigemEanConfirmado({
+                    fonte: resultadoEanSerperJev.fonte,
+                    confianca: resultadoEanSerperJev.confiancaPercentual,
+                  });
+                } else if (
+                  resultadoGemini?.gtin &&
+                  validarGtinGs1(resultadoGemini.gtin)
+                ) {
                   gtinRef.current = resultadoGemini.gtin;
                   setGtin(resultadoGemini.gtin);
                   setSemGtin(false);
                 }
               }
 
+              if (!resultadoGemini) return;
               const chaves = Object.keys(resultadoGemini.atributos);
               if (chaves.length === 0) return;
 
               setValoresAtributosExtras((prev) => {
                 const proximo = { ...prev };
                 for (const attrId of chaves) {
-                  if (!proximo[attrId]?.value_name?.trim() && resultadoGemini.atributos[attrId]?.value_name?.trim()) {
+                  if (
+                    !proximo[attrId]?.value_name?.trim() &&
+                    resultadoGemini.atributos[attrId]?.value_name?.trim()
+                  ) {
                     proximo[attrId] = resultadoGemini.atributos[attrId];
                   }
                 }
@@ -403,7 +453,7 @@ export const ModalVincularAnuncioMl: React.FC<ModalVincularAnuncioMlProps> = ({
         }
       }
     },
-    [lojaId]
+    [lojaId, loja]
   );
 
   // Ao abrir a aba "Publicar Novo Anúncio", consulta automaticamente a categoria predita do ML
@@ -1148,6 +1198,7 @@ export const ModalVincularAnuncioMl: React.FC<ModalVincularAnuncioMlProps> = ({
                 onChange={(e) => {
                   const somenteDigitos = e.target.value.replace(/\D/g, '').slice(0, 14);
                   setGtin(somenteDigitos);
+                  setOrigemEanConfirmado(null);
                   if (somenteDigitos && semGtin) {
                     setSemGtin(false);
                   }
@@ -1165,6 +1216,16 @@ export const ModalVincularAnuncioMl: React.FC<ModalVincularAnuncioMlProps> = ({
                     : 'border-slate-300 dark:border-slate-700 focus:border-emerald-500'
                 }`}
               />
+
+              {origemEanConfirmado && !semGtin && temGtinValido && (
+                <p className="text-xs font-semibold text-emerald-800 dark:text-emerald-300 flex items-center gap-1.5">
+                  <CheckCircle2 className="w-3.5 h-3.5 shrink-0 text-emerald-600 dark:text-emerald-400" />
+                  <span>
+                    EAN auditado pelo JEV ({origemEanConfirmado.confianca}% de confiança
+                    {origemEanConfirmado.fonte ? ` • ${origemEanConfirmado.fonte}` : ''}) — será salvo no produto ao publicar.
+                  </span>
+                </p>
+              )}
 
               {gtinDigitadoInvalido && (
                 <p className="text-xs font-bold text-rose-600 dark:text-rose-400 flex items-center gap-1.5">

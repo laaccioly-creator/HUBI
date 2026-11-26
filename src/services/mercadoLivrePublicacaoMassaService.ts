@@ -19,6 +19,7 @@ import {
   mercadoLivreService,
   MlAtributoObrigatorioCategoria,
 } from './mercadoLivreService';
+import { catalogJevService } from './catalogJevService';
 
 export interface MarketplaceLotePublicacao {
   id: string;
@@ -545,19 +546,50 @@ async function processarFilaEmSegundoPlano(params: ParamsIniciarPublicacaoMassaM
         !possuiGtinValidoCadastro ||
         atributosPendentes.length > 0;
 
+      if (!possuiGtinValidoCadastro) {
+        atualizarEstado({
+          etapaAtual: 'Buscando EAN oficial (Serper + JEV) e ficha técnica...',
+        });
+      }
+
+      const promessaEanSerperJev = !possuiGtinValidoCadastro
+        ? catalogJevService
+            .descobrirEAuditarEanComSerperJev({
+              nomeProduto: fichaProduto.nome,
+              marca: marcaFinal || undefined,
+              modelo: modeloFinal || undefined,
+              sku: fichaProduto.codigoInterno,
+              categoriaNome: fichaProduto.categoriaLocal,
+              loja: { id: lojaId },
+            })
+            .catch(() => null)
+        : Promise.resolve(null);
+
+      const promessaGemini = precisaGemini
+        ? mercadoLivreJevService.preencherAtributosTextoLivreViaGemini({
+            lojaId,
+            categoryId,
+            fichaProduto,
+            marcaAtual: marcaFinal || undefined,
+            modeloAtual: modeloFinal || undefined,
+            gtinAtual: possuiGtinValidoCadastro ? gtinCadastroDigitos : undefined,
+            atributosPendentes,
+          })
+        : Promise.resolve(null);
+
+      const [resEanSerperJev, resGemini] = await Promise.all([
+        promessaEanSerperJev,
+        promessaGemini,
+      ]);
+
+      let gtinSerperJev: string | undefined;
+      if (resEanSerperJev?.ean && validarGtinGs1(resEanSerperJev.ean)) {
+        gtinSerperJev = resEanSerperJev.ean;
+      }
+
       let gtinSugeridoIa: string | undefined;
 
-      if (precisaGemini) {
-        const resGemini = await mercadoLivreJevService.preencherAtributosTextoLivreViaGemini({
-          lojaId,
-          categoryId,
-          fichaProduto,
-          marcaAtual: marcaFinal || undefined,
-          modeloAtual: modeloFinal || undefined,
-          gtinAtual: possuiGtinValidoCadastro ? gtinCadastroDigitos : undefined,
-          atributosPendentes,
-        });
-
+      if (resGemini) {
         if (!marcaFinal && resGemini.marca) {
           marcaFinal = resGemini.marca.trim();
         }
@@ -582,9 +614,11 @@ async function processarFilaEmSegundoPlano(params: ParamsIniciarPublicacaoMassaM
 
       if (cancelamentoSolicitado) break;
 
-      // Etapa 2: Validar EAN/GTIN com dígito verificador GS1 (cadastro Rubi -> pesquisa IA -> fallback)
+      // Etapa 2: Validar EAN/GTIN com dígito verificador GS1 (cadastro Rubi -> Serper + JEV -> Gemini -> fallback)
       const gtinFinal = possuiGtinValidoCadastro
         ? gtinCadastroDigitos
+        : gtinSerperJev && validarGtinGs1(gtinSerperJev)
+        ? gtinSerperJev
         : gtinSugeridoIa && validarGtinGs1(gtinSugeridoIa)
         ? gtinSugeridoIa
         : '';
