@@ -5,6 +5,12 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 import { obterAccessTokenValido, MercadoLivreError } from "../_shared/mlClient.ts";
+import {
+  baixarImagemExterna,
+  ehUrlSupabaseStorageProjeto,
+  espelharImagemExternaNoStorage,
+  normalizarUrlImagemExterna,
+} from "../_shared/imagemStorageHelper.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -96,192 +102,74 @@ function garantirAtributosObrigatorios(
   return Array.from(mapa.values());
 }
 
-const USER_AGENT_NAVEGADOR =
-  "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36";
-
-function normalizarUrlImagemMl(url: string): string {
-  return String(url || "")
-    .trim()
-    .replace(/(%7Bw%7Dx%7Bh%7D|\{w\}x\{h\})/gi, "1000x1000");
-}
-
 type MlPictureEntrada = { id: string } | { source: string };
 
-function inferirMimeEExtensaoImagem(
-  contentTypeHeader: string | null,
-  url: string,
-  bytes: Uint8Array
-): { mime: string; ext: string } | null {
-  const ct = (contentTypeHeader || "").split(";")[0].trim().toLowerCase();
-
-  if (
-    ct === "text/html" ||
-    ct === "application/json" ||
-    ct === "text/plain" ||
-    ct === "application/xml"
-  ) {
-    return null;
-  }
-
-  if (ct === "image/jpeg" || ct === "image/jpg") return { mime: "image/jpeg", ext: "jpg" };
-  if (ct === "image/png") return { mime: "image/png", ext: "png" };
-  if (ct === "image/webp") return { mime: "image/webp", ext: "webp" };
-  if (ct === "image/gif") return { mime: "image/gif", ext: "gif" };
-
-  if (!ct || ct === "application/octet-stream" || ct.startsWith("image/")) {
-    if (bytes.length >= 3 && bytes[0] === 0xff && bytes[1] === 0xd8 && bytes[2] === 0xff) {
-      return { mime: "image/jpeg", ext: "jpg" };
-    }
-    if (
-      bytes.length >= 4 &&
-      bytes[0] === 0x89 &&
-      bytes[1] === 0x50 &&
-      bytes[2] === 0x4e &&
-      bytes[3] === 0x47
-    ) {
-      return { mime: "image/png", ext: "png" };
-    }
-    if (
-      bytes.length >= 12 &&
-      bytes[0] === 0x52 &&
-      bytes[1] === 0x49 &&
-      bytes[2] === 0x46 &&
-      bytes[3] === 0x46 &&
-      bytes[8] === 0x57 &&
-      bytes[9] === 0x45 &&
-      bytes[10] === 0x42 &&
-      bytes[11] === 0x50
-    ) {
-      return { mime: "image/webp", ext: "webp" };
-    }
-    if (bytes.length >= 4 && bytes[0] === 0x47 && bytes[1] === 0x49 && bytes[2] === 0x46 && bytes[3] === 0x38) {
-      return { mime: "image/gif", ext: "gif" };
-    }
-  }
-
-  const caminhoSemQuery = url.split("?")[0].split("#")[0].toLowerCase();
-  if (caminhoSemQuery.endsWith(".png")) return { mime: "image/png", ext: "png" };
-  if (caminhoSemQuery.endsWith(".webp")) return { mime: "image/webp", ext: "webp" };
-  if (caminhoSemQuery.endsWith(".gif")) return { mime: "image/gif", ext: "gif" };
-
-  return { mime: "image/jpeg", ext: "jpg" };
-}
-
-async function fazerUploadUnicaFotoMl(
-  url: string,
+async function enviarBufferFotoAoMercadoLivre(
+  bytes: Uint8Array,
+  mime: string,
+  ext: string,
+  urlFallback: string,
   token: string,
   indice: number
 ): Promise<MlPictureEntrada> {
-  const urlNormalizada = normalizarUrlImagemMl(url);
-  const controllerImg = new AbortController();
-  const timerImg = setTimeout(() => controllerImg.abort(), 12000);
-
-  let refererOrigem: string | undefined;
-  try {
-    refererOrigem = `${new URL(urlNormalizada).origin}/`;
-  } catch {
-    refererOrigem = undefined;
-  }
+  const controllerUpload = new AbortController();
+  const timerUpload = setTimeout(() => controllerUpload.abort(), 15000);
 
   try {
-    let respImg = await fetch(urlNormalizada, {
-      method: "GET",
-      redirect: "follow",
+    const blob = new Blob([bytes], { type: mime });
+    const formData = new FormData();
+    formData.append("file", blob, `foto_${indice + 1}.${ext}`);
+
+    const respUpload = await fetch("https://api.mercadolibre.com/pictures/items/upload", {
+      method: "POST",
       headers: {
-        "User-Agent": USER_AGENT_NAVEGADOR,
-        "Accept": "image/avif,image/webp,image/apng,image/*,*/*;q=0.8",
-        "Accept-Language": "pt-BR,pt;q=0.9,en-US;q=0.8,en;q=0.7",
-        ...(refererOrigem ? { "Referer": refererOrigem } : {}),
+        "Authorization": `Bearer ${token}`,
+        "Accept": "application/json",
       },
-      signal: controllerImg.signal,
+      body: formData,
+      signal: controllerUpload.signal,
     });
 
-    // Segunda tentativa imediata sem Referer quando CDNs (ex.: Magalu / KaBuM) bloqueiam com 403/400
-    if (!respImg.ok && (respImg.status === 403 || respImg.status === 400)) {
-      console.warn(`[ml-estoque-sync] Download da foto ${indice + 1} com Referer retornou HTTP ${respImg.status}; tentando novamente sem Referer.`);
-      respImg = await fetch(urlNormalizada, {
-        method: "GET",
-        redirect: "follow",
-        headers: {
-          "User-Agent": USER_AGENT_NAVEGADOR,
-          "Accept": "image/*",
-        },
-        signal: controllerImg.signal,
-      });
+    const dadosUpload = await respUpload.json().catch(() => null);
+    if (respUpload.ok && typeof dadosUpload?.id === "string" && dadosUpload.id.trim()) {
+      return { id: dadosUpload.id.trim() };
     }
 
-    if (!respImg.ok) {
-      console.warn(`[ml-estoque-sync] Download da foto ${indice + 1} retornou HTTP ${respImg.status}; usando fallback { source }.`);
-      return { source: urlNormalizada };
-    }
-
-    const arrayBuffer = await respImg.arrayBuffer();
-    if (!arrayBuffer || arrayBuffer.byteLength === 0) {
-      console.warn(`[ml-estoque-sync] Foto ${indice + 1} veio vazia; usando fallback { source }.`);
-      return { source: urlNormalizada };
-    }
-
-    const contentTypeBruto = (respImg.headers.get("content-type") || "").split(";")[0].trim().toLowerCase();
-    const infoImg = inferirMimeEExtensaoImagem(
-      respImg.headers.get("content-type"),
-      urlNormalizada,
-      new Uint8Array(arrayBuffer)
-    );
-
-    if (!infoImg || (contentTypeBruto && !contentTypeBruto.startsWith("image/") && contentTypeBruto !== "application/octet-stream")) {
-      console.warn(`[ml-estoque-sync] Content-Type inválido ('${contentTypeBruto}') para foto ${indice + 1}; usando fallback { source }.`);
-      return { source: urlNormalizada };
-    }
-
-    const blob = new Blob([arrayBuffer], { type: infoImg.mime });
-    const formData = new FormData();
-    formData.append("file", blob, `foto_${indice + 1}.${infoImg.ext}`);
-
-    const controllerUpload = new AbortController();
-    const timerUpload = setTimeout(() => controllerUpload.abort(), 15000);
-
-    try {
-      const respUpload = await fetch("https://api.mercadolibre.com/pictures/items/upload", {
-        method: "POST",
-        headers: {
-          "Authorization": `Bearer ${token}`,
-          "Accept": "application/json",
-        },
-        body: formData,
-        signal: controllerUpload.signal,
-      });
-
-      const dadosUpload = await respUpload.json().catch(() => null);
-      if (respUpload.ok && typeof dadosUpload?.id === "string" && dadosUpload.id.trim()) {
-        return { id: dadosUpload.id.trim() };
-      }
-
-      console.warn(`[ml-estoque-sync] Upload binário da foto ${indice + 1} falhou (HTTP ${respUpload.status}); usando fallback { source }.`);
-      return { source: urlNormalizada };
-    } finally {
-      clearTimeout(timerUpload);
-    }
-  } catch (errFoto) {
-    const msgFoto = errFoto instanceof Error ? errFoto.message : "Erro ao processar imagem";
-    console.warn(`[ml-estoque-sync] Falha no upload binário da foto ${indice + 1} (${msgFoto}); usando fallback { source }.`);
-    return { source: urlNormalizada };
+    console.warn(`[ml-estoque-sync] Upload binário da foto ${indice + 1} falhou (HTTP ${respUpload.status}); usando fallback { source }.`);
+    return { source: urlFallback };
+  } catch (errUpload) {
+    const msgUpload = errUpload instanceof Error ? errUpload.message : "Erro ao enviar imagem";
+    console.warn(`[ml-estoque-sync] Erro no upload binário da foto ${indice + 1} (${msgUpload}); usando fallback { source }.`);
+    return { source: urlFallback };
   } finally {
-    clearTimeout(timerImg);
+    clearTimeout(timerUpload);
   }
+}
+
+interface ContextoEspelhamentoMl {
+  supabaseAdmin?: any;
+  lojaId?: string;
+  produtoId?: string;
+  supabaseUrl?: string;
 }
 
 async function prepararPicturesBinariasMl(
   fotosUrlsBanco: unknown,
   picturesPayload: unknown,
-  token: string
+  token: string,
+  contexto?: ContextoEspelhamentoMl
 ): Promise<MlPictureEntrada[]> {
   const entradas: MlPictureEntrada[] = [];
   const urlsVistas = new Set<string>();
+  const urlsBancoOriginais: string[] = [];
 
   if (Array.isArray(fotosUrlsBanco)) {
     for (const urlRaw of fotosUrlsBanco) {
-      if (entradas.length >= 10) break;
-      const urlLimpa = typeof urlRaw === "string" ? normalizarUrlImagemMl(urlRaw) : "";
+      if (typeof urlRaw === "string" && urlRaw.trim()) {
+        urlsBancoOriginais.push(urlRaw.trim());
+      }
+      if (entradas.length >= 10) continue;
+      const urlLimpa = typeof urlRaw === "string" ? normalizarUrlImagemExterna(urlRaw) : "";
       if (/^https?:\/\//i.test(urlLimpa) && !urlsVistas.has(urlLimpa)) {
         urlsVistas.add(urlLimpa);
         entradas.push({ source: urlLimpa });
@@ -298,7 +186,7 @@ async function prepararPicturesBinariasMl(
         entradas.push({ id: idPic });
         continue;
       }
-      const sourcePic = typeof (pic as any).source === "string" ? normalizarUrlImagemMl((pic as any).source) : "";
+      const sourcePic = typeof (pic as any).source === "string" ? normalizarUrlImagemExterna((pic as any).source) : "";
       if (/^https?:\/\//i.test(sourcePic) && !urlsVistas.has(sourcePic)) {
         urlsVistas.add(sourcePic);
         entradas.push({ source: sourcePic });
@@ -308,13 +196,94 @@ async function prepararPicturesBinariasMl(
 
   if (entradas.length === 0) return [];
 
-  return await Promise.all(
-    entradas.map((entrada, indice) =>
-      "id" in entrada
-        ? Promise.resolve(entrada)
-        : fazerUploadUnicaFotoMl(entrada.source, token, indice)
-    )
+  const mapaEspelhadas = new Map<string, string>();
+  const supabaseUrl = contexto?.supabaseUrl || Deno.env.get("SUPABASE_URL") || "";
+
+  const resultadoPictures = await Promise.all(
+    entradas.map(async (entrada, indice): Promise<MlPictureEntrada> => {
+      if ("id" in entrada) return entrada;
+
+      const urlOriginal = entrada.source;
+
+      // Se a foto ainda estiver em CDN externa e tivermos contexto de loja, espelha antes no bucket público `produtos`
+      if (
+        contexto?.supabaseAdmin &&
+        contexto?.lojaId &&
+        !ehUrlSupabaseStorageProjeto(urlOriginal, supabaseUrl)
+      ) {
+        const espelhado = await espelharImagemExternaNoStorage(contexto.supabaseAdmin, {
+          url: urlOriginal,
+          lojaId: contexto.lojaId,
+          supabaseUrl,
+        });
+
+        if (espelhado.sucesso) {
+          mapaEspelhadas.set(urlOriginal, espelhado.urlPublica);
+          if (espelhado.bytes && espelhado.mime && espelhado.ext) {
+            return await enviarBufferFotoAoMercadoLivre(
+              espelhado.bytes,
+              espelhado.mime,
+              espelhado.ext,
+              espelhado.urlPublica,
+              token,
+              indice
+            );
+          }
+          return { source: espelhado.urlPublica };
+        }
+        console.warn(`[ml-estoque-sync] Espelhamento preventivo da foto ${indice + 1} falhou (${espelhado.erro}); tentando download direto.`);
+      }
+
+      const baixado = await baixarImagemExterna(urlOriginal, 12000);
+      if (!baixado.sucesso) {
+        console.warn(`[ml-estoque-sync] Download da foto ${indice + 1} falhou (${baixado.erro}); usando fallback { source }.`);
+        return { source: baixado.urlNormalizada || urlOriginal };
+      }
+
+      return await enviarBufferFotoAoMercadoLivre(
+        baixado.bytes,
+        baixado.mime,
+        baixado.ext,
+        baixado.urlNormalizada,
+        token,
+        indice
+      );
+    })
   );
+
+  // Retroalimenta public.produtos.fotos_urls com as URLs estáveis do Supabase Storage sempre que houver migração
+  if (
+    contexto?.supabaseAdmin &&
+    contexto?.lojaId &&
+    contexto?.produtoId &&
+    mapaEspelhadas.size > 0 &&
+    urlsBancoOriginais.length > 0
+  ) {
+    let alterouAlguma = false;
+    const novasFotosBanco = urlsBancoOriginais.map((uOrig) => {
+      const normalizada = normalizarUrlImagemExterna(uOrig);
+      const urlStorage = mapaEspelhadas.get(normalizada) || mapaEspelhadas.get(uOrig);
+      if (urlStorage && urlStorage !== uOrig) {
+        alterouAlguma = true;
+        return urlStorage;
+      }
+      return uOrig;
+    });
+
+    if (alterouAlguma) {
+      try {
+        await contexto.supabaseAdmin
+          .from("produtos")
+          .update({ fotos_urls: novasFotosBanco })
+          .eq("id", contexto.produtoId)
+          .eq("loja_id", contexto.lojaId);
+      } catch (errUpdateFotos) {
+        console.warn("[ml-estoque-sync] Aviso ao retroalimentar fotos_urls espelhadas:", errUpdateFotos instanceof Error ? errUpdateFotos.message : "Erro");
+      }
+    }
+  }
+
+  return resultadoPictures;
 }
 
 function validarGtinGs1(codigo: string): boolean {
@@ -1157,11 +1126,17 @@ serve(async (req: Request) => {
         );
       }
 
-      // Upload binário direto das fotos do produto (até 10) antes de criar o item no ML
+      // Upload binário direto das fotos do produto (até 10) com espelhamento preventivo no Storage antes de criar o item no ML
       const picturesProcessadas = await prepararPicturesBinariasMl(
         resProdDb?.data?.fotos_urls,
         restantePayload.pictures,
-        token
+        token,
+        {
+          supabaseAdmin,
+          lojaId: loja_id,
+          produtoId: produto_id,
+          supabaseUrl,
+        }
       );
 
       type ModoTituloMl = "only_family_name" | "only_title" | "both";

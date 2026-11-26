@@ -121,7 +121,7 @@ export const estruturarDescricaoProduto = (descricaoBruta: string): BlocoDescric
     }
   };
 
-  const regexCabecalhoSecao = /^(modo de usar|modo de uso|como usar|benef[ií]cios|caracter[ií]sticas|composi[cç][aã]o|precau[cç][oõ]es|cuidados|indica[cç][aã]o|para que serve|especifica[cç][oõ]es|dimens[oõ]es|medidas|material|informa[cç][oõ]es gerais|diferenciais|seguran[cç]a|recomenda[cç][aã]o|conte[uú]do da embalagem|importante)[\s:–-]*$/i;
+  const regexCabecalhoSecao = /^(modo de usar|como usar|benef[ií]cios|principais diferenciais|diferenciais|caracter[ií]sticas|composi[cç][aã]o|precau[cç][oõ]es|cuidados|indica[cç][aã]o|para que serve|especifica[cç][oõ]es t[eé]cnicas|especifica[cç][oõ]es|dimens[oõ]es|medidas|material|informa[cç][oõ]es gerais|seguran[cç]a|recomenda[cç][aã]o|conte[uú]do da embalagem|garantia e envio|garantia|importante)[\s:–-]*$/i;
 
   const regexItemLista = /^[\s]*([•\-\*–—]|(?:\d+[\.\)]))\s+(.+)$/;
 
@@ -157,9 +157,9 @@ export const estruturarDescricaoProduto = (descricaoBruta: string): BlocoDescric
       let icone: BlocoDescricao['icone'] = 'info';
       const tNorm = tituloCapitalizado.toLowerCase();
       if (tNorm.includes('modo') || tNorm.includes('como usar')) icone = 'modo_uso';
-      else if (tNorm.includes('beneficio') || tNorm.includes('vantag')) icone = 'beneficio';
-      else if (tNorm.includes('precauc') || tNorm.includes('cuidado') || tNorm.includes('advert')) icone = 'precaucao';
-      else if (tNorm.includes('composic') || tNorm.includes('material')) icone = 'info';
+      else if (tNorm.includes('beneficio') || tNorm.includes('vantag') || tNorm.includes('diferencia')) icone = 'beneficio';
+      else if (tNorm.includes('precauc') || tNorm.includes('cuidado') || tNorm.includes('advert') || tNorm.includes('garantia')) icone = 'precaucao';
+      else if (tNorm.includes('composic') || tNorm.includes('material') || tNorm.includes('especifica') || tNorm.includes('embalagem')) icone = 'info';
 
       blocos.push({
         tipo: 'titulo_secao',

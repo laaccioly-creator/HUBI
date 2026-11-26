@@ -49,6 +49,7 @@ import { useAuth } from '../contexts/AuthContext';
 import { usePermissions } from '../hooks/usePermissions';
 import { useFeedbackModal } from '../contexts/FeedbackContext';
 import { ProdutoService } from '../services/produtoService';
+import { espelharImagemParaStorage, espelharListaImagensProduto } from '../services/imagemStorageService';
 import { agendamentoService } from '../services/agendamentoService';
 import { logger } from '../services/loggerService';
 import { formatarDataLocal } from '../utils/dateTime';
@@ -1811,8 +1812,17 @@ export const ProdutoCadastro: React.FC = () => {
       setCodigoBarras(dadosSugeridos.codigo_barras);
     }
     if (dadosSugeridos.foto_url && !fotoPrincipal) {
-      setFotoPrincipal(dadosSugeridos.foto_url);
-      setFotosUrls(prev => [dadosSugeridos.foto_url!, ...prev.filter(f => f !== dadosSugeridos.foto_url!)]);
+      const urlIaOriginal = dadosSugeridos.foto_url;
+      setFotoPrincipal(urlIaOriginal);
+      setFotosUrls(prev => [urlIaOriginal, ...prev.filter(f => f !== urlIaOriginal)]);
+      if (loja?.id) {
+        void espelharImagemParaStorage(urlIaOriginal, loja.id, id).then((urlEspelhada) => {
+          if (urlEspelhada && urlEspelhada !== urlIaOriginal) {
+            setFotoPrincipal(prev => (prev === urlIaOriginal ? urlEspelhada : prev));
+            setFotosUrls(prev => prev.map(f => (f === urlIaOriginal ? urlEspelhada : f)));
+          }
+        });
+      }
     }
 
     // Preenchimento Automático das Dimensões e Peso de Frete via IA ou Regex
@@ -2203,6 +2213,19 @@ export const ProdutoCadastro: React.FC = () => {
         todasFotos.unshift(fotoPrincipal);
       }
 
+      // Garante que fotos vindas da internet/IA/URL externa fiquem hospedadas no Supabase Storage próprio
+      const fotosEspelhadas = await espelharListaImagensProduto(
+        todasFotos.slice(0, 7),
+        loja.id,
+        id
+      );
+      if (fotosEspelhadas.length > 0) {
+        setFotosUrls(fotosEspelhadas);
+        if (!fotoPrincipal || fotoPrincipal !== fotosEspelhadas[0]) {
+          setFotoPrincipal(fotosEspelhadas[0]);
+        }
+      }
+
       const estoqueFinal = temVariacoes && opcoesVariacao.length > 0
         ? opcoesVariacao.reduce((acc, v) => acc + (Number(v.estoque) || 0), 0)
         : Number(quantidadeEstoque) || 0;
@@ -2222,7 +2245,7 @@ export const ProdutoCadastro: React.FC = () => {
         permite_fracionado: tipoItem === 'servico' ? false : vendaPorPeso,
         codigo_balanca: tipoItem === 'servico' ? null : (codigoBalanca ? parseInt(codigoBalanca, 10) : null),
         tipo_item: tipoItem,
-        fotos_urls: todasFotos.slice(0, 7),
+        fotos_urls: fotosEspelhadas.slice(0, 7),
         preco_custo: Number(precoCusto) || 0,
         preco_venda_varejo: Number(precoVendaVarejo),
         preco_venda_atacado: tipoItem === 'servico' ? null : (precoVendaAtacado ? Number(precoVendaAtacado) : null),
@@ -4397,6 +4420,22 @@ export const ProdutoCadastro: React.FC = () => {
           const primeira = !fotoPrincipal ? novas[0] : fotoPrincipal;
           if (!fotoPrincipal && novas[0]) {
             setFotoPrincipal(novas[0]);
+          }
+          // Espelha em segundo plano para o bucket público `produtos` do Supabase Storage
+          if (loja?.id && novas.length > 0) {
+            void espelharListaImagensProduto(novas, loja.id, id).then((espelhadas) => {
+              const mapaUrls = new Map<string, string>();
+              novas.forEach((orig, idx) => {
+                const esp = espelhadas[idx];
+                if (esp && esp !== orig) {
+                  mapaUrls.set(orig, esp);
+                }
+              });
+              if (mapaUrls.size > 0) {
+                setFotosUrls(prev => prev.map(u => mapaUrls.get(u) || u));
+                setFotoPrincipal(prev => (prev ? (mapaUrls.get(prev) || prev) : prev));
+              }
+            });
           }
           // Pré-carrega no cache para que 'Preencher Ficha a partir da Foto' seja instantâneo (< 2s)
           if (primeira && !fotoVisaoIACache.has(primeira)) {

@@ -27,6 +27,8 @@ import {
   ValorAtributoPreenchidoMl
 } from '../../services/mercadoLivreJevService';
 import { catalogJevService } from '../../services/catalogJevService';
+import { ehUrlExternaParaEspelhar, espelharListaImagensProduto } from '../../services/imagemStorageService';
+import { garantirDescricaoProfissionalMarketplace } from '../../services/descricaoComercialService';
 import {
   converterProdutoHubiParaGdmMl,
   converterGdmParaPayloadApiMl,
@@ -621,7 +623,76 @@ export const ModalVincularAnuncioMl: React.FC<ModalVincularAnuncioMlProps> = ({
 
       const atributosExtras = montarAtributosExtrasPayload();
 
-      const gdmCanonico = converterProdutoHubiParaGdmMl(produto, variacaoAtual, {
+      // Espelhamento preventivo: garante que fotos externas de produtos antigos sejam hospedadas no Storage antes de enviar ao ML
+      const fotosOriginaisProduto = Array.isArray(produto.fotos_urls) ? produto.fotos_urls : [];
+      let fotosProntasMl = fotosOriginaisProduto;
+      if (fotosOriginaisProduto.some(ehUrlExternaParaEspelhar)) {
+        fotosProntasMl = await espelharListaImagensProduto(fotosOriginaisProduto, lojaId, produto.id);
+        const houveAlteracaoFoto =
+          fotosProntasMl.length !== fotosOriginaisProduto.length ||
+          fotosProntasMl.some((u, idx) => u !== fotosOriginaisProduto[idx]);
+        if (houveAlteracaoFoto) {
+          try {
+            await supabase
+              .from('produtos')
+              .update({ fotos_urls: fotosProntasMl })
+              .eq('id', produto.id)
+              .eq('loja_id', lojaId);
+          } catch (errFotosDb) {
+            console.warn('[ModalVincularAnuncioMl] Aviso ao atualizar fotos espelhadas do produto:', errFotosDb);
+          }
+        }
+      }
+
+      const produtoComFotosEspelhadas: Produto = {
+        ...produto,
+        fotos_urls: fotosProntasMl,
+      };
+
+      const atributosTecnicosDescricao = atributosExtras
+        .map((attr) => {
+          const definicao = atributosDinamicosCategoria.find((a) => a.id === attr.id);
+          return {
+            nome: definicao?.name || attr.id,
+            valor: attr.value_name || '',
+          };
+        })
+        .filter((item) => Boolean(item.valor));
+
+      const resultadoDescricao = await garantirDescricaoProfissionalMarketplace({
+        nome: produto.nome,
+        marca: marca.trim() || undefined,
+        modelo: modelo.trim() || undefined,
+        categoriaNome:
+          caminhoCategoriaMl ||
+          produto.categoria_nome ||
+          produto.categoria?.nome ||
+          undefined,
+        descricaoAtual: produto.descricao || undefined,
+        codigoBarras: !semGtin && gtinLimpo ? gtinLimpo : produto.codigo_barras,
+        atributosTecnicos: atributosTecnicosDescricao,
+        pesoKg: produto.peso_kg ?? null,
+        alturaCm: produto.altura_cm ?? null,
+        larguraCm: produto.largura_cm ?? null,
+        comprimentoCm: produto.comprimento_cm ?? null,
+        loja,
+        canal: 'mercado_livre',
+      });
+
+      const descricaoMlFinal = resultadoDescricao.descricao || produto.descricao || undefined;
+      if (resultadoDescricao.foiEnriquecida && descricaoMlFinal) {
+        try {
+          await supabase
+            .from('produtos')
+            .update({ descricao: descricaoMlFinal })
+            .eq('id', produto.id)
+            .eq('loja_id', lojaId);
+        } catch (errDescDb) {
+          console.warn('[ModalVincularAnuncioMl] Aviso ao salvar descrição profissional no produto:', errDescDb);
+        }
+      }
+
+      const gdmCanonico = converterProdutoHubiParaGdmMl(produtoComFotosEspelhadas, variacaoAtual, {
         categoriaMlId: categoriaSelecionadaId,
         tipoAnuncio,
         margemSobreprecoPercentual: margemComissao,
@@ -633,7 +704,7 @@ export const ModalVincularAnuncioMl: React.FC<ModalVincularAnuncioMlProps> = ({
         atributosExtras,
       });
 
-      const payloadMl = converterGdmParaPayloadApiMl(gdmCanonico, produto.descricao || undefined);
+      const payloadMl = converterGdmParaPayloadApiMl(gdmCanonico, descricaoMlFinal);
 
       console.group('[ML-DEBUG] Publicação de Novo Anúncio');
       console.log('[ML-DEBUG] Dados do formulário:', {

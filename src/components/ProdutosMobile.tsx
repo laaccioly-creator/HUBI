@@ -99,6 +99,7 @@ import {
   obterNomeSegmentoLoja
 } from '../services/geminiService';
 import { ModalPesquisaFotosInternet } from './ModalPesquisaFotosInternet';
+import { espelharImagemParaStorage, espelharListaImagensProduto } from '../services/imagemStorageService';
 import { catalogJevService } from '../services/catalogJevService';
 import { ModalOnboardingSerpApi } from './ModalOnboardingSerpApi';
 import { SpinnerPesquisandoIA } from './SpinnerPesquisandoIA';
@@ -1501,8 +1502,13 @@ export const ProdutosMobile: React.FC<ProdutosMobileProps> = ({
     try {
       setSalvandoProduto(true);
 
-      const fotosFinalUrls = await Promise.all(
+      const fotosComDataUrlEnviado = await Promise.all(
         (formData.fotos || []).slice(0, 7).map((foto) => ProdutoService.uploadFotoDataUrl(foto, loja.id))
+      );
+      const fotosFinalUrls = await espelharListaImagensProduto(
+        fotosComDataUrlEnviado,
+        loja.id,
+        produtoEditando?.id
       );
 
       const isServico = formData.tipoItem === 'servico';
@@ -1784,6 +1790,12 @@ export const ProdutosMobile: React.FC<ProdutosMobileProps> = ({
       setSalvandoProduto(true);
       setModalClonarAberto(false);
 
+      const fotosClonadas = await espelharListaImagensProduto(
+        produtoEditando.fotos_urls || [],
+        loja.id,
+        produtoEditando.id
+      );
+
       const novoProdutoPayload = {
         loja_id: loja.id,
         nome: `${produtoEditando.nome} - CÓPIA`,
@@ -1797,7 +1809,7 @@ export const ProdutosMobile: React.FC<ProdutosMobileProps> = ({
         tipo_unidade: produtoEditando.tipo_unidade,
         destaque: false,
         exibir_catalogo: produtoEditando.exibir_catalogo,
-        fotos_urls: produtoEditando.fotos_urls || [],
+        fotos_urls: fotosClonadas,
         estoque_minimo_alerta: produtoEditando.estoque_minimo_alerta || 0,
         quantidade_estoque: 0,
         cor_etiqueta: formData.corEtiqueta || produtoEditando.cor_etiqueta || '#1F2937',
@@ -2017,6 +2029,8 @@ export const ProdutosMobile: React.FC<ProdutosMobileProps> = ({
       }
     }
 
+    const fotoIaOriginal = fotoUrl || sugestao.foto_url || null;
+
     setFormData(prev => ({
       ...prev,
       nome: (sugestao as any).nome_identificado || sugestao.nome || prev.nome,
@@ -2027,12 +2041,23 @@ export const ProdutosMobile: React.FC<ProdutosMobileProps> = ({
       descricao: (sugestao as any).descricao_completa || sugestao.descricao || prev.descricao,
       codigoBarras: sugestao.codigo_barras || prev.codigoBarras,
       tipoUnidade: (sugestao.tipo_unidade as TipoUnidade) || prev.tipoUnidade,
-      fotos: (fotoUrl || sugestao.foto_url) ? [(fotoUrl || sugestao.foto_url)!, ...prev.fotos.filter((f: string) => f !== (fotoUrl || sugestao.foto_url))].slice(0, 7) : prev.fotos,
+      fotos: fotoIaOriginal ? [fotoIaOriginal, ...prev.fotos.filter((f: string) => f !== fotoIaOriginal)].slice(0, 7) : prev.fotos,
       pesoKg: sugestao.peso_kg ? String(sugestao.peso_kg) : prev.pesoKg,
       alturaCm: sugestao.altura_cm ? String(sugestao.altura_cm) : prev.alturaCm,
       larguraCm: sugestao.largura_cm ? String(sugestao.largura_cm) : prev.larguraCm,
       comprimentoCm: sugestao.comprimento_cm ? String(sugestao.comprimento_cm) : prev.comprimentoCm
     }));
+
+    if (fotoIaOriginal && loja?.id) {
+      void espelharImagemParaStorage(fotoIaOriginal, loja.id, produtoEditando?.id).then((urlEspelhada) => {
+        if (urlEspelhada && urlEspelhada !== fotoIaOriginal) {
+          setFormData(prev => ({
+            ...prev,
+            fotos: prev.fotos.map((f: string) => (f === fotoIaOriginal ? urlEspelhada : f)),
+          }));
+        }
+      });
+    }
   };
 
   // PREENCHIMENTO AUTOMÁTICO VIA IA (FOTO, TEXTO, CÓDIGO DE BARRAS)
@@ -6203,6 +6228,23 @@ export const ProdutosMobile: React.FC<ProdutosMobileProps> = ({
                 fotos: fotosAtualizadas
               };
             });
+            if (loja?.id && novasFotos.length > 0) {
+              void espelharListaImagensProduto(novasFotos, loja.id, produtoEditando?.id).then((espelhadas) => {
+                const mapaUrls = new Map<string, string>();
+                novasFotos.forEach((orig, idx) => {
+                  const esp = espelhadas[idx];
+                  if (esp && esp !== orig) {
+                    mapaUrls.set(orig, esp);
+                  }
+                });
+                if (mapaUrls.size > 0) {
+                  setFormData(prev => ({
+                    ...prev,
+                    fotos: prev.fotos.map((f: string) => mapaUrls.get(f) || f),
+                  }));
+                }
+              });
+            }
             setMensagemFeedback({
               texto: `${novasFotos.length} foto(s) adicionada(s) à galeria!`,
               tipo: 'sucesso'

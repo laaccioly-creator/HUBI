@@ -20,6 +20,11 @@ import {
   MlAtributoObrigatorioCategoria,
 } from './mercadoLivreService';
 import { catalogJevService } from './catalogJevService';
+import { ehUrlExternaParaEspelhar, espelharListaImagensProduto } from './imagemStorageService';
+import {
+  descricaoEhGenericaOuCurta,
+  garantirDescricaoProfissionalMarketplace,
+} from './descricaoComercialService';
 
 export interface MarketplaceLotePublicacao {
   id: string;
@@ -649,14 +654,100 @@ async function processarFilaEmSegundoPlano(params: ParamsIniciarPublicacaoMassaM
 
       semGtin = !gtinFinal;
 
+      // Etapa 2.5: Espelhamento preventivo de imagens externas para o Supabase Storage próprio
+      let fotosProntasLote = fotosValidas;
+      if (fotosValidas.some(ehUrlExternaParaEspelhar)) {
+        atualizarEstado({
+          etapaAtual: 'Hospedando imagens do produto no servidor...',
+        });
+        fotosProntasLote = await espelharListaImagensProduto(fotosValidas, lojaId, produto.id);
+        const houveAlteracaoFoto =
+          fotosProntasLote.length !== fotosValidas.length ||
+          fotosProntasLote.some((u, idx) => u !== fotosValidas[idx]);
+        if (houveAlteracaoFoto) {
+          await supabase
+            .from('produtos')
+            .update({ fotos_urls: fotosProntasLote })
+            .eq('id', produto.id)
+            .eq('loja_id', lojaId)
+            .then(({ error: erroFoto }) => {
+              if (erroFoto) {
+                console.warn(
+                  '[mercadoLivrePublicacaoMassaService] Aviso ao retroalimentar fotos espelhadas:',
+                  erroFoto.message
+                );
+              }
+            });
+        }
+      }
+
+      if (cancelamentoSolicitado) break;
+
+      // Etapa 2.6: Garante descrição comercial profissional (plain_text 900-2200 chars) antes de publicar no ML
+      const atributosExtras = montarAtributosExtrasLote(atributosObrigatorios, valoresAtributos);
+
+      if (descricaoEhGenericaOuCurta(produto.descricao)) {
+        atualizarEstado({
+          etapaAtual: 'Gerando descrição comercial profissional via IA...',
+        });
+      }
+
+      const atributosTecnicosDescricao = atributosExtras
+        .map((attr) => {
+          const def = atributosObrigatorios.find((a) => a.id === attr.id);
+          return {
+            nome: def?.name || attr.id,
+            valor: attr.value_name || '',
+          };
+        })
+        .filter((item) => Boolean(item.valor));
+
+      const resultadoDescricao = await garantirDescricaoProfissionalMarketplace({
+        nome: produto.nome,
+        marca: marcaFinal,
+        modelo: modeloFinal,
+        categoriaNome: fichaProduto.categoriaLocal || undefined,
+        descricaoAtual: produto.descricao || undefined,
+        codigoBarras: !semGtin ? gtinFinal : produto.codigo_barras,
+        atributosTecnicos: atributosTecnicosDescricao,
+        pesoKg: produto.peso_kg ?? null,
+        alturaCm: produto.altura_cm ?? null,
+        larguraCm: produto.largura_cm ?? null,
+        comprimentoCm: produto.comprimento_cm ?? null,
+        loja: { id: lojaId },
+        canal: 'mercado_livre',
+      });
+
+      if (cancelamentoSolicitado) break;
+
+      const descricaoMlFinal = resultadoDescricao.descricao || produto.descricao || undefined;
+      if (resultadoDescricao.foiEnriquecida && descricaoMlFinal) {
+        await supabase
+          .from('produtos')
+          .update({ descricao: descricaoMlFinal })
+          .eq('id', produto.id)
+          .eq('loja_id', lojaId)
+          .then(({ error: erroDesc }) => {
+            if (erroDesc) {
+              console.warn(
+                '[mercadoLivrePublicacaoMassaService] Aviso ao retroalimentar descrição profissional:',
+                erroDesc.message
+              );
+            }
+          });
+      }
+
       // Etapa 3: Montar GDM e invocar Edge Function ml-estoque-sync (create_listing)
       atualizarEstado({
         etapaAtual: 'Publicando anúncio no Mercado Livre...',
       });
 
-      const atributosExtras = montarAtributosExtrasLote(atributosObrigatorios, valoresAtributos);
+      const produtoComFotosEspelhadas: Produto = {
+        ...produto,
+        fotos_urls: fotosProntasLote,
+      };
 
-      const gdmCanonico = converterProdutoHubiParaGdmMl(produto, variacao, {
+      const gdmCanonico = converterProdutoHubiParaGdmMl(produtoComFotosEspelhadas, variacao, {
         categoriaMlId: categoryId,
         tipoAnuncio,
         margemSobreprecoPercentual: margemComissao,
@@ -670,7 +761,7 @@ async function processarFilaEmSegundoPlano(params: ParamsIniciarPublicacaoMassaM
 
       precoCalculadoContexto = gdmCanonico.preco_final_ml;
 
-      const payloadMl = converterGdmParaPayloadApiMl(gdmCanonico, produto.descricao || undefined);
+      const payloadMl = converterGdmParaPayloadApiMl(gdmCanonico, descricaoMlFinal);
 
       const res = await mercadoLivreService.criarAnuncio({
         lojaId,

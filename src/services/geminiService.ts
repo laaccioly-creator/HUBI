@@ -44,6 +44,11 @@ import {
 } from '../utils/imageCompressor';
 import { formatarDataLocal } from '../utils/dateTime';
 import { validarGtinGs1 } from '../utils/gdmMercadoLivreMapper';
+import {
+  descricaoEhGenericaOuCurta,
+  gerarDescricaoComercialProfissional,
+  sanitizarDescricaoPlainText
+} from './descricaoComercialService';
 
 export {
   SerpApiQuotaError,
@@ -1138,13 +1143,41 @@ export const identificarProdutoPorFoto = async (
           console.log(`[IA-Produto] Etapa 3: Jev TypeSafe em ${Math.round(performance.now() - tEtapa3)}ms`);
         }
 
+        const nomeIdentificado = parsed.nome || 'Produto Identificado';
+        let descricaoIdentificada = sanitizarDescricaoPlainText(
+          parsed.descricao_curta || parsed.descricao || ''
+        );
+        if (nomeIdentificado !== 'Produto Identificado' && descricaoEhGenericaOuCurta(descricaoIdentificada)) {
+          try {
+            const descProf = await gerarDescricaoComercialProfissional({
+              nome: nomeIdentificado,
+              marca: parsed.marca || undefined,
+              categoriaNome: parsed.categoria_sugerida || undefined,
+              descricaoAtual: descricaoIdentificada || undefined,
+              codigoBarras: parsed.codigo_barras || undefined,
+              pesoKg: pesoKgFinal,
+              alturaCm: alturaFinal,
+              larguraCm: larguraFinal,
+              comprimentoCm: compFinal,
+              segmentoLoja,
+              loja,
+              canal: 'cadastro',
+            });
+            if (descProf && descProf.trim().length >= 350) {
+              descricaoIdentificada = descProf;
+            }
+          } catch {
+            // Mantém descrição extraída caso o enriquecimento falhe
+          }
+        }
+
         return {
           duvida: temDuvida,
-          nome: parsed.nome || 'Produto Identificado',
+          nome: nomeIdentificado,
           categoria_sugerida: parsed.categoria_sugerida || 'Geral',
           preco_venda_estimado: semCentavos,
           preco_custo_estimado: Number(parsed.preco_custo_estimado) || 0,
-          descricao: parsed.descricao_curta || parsed.descricao || '',
+          descricao: descricaoIdentificada,
           tipo_unidade: parsed.unidade || parsed.tipo_unidade || 'un',
           codigo_barras: parsed.codigo_barras || '',
           diferencial: parsed.diferencial || '',
@@ -1254,12 +1287,37 @@ Estime com inteligência o peso bruto do produto embalado em kg ('peso_kg', ex: 
     const larguraFinal = Number(parsed.largura_cm) > 0 ? Number(parsed.largura_cm) : extraidos.largura_cm;
     const compFinal = Number(parsed.comprimento_cm) > 0 ? Number(parsed.comprimento_cm) : extraidos.comprimento_cm;
 
+    const nomeIdentificado = parsed.nome || valor;
+    let descricaoIdentificada = sanitizarDescricaoPlainText(parsed.descricao || '');
+    if (nomeIdentificado && descricaoEhGenericaOuCurta(descricaoIdentificada)) {
+      try {
+        const descProf = await gerarDescricaoComercialProfissional({
+          nome: nomeIdentificado,
+          categoriaNome: parsed.categoria_sugerida || undefined,
+          descricaoAtual: descricaoIdentificada || undefined,
+          codigoBarras: parsed.codigo_barras || (tipo === 'barcode' ? valor : '') || undefined,
+          pesoKg: pesoKgFinal,
+          alturaCm: alturaFinal,
+          larguraCm: larguraFinal,
+          comprimentoCm: compFinal,
+          segmentoLoja,
+          loja,
+          canal: 'cadastro',
+        });
+        if (descProf && descProf.trim().length >= 350) {
+          descricaoIdentificada = descProf;
+        }
+      } catch {
+        // Mantém descrição extraída caso o enriquecimento falhe
+      }
+    }
+
     return {
-      nome: parsed.nome || valor,
+      nome: nomeIdentificado,
       categoria_sugerida: parsed.categoria_sugerida || 'Geral',
       preco_venda_estimado: Number(parsed.preco_venda_estimado) || 0,
       preco_custo_estimado: Number(parsed.preco_custo_estimado) || 0,
-      descricao: parsed.descricao || '',
+      descricao: descricaoIdentificada,
       tipo_unidade: parsed.tipo_unidade || 'un',
       codigo_barras: parsed.codigo_barras || (tipo === 'barcode' ? valor : ''),
       peso_kg: pesoKgFinal,
@@ -1308,6 +1366,31 @@ export const gerarDescricaoExclusivaIA = async (
   const ramoEfetivo = (params.segmentoLoja || obterNomeSegmentoLoja(params.loja) || '').trim();
   const sobreLoja = (params.loja?.sobre_loja || '').trim();
   const categoriaLimpa = (params.categoriaNome || '').trim();
+
+  if (!ehServico && nomeExato) {
+    try {
+      const descricaoProfissional = await gerarDescricaoComercialProfissional({
+        nome: nomeExato,
+        categoriaNome: categoriaLimpa || undefined,
+        descricaoAtual: descricaoBase || undefined,
+        segmentoLoja: ramoEfetivo || undefined,
+        loja: params.loja,
+        canal: 'cadastro',
+        forcarRegeneracao: true,
+      });
+      if (descricaoProfissional && descricaoProfissional.trim()) {
+        console.log(
+          `%c[HUBI PERF ⏱️]%c [DESCRICAO_IA] Concluído em ${Math.round(performance.now() - tInicioDesc)}ms para "${nomeExato}" (produto)`,
+          'color: #0ea5e9; font-weight: bold;',
+          'color: #38bdf8;'
+        );
+        return descricaoProfissional;
+      }
+    } catch (errUnificado) {
+      console.warn('[GeminiService] Aviso ao gerar descrição comercial unificada, tentando fallback:', errUnificado);
+    }
+  }
+
   const contextoSistema = montarContextoSegmentoSistema(ramoEfetivo, params.loja);
 
   const detalhesContexto: string[] = [];
@@ -1897,7 +1980,7 @@ export const atualizarProdutoExistenteComIA = async (dados: {
 
   // Cache híbrido resiliente (Memória + sessionStorage, TTL 15 min) escopado por lojaId, ramo e termo normalizado
   const chaveCache = criarChaveCacheEscopada(
-    'hubi_preencher_ia_sessao_v23',
+    'hubi_preencher_ia_sessao_v24',
     `${termoReferencia}::${ramoEfetivo}`,
     dados.loja?.id
   );
@@ -1916,12 +1999,15 @@ export const atualizarProdutoExistenteComIA = async (dados: {
 
   const eanAtualDigitos = String(dados.codigoBarras || '').replace(/\D/g, '').trim();
   const eanAtualValido = validarGtinGs1(eanAtualDigitos);
+  const precisaGerarDescricaoProfissional =
+    termoReferencia.length >= 2 && descricaoEhGenericaOuCurta(dados.descricao);
 
   // 1. Disparo 100% paralelo (Promise.all):
   //    a) Pipeline Unificado Serper + JEV (passada única em PREENCHER_IA)
   //    b) Unidade de venda JEV
   //    c) Descoberta e auditoria de EAN/GTIN via Serper + JEV (>= 85% + GS1) quando ausente/inválido
-  //    d) Chamada enxuta via Edge Function gemini-proxy (thinkingBudget: 0, maxOutputTokens: 450)
+  //    d) Geração de descrição comercial profissional unificada (plain_text 900-2200 chars)
+  //    e) Chamada enxuta via Edge Function gemini-proxy (thinkingBudget: 0, maxOutputTokens: 450)
   //    Obs.: Desacoplado de busca de fotos (especialmente quando jaPossuiImagens === true).
   const unidadeJevPromise = catalogJevService.classificarUnidadeVenda({ nome: termoReferencia, descricao: dados.descricao }).catch(() => 'un');
   const contextoUnificadoPromise = catalogJevService.obterContextoUnificadoProdutoJev({
@@ -1942,10 +2028,22 @@ export const atualizarProdutoExistenteComIA = async (dados: {
         })
         .catch(() => null);
 
+  const descricaoProfissionalPromise = precisaGerarDescricaoProfissional
+    ? gerarDescricaoComercialProfissional({
+        nome: termoReferencia,
+        categoriaNome: dados.categoriaNome,
+        descricaoAtual: dados.descricao,
+        codigoBarras: eanAtualValido ? eanAtualDigitos : undefined,
+        segmentoLoja: ramoEfetivo || undefined,
+        loja: dados.loja,
+        canal: 'cadastro',
+      }).catch(() => '')
+    : Promise.resolve('');
+
   const geminiPromise = (async (): Promise<RespostaGeminiPreencherIA | null> => {
     if (termoReferencia.length < 2) return null;
     const chaveCacheGemini = criarChaveCacheEscopada(
-      'hubi_gemini_texto_v23',
+      'hubi_gemini_texto_v24',
       `${termoReferencia}::${ramoEfetivo}`,
       dados.loja?.id
     );
@@ -2048,11 +2146,13 @@ Campos obrigatórios do JSON:
     }
   );
 
-  const [[contextoJev, unidadeJev], parsedIA, resultadoEanSerperJev] = await Promise.all([
-    estagio1Promise,
-    geminiPromise,
-    eanSerperJevPromise
-  ]);
+  const [[contextoJev, unidadeJev], parsedIA, resultadoEanSerperJev, descricaoProfissionalGerada] =
+    await Promise.all([
+      estagio1Promise,
+      geminiPromise,
+      eanSerperJevPromise,
+      descricaoProfissionalPromise
+    ]);
 
   const eanAprovadoSerperJev =
     resultadoEanSerperJev?.ean && validarGtinGs1(resultadoEanSerperJev.ean)
@@ -2123,17 +2223,21 @@ Campos obrigatórios do JSON:
     'color: #38bdf8;'
   );
 
-  const textoDescricaoIA = (
+  const textoDescricaoIA = sanitizarDescricaoPlainText(
     parsedIA?.descricao_curta ||
     parsedIA?.descricao_comercial ||
     parsedIA?.descricao ||
     ''
-  )
-    .trim()
-    .slice(0, 400);
-  const descricaoFinal = textoDescricaoIA.length > 15
-    ? textoDescricaoIA
-    : (dados.descricao?.trim() || `${termoReferencia} — equipamento/produto selecionado com alto padrão de qualidade, desempenho confiável e excelente custo-benefício.`);
+  );
+  const descricaoExistenteLimpa = sanitizarDescricaoPlainText(dados.descricao || '');
+  const descricaoFinal =
+    descricaoProfissionalGerada && descricaoProfissionalGerada.trim().length >= 350
+      ? descricaoProfissionalGerada.trim()
+      : !descricaoEhGenericaOuCurta(descricaoExistenteLimpa)
+      ? descricaoExistenteLimpa
+      : textoDescricaoIA && !descricaoEhGenericaOuCurta(textoDescricaoIA)
+      ? textoDescricaoIA
+      : descricaoExistenteLimpa || textoDescricaoIA;
 
   const margemBlindada = blindarMargemCustoVarejo(
     precoSemCentavos,
@@ -2156,11 +2260,11 @@ Campos obrigatórios do JSON:
     comprimento_cm: Number(parsedIA?.comprimento_cm) > 0 ? Math.max(15, Math.round(Number(parsedIA?.comprimento_cm))) : (dimsFallback.comprimento_cm || 20)
   };
 
-  if (precoSemCentavos > 0 || textoDescricaoIA.length > 15) {
+  if (precoSemCentavos > 0 || descricaoFinal.length > 15) {
     salvarCacheHibridoSessao(cachePreencherIAMemoria, chaveCache, resultadoFinal);
     if (contextoJev.termoCanonico) {
       const chaveCanonico = criarChaveCacheEscopada(
-        'hubi_preencher_ia_sessao_v23',
+        'hubi_preencher_ia_sessao_v24',
         `${contextoJev.termoCanonico}::${ramoEfetivo}`,
         dados.loja?.id
       );

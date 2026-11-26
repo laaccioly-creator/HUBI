@@ -1857,3 +1857,159 @@ export const buscarCandidatosEanSerper = async (
 
   return candidatos;
 };
+
+export interface EspecificacaoWebSerper {
+  titulo: string;
+  snippet: string;
+  fonte: string;
+  url: string;
+}
+
+const cacheEspecificacoesSerperMemoria = new Map<
+  string,
+  { expiraEm: number; dados: EspecificacaoWebSerper[] }
+>();
+
+/**
+ * Pesquisa especificações técnicas reais do produto na web (Google Search via Serper.dev)
+ * para embasar descrições comerciais detalhadas sem inventar dados.
+ */
+export const buscarEspecificacoesProdutoSerper = async (
+  termo: string,
+  loja?: Loja | { id?: string; serper_api_key?: string | null } | null
+): Promise<EspecificacaoWebSerper[]> => {
+  const termoLimpo = (termo || '').trim();
+  if (termoLimpo.length < 3) return [];
+
+  const queryPrincipal =
+    extrairTermoPrincipalProduto(termoLimpo) ||
+    limparTermoParaBuscaGoogle(termoLimpo) ||
+    termoLimpo;
+  if (!queryPrincipal) return [];
+
+  const chaveCache = `${loja?.id || 'global'}::specs::${normalizarSemAcentos(queryPrincipal)}`;
+  const emCache = cacheEspecificacoesSerperMemoria.get(chaveCache);
+  if (emCache && Date.now() < emCache.expiraEm) {
+    return emCache.dados;
+  }
+
+  let chaveApi = obterSerpApiKey(loja as Loja);
+  if (!chaveApi && loja?.id) {
+    try {
+      chaveApi = await obterOuBuscarSerpApiKey(loja as Loja);
+    } catch {
+      chaveApi = '';
+    }
+  }
+
+  if (!chaveApi) {
+    return [];
+  }
+
+  const extrairDominio = (urlStr: string, fallbackFonte: string): string => {
+    if (urlStr) {
+      try {
+        return new URL(urlStr).hostname.replace(/^www\./i, '').toLowerCase();
+      } catch {
+        // Fallback para fonte textual
+      }
+    }
+    return fallbackFonte || 'Pesquisa Web';
+  };
+
+  const queryLimpa = queryPrincipal
+    .replace(/["'`:;+=!?()[\]{}\\/|@#%^&*~<>]/g, ' ')
+    .replace(/\s+/g, ' ')
+    .trim();
+
+  const ctrl = new AbortController();
+  const timer = window.setTimeout(() => ctrl.abort(), 4500);
+
+  try {
+    const resp = await fetch('https://google.serper.dev/search', {
+      method: 'POST',
+      headers: {
+        'X-API-KEY': chaveApi,
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        q: `${queryLimpa} ficha tecnica especificacoes`,
+        gl: 'br',
+        hl: 'pt-br',
+        num: 8,
+      }),
+      signal: ctrl.signal,
+    });
+
+    if (!resp.ok) return [];
+    const data = await resp.json().catch(() => null);
+    if (!data || typeof data !== 'object') return [];
+
+    const resultados: EspecificacaoWebSerper[] = [];
+
+    if (data.knowledgeGraph && typeof data.knowledgeGraph === 'object') {
+      const kg = data.knowledgeGraph as Record<string, unknown>;
+      const attrs =
+        kg.attributes && typeof kg.attributes === 'object'
+          ? Object.entries(kg.attributes as Record<string, unknown>)
+              .map(([k, v]) => `${k}: ${String(v ?? '')}`)
+              .join(' | ')
+          : '';
+      const snippetKg = `${String(kg.description || '')} ${attrs}`.trim();
+      if (snippetKg) {
+        resultados.push({
+          titulo: String(kg.title || queryPrincipal),
+          snippet: snippetKg,
+          fonte: 'Google Knowledge Graph',
+          url: String(kg.website || ''),
+        });
+      }
+    }
+
+    if (data.answerBox && typeof data.answerBox === 'object') {
+      const ab = data.answerBox as Record<string, unknown>;
+      const snippetAb = `${String(ab.answer || '')} ${String(ab.snippet || '')}`.trim();
+      if (snippetAb) {
+        const linkAb = String(ab.link || '');
+        resultados.push({
+          titulo: String(ab.title || queryPrincipal),
+          snippet: snippetAb,
+          fonte: extrairDominio(linkAb, 'Google Answer Box'),
+          url: linkAb,
+        });
+      }
+    }
+
+    const organic = Array.isArray(data.organic) ? data.organic : [];
+    for (const item of organic) {
+      if (!item || typeof item !== 'object') continue;
+      const titulo = String((item as Record<string, unknown>).title || '').trim();
+      const snippet = String((item as Record<string, unknown>).snippet || '').trim();
+      const url = String((item as Record<string, unknown>).link || '').trim();
+      const fonteRaw = String(
+        (item as Record<string, unknown>).source ||
+          (item as Record<string, unknown>).displayLink ||
+          ''
+      );
+      if (!snippet && !titulo) continue;
+      resultados.push({
+        titulo: titulo || queryPrincipal,
+        snippet,
+        fonte: extrairDominio(url, fonteRaw),
+        url,
+      });
+      if (resultados.length >= 6) break;
+    }
+
+    cacheEspecificacoesSerperMemoria.set(chaveCache, {
+      expiraEm: Date.now() + 15 * 60 * 1000,
+      dados: resultados,
+    });
+
+    return resultados;
+  } catch {
+    return [];
+  } finally {
+    window.clearTimeout(timer);
+  }
+};
