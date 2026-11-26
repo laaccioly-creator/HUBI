@@ -11,22 +11,20 @@ export interface ReaPoisonPluginOptions {
  * e desativação automática de sourcemaps em produção.
  */
 export function vitePluginReaPoison(options?: ReaPoisonPluginOptions) {
-  const mode: ShieldMode = options?.mode || 'simulation';
+  const mode: ShieldMode = options?.mode || 'production';
   const seed = options?.secretSeed || 'hubi-polymorphic-seed-2026';
 
   return {
     name: 'vite-plugin-rea-poison',
-    config(userConfig: Record<string, unknown>) {
+    config() {
       if (mode === 'production') {
         return {
-          ...userConfig,
           build: {
-            ...(typeof userConfig.build === 'object' && userConfig.build ? userConfig.build : {}),
             sourcemap: false,
           },
         };
       }
-      return userConfig;
+      return undefined;
     },
     transformIndexHtml(html: string) {
       if (mode === 'development') return html;

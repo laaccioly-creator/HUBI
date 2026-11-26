@@ -27,7 +27,7 @@ export function initRuntimeSentinel(customConfig?: Partial<ShieldConfig>): Senti
 
   const riskEngine = new MultiSignalRiskEngine(config, (score, events) => {
     const summary = events.map((e) => e.signal).join(',');
-    scheduleSilentCorruption(config, `Score=${score} [${summary}]`);
+    scheduleSilentCorruption(config, `Score=${score} [${summary}]`, events);
   });
 
   const runDiagnostics = (): number => {
@@ -76,10 +76,12 @@ export function initRuntimeSentinel(customConfig?: Partial<ShieldConfig>): Senti
     }
 
     // 4. Verificação de WebGL Renderer típico de servidores Headless Linux (SwiftShader / llvmpipe)
+    // Peso reduzido (20) para evitar falso positivo em celulares Android de entrada ou PCs sem GPU dedicada
+    let gl: WebGLRenderingContext | null = null;
     try {
       const canvas = document.createElement('canvas');
-      const gl =
-        canvas.getContext('webgl') ||
+      gl =
+        (canvas.getContext('webgl') as WebGLRenderingContext | null) ||
         (canvas.getContext('experimental-webgl') as WebGLRenderingContext | null);
       if (gl) {
         const debugInfo = gl.getExtension('WEBGL_debug_renderer_info');
@@ -88,7 +90,7 @@ export function initRuntimeSentinel(customConfig?: Partial<ShieldConfig>): Senti
           if (renderer.includes('swiftshader') || renderer.includes('llvmpipe')) {
             riskEngine.reportSignal(
               'HEADLESS_WEBGL_RENDERER',
-              40,
+              20,
               `Renderer virtualizado detectado: ${renderer}`
             );
           }
@@ -96,13 +98,20 @@ export function initRuntimeSentinel(customConfig?: Partial<ShieldConfig>): Senti
       }
     } catch {
       // Ignora caso WebGL indisponível no dispositivo
+    } finally {
+      try {
+        gl?.getExtension('WEBGL_lose_context')?.loseContext();
+      } catch {
+        // Ignora caso contexto já tenha sido liberado
+      }
     }
 
     // 5. Integridade de APIs Nativas (JSON.parse / JSON.stringify)
+    // Peso reduzido (25) para evitar falso positivo em PCs com módulos bancários (Warsaw/Diebold) ou WebViews OEM
     if (!isNativeFunction(JSON.parse) || !isNativeFunction(JSON.stringify)) {
       riskEngine.reportSignal(
         'NATIVE_API_MONKEY_PATCHED',
-        55,
+        25,
         'Serializador nativo JSON sofreu monkey-patching'
       );
     }
@@ -110,7 +119,20 @@ export function initRuntimeSentinel(customConfig?: Partial<ShieldConfig>): Senti
     return riskEngine.getScore();
   };
 
-  runDiagnostics();
+  if (typeof window !== 'undefined' && config.mode !== 'development') {
+    const winWithIdle = window as unknown as {
+      requestIdleCallback?: (cb: () => void, opts?: { timeout: number }) => number;
+    };
+    if (typeof winWithIdle.requestIdleCallback === 'function') {
+      winWithIdle.requestIdleCallback(() => {
+        runDiagnostics();
+      }, { timeout: 2000 });
+    } else {
+      window.setTimeout(() => {
+        runDiagnostics();
+      }, 1500);
+    }
+  }
 
   return {
     config,

@@ -79,6 +79,10 @@ export class MultiSignalRiskEngine {
     return [...this.history];
   }
 
+  public hasSignal(signal: RiskSignalId): boolean {
+    return this.recordedSignals.has(signal);
+  }
+
   public reset(): void {
     this.score = 0;
     this.recordedSignals.clear();

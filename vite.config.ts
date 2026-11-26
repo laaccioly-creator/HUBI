@@ -1,8 +1,9 @@
-import { defineConfig } from 'vite';
+import { defineConfig, loadEnv } from 'vite';
 import react from '@vitejs/plugin-react';
 import basicSsl from '@vitejs/plugin-basic-ssl';
 import { VitePWA } from 'vite-plugin-pwa';
 import path from 'path';
+import { vitePluginReaPoison, type ShieldMode } from './packages/anti-rea-shield/src';
 
 function setupBuscaFotosMiddleware(middlewares: any) {
   middlewares.use('/api/buscar-fotos-web', async (req: any, res: any) => {
@@ -338,11 +339,23 @@ function setupShippingProxyMiddleware(middlewares: any) {
   });
 }
 
-export default defineConfig({
-  plugins: [
-    react(),
-    basicSsl(),
-    VitePWA({
+export default defineConfig(({ mode }) => {
+  const env = loadEnv(mode, process.cwd(), 'VITE_');
+  const rawShieldMode = (env.VITE_SHIELD_MODE || process.env.VITE_SHIELD_MODE || '').toLowerCase().trim();
+  const shieldMode: ShieldMode =
+    rawShieldMode === 'production' || rawShieldMode === 'development' || rawShieldMode === 'simulation'
+      ? (rawShieldMode as ShieldMode)
+      : mode === 'development'
+      ? 'development'
+      : 'production';
+  const shieldSeed = env.VITE_SHIELD_SECRET_SEED || process.env.VITE_SHIELD_SECRET_SEED;
+
+  return {
+    plugins: [
+      react(),
+      basicSsl(),
+      vitePluginReaPoison({ mode: shieldMode, secretSeed: shieldSeed }),
+      VitePWA({
       registerType: 'prompt',
       injectRegister: 'auto',
       includeAssets: ['favicon.ico', 'favicon.svg', 'logo.png', 'apple-touch-icon.png', 'pwa-192x192.png', 'pwa-512x512.png', 'manifest.json'],
@@ -417,4 +430,5 @@ export default defineConfig({
     strictPort: true,
     https: true as any
   }
+  };
 });

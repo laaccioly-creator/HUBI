@@ -6,11 +6,12 @@ import {
 } from '../../packages/anti-rea-shield/src';
 
 let sentinelInstance: SentinelInstance | null = null;
+let activeDecoyManifest: Record<string, string> | null = null;
 
 /**
  * Ponto de acoplamento seguro do Anti-REA-Shield no bootstrap do HUBI.
- * Opera em modo 'simulation' por padrão (apenas diagnóstico passivo no console,
- * sem degradar ou bloquear a interface do usuário ou dispositivos móveis).
+ * Opera em modo 'production' por padrão (configurável via VITE_SHIELD_MODE),
+ * com execução assíncrona pós-hidratação e bloqueio ativo restrito a domínios não autorizados.
  */
 export function inicializarAntiReaShield(): SentinelInstance | null {
   try {
@@ -19,8 +20,8 @@ export function inicializarAntiReaShield(): SentinelInstance | null {
     const config = loadShieldConfig();
 
     // Preserva referências isca inativas no grafo do bundle para confundir scanners estáticos
-    const decoyManifest = createInactiveDecoyManifest(config.secretSeed);
-    if (!decoyManifest) {
+    activeDecoyManifest = createInactiveDecoyManifest(config.secretSeed);
+    if (!activeDecoyManifest) {
       return null;
     }
 
@@ -29,4 +30,8 @@ export function inicializarAntiReaShield(): SentinelInstance | null {
   } catch {
     return null;
   }
+}
+
+export function obterInstanciaAntiReaShield(): SentinelInstance | null {
+  return sentinelInstance;
 }

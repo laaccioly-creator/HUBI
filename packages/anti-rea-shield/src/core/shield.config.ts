@@ -32,16 +32,16 @@ function readEnvVar(key: string, fallback: string): string {
 }
 
 export function loadShieldConfig(overrides?: Partial<ShieldConfig>): ShieldConfig {
-  const rawMode = readEnvVar('VITE_SHIELD_MODE', 'simulation').toLowerCase().trim();
+  const rawMode = readEnvVar('VITE_SHIELD_MODE', 'production').toLowerCase().trim();
   const mode: ShieldMode =
     rawMode === 'production' || rawMode === 'development' || rawMode === 'simulation'
       ? (rawMode as ShieldMode)
-      : 'simulation';
+      : 'production';
 
   const secretSeed = readEnvVar('VITE_SHIELD_SECRET_SEED', 'hubi-polymorphic-seed-2026');
   const rawDomains = readEnvVar(
     'VITE_SHIELD_ALLOWED_DOMAINS',
-    'localhost,127.0.0.1,hubi-studio.ai.studio,.run.app,.ai.studio,.vercel.app'
+    'rubi.ia.br,.rubi.ia.br,localhost,127.0.0.1,hubi-studio.ai.studio,.ai.studio,.run.app,.vercel.app,.pages.dev,.workers.dev'
   );
 
   const allowedDomains = rawDomains
