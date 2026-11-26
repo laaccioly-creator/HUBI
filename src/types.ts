@@ -18,7 +18,7 @@ export type TipoEntrega =
   | 'distancia_km' 
   | 'proprio' 
   | 'manual';
-export type OrigemVenda = 'pdv_mobile' | 'pdv_desktop' | 'catalogo_online' | 'mercadolivre';
+export type OrigemVenda = 'pdv_mobile' | 'pdv_desktop' | 'catalogo_online' | 'mercadolivre' | 'shopee';
 export type StatusPedido =
   | 'pendente'
   | 'confirmado'

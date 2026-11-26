@@ -91,6 +91,7 @@ import { setGoogleSearchConfig } from '../services/geminiService';
 import { testarConexaoSerpApi, salvarSerpApiKey } from '../services/serpApiService';
 import { useTheme } from '../contexts/ThemeContext';
 import { CardConexaoMercadoLivre } from './mercadolivre/CardConexaoMercadoLivre';
+import { CardConexaoShopee } from './shopee/CardConexaoShopee';
 import { CardParametrosHubiAdmin } from './configuracoes/CardParametrosHubiAdmin';
 import { ModalComoObterGeminiApiKey } from './configuracoes/ModalComoObterGeminiApiKey';
 import { comprimirFotoProduto } from '../utils/imageCompressor';
@@ -4134,6 +4135,7 @@ export const ConfiguracoesLoja: React.FC<ConfiguracoesLojaProps> = ({ subTelaIni
                 </span>
               </div>
               <CardConexaoMercadoLivre lojaId={loja?.id} isDark={isDark} />
+              <CardConexaoShopee lojaId={loja?.id} isDark={isDark} />
             </div>
           )}
 
@@ -6835,6 +6837,14 @@ export const ConfiguracoesLoja: React.FC<ConfiguracoesLojaProps> = ({ subTelaIni
                 <ShoppingBag className="w-4 h-4 text-[#FFE600]" /> Marketplace Mercado Livre
               </span>
               <CardConexaoMercadoLivre lojaId={loja?.id} isDark={isDark} />
+            </div>
+
+            {/* SHOPEE NATIVA */}
+            <div className="space-y-3">
+              <span className="text-xs font-bold text-slate-800 dark:text-slate-300 flex items-center gap-2 uppercase tracking-wider">
+                <Store className="w-4 h-4 text-[#EE4D2D]" /> Marketplace Shopee
+              </span>
+              <CardConexaoShopee lojaId={loja?.id} isDark={isDark} />
             </div>
 
             {/* FACEBOOK & INSTAGRAM */}

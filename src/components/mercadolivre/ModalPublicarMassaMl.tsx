@@ -106,7 +106,8 @@ export const ModalPublicarMassaMl: React.FC = () => {
         supabase
           .from('marketplace_anuncios')
           .select('id, produto_id, variacao_id, ml_item_id, status_anuncio, permalink, sincronizacao_ativa')
-          .eq('loja_id', lojaId),
+          .eq('loja_id', lojaId)
+          .eq('plataforma', 'mercadolivre'),
         mercadoLivreService.obterConta(lojaId),
       ]);
 

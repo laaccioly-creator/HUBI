@@ -288,6 +288,7 @@ export const mercadoLivreService = {
       .from('marketplace_anuncios')
       .select('*')
       .eq('loja_id', lojaId)
+      .eq('plataforma', 'mercadolivre')
       .order('criado_em', { ascending: false });
 
     if (error) {
@@ -528,7 +529,8 @@ export const mercadoLivreService = {
     let query = supabase
       .from('marketplace_anuncios')
       .delete()
-      .eq('loja_id', params.lojaId);
+      .eq('loja_id', params.lojaId)
+      .eq('plataforma', 'mercadolivre');
 
     if (params.anuncioId) {
       query = query.eq('id', params.anuncioId);

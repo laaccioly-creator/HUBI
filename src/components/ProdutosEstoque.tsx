@@ -21,6 +21,7 @@ import {
   Check,
   X,
   ShoppingBag,
+  Store,
   ExternalLink,
   RefreshCw,
   Unlink
@@ -36,8 +37,12 @@ import { ModalEntradaEstoque } from './ModalEntradaEstoque';
 import { ModalDetalhesProduto } from './ModalDetalhesProduto';
 import { ModalVincularAnuncioMl } from './mercadolivre/ModalVincularAnuncioMl';
 import { ModalConectarMercadoLivre } from './mercadolivre/ModalConectarMercadoLivre';
+import { ModalVincularAnuncioShopee } from './shopee/ModalVincularAnuncioShopee';
+import { ModalConectarShopee } from './shopee/ModalConectarShopee';
 import { mercadoLivreService } from '../services/mercadoLivreService';
 import { mercadoLivrePublicacaoMassaService } from '../services/mercadoLivrePublicacaoMassaService';
+import { obterPermalinkAnuncioShopee, shopeeService } from '../services/shopeeService';
+import { shopeePublicacaoMassaService } from '../services/shopeePublicacaoMassaService';
 import { obterPermalinkAnuncioMl } from '../utils/gdmMercadoLivreMapper';
 import { ProdutosMobile } from './ProdutosMobile';
 import { formatarMoeda } from '../utils/formatters';
@@ -51,6 +56,7 @@ export interface AnuncioMlResumo {
   id: string;
   produto_id: string;
   variacao_id?: string | null;
+  plataforma?: 'mercadolivre' | 'shopee' | string;
   ml_item_id: string;
   status_anuncio: 'active' | 'paused' | 'closed' | 'under_review' | 'erro_sincronia' | string;
   permalink?: string | null;
@@ -137,6 +143,8 @@ export const ProdutosEstoque: React.FC = () => {
     }
   });
   const [mapaAnunciosMl, setMapaAnunciosMl] = useState<Record<string, AnuncioMlResumo[]>>({});
+  const [mapaAnunciosShopee, setMapaAnunciosShopee] = useState<Record<string, AnuncioMlResumo[]>>({});
+  const [shopIdShopee, setShopIdShopee] = useState<number | null>(null);
   const [modalFiltroAberto, setModalFiltroAberto] = useState<boolean>(false);
 
   // Modais
@@ -151,26 +159,39 @@ export const ProdutosEstoque: React.FC = () => {
   const [desvinculandoMlId, setDesvinculandoMlId] = useState<string | null>(null);
   const syncInicialMlLojaRef = useRef<string | null>(null);
 
+  // Estados Shopee
+  const [produtoShopeeModal, setProdutoShopeeModal] = useState<Produto | null>(null);
+  const [modalConectarShopeeAberto, setModalConectarShopeeAberto] = useState<boolean>(false);
+  const [verificandoConexaoShopee, setVerificandoConexaoShopee] = useState<boolean>(false);
+  const [sincronizandoShopee, setSincronizandoShopee] = useState<boolean>(false);
+  const [desvinculandoShopeeId, setDesvinculandoShopeeId] = useState<string | null>(null);
+  const syncInicialShopeeLojaRef = useRef<string | null>(null);
+
   const recarregarMapaAnunciosMl = async (lojaAlvoId: string) => {
     try {
-      const { data: anunciosMlData, error: erroAnunciosMl } = await supabase
+      const { data: anunciosData, error: erroAnuncios } = await supabase
         .from('marketplace_anuncios')
-        .select('id, produto_id, variacao_id, ml_item_id, status_anuncio, permalink, sincronizacao_ativa')
+        .select('id, produto_id, variacao_id, plataforma, ml_item_id, status_anuncio, permalink, sincronizacao_ativa')
         .eq('loja_id', lojaAlvoId);
 
-      if (!erroAnunciosMl && Array.isArray(anunciosMlData)) {
-        const mapaAgrupado: Record<string, AnuncioMlResumo[]> = {};
-        for (const item of anunciosMlData as AnuncioMlResumo[]) {
+      if (!erroAnuncios && Array.isArray(anunciosData)) {
+        const mapaMl: Record<string, AnuncioMlResumo[]> = {};
+        const mapaShopee: Record<string, AnuncioMlResumo[]> = {};
+        for (const item of anunciosData as AnuncioMlResumo[]) {
           if (!item.produto_id) continue;
-          if (!mapaAgrupado[item.produto_id]) {
-            mapaAgrupado[item.produto_id] = [];
+          if (item.plataforma === 'shopee') {
+            if (!mapaShopee[item.produto_id]) mapaShopee[item.produto_id] = [];
+            mapaShopee[item.produto_id].push(item);
+          } else {
+            if (!mapaMl[item.produto_id]) mapaMl[item.produto_id] = [];
+            mapaMl[item.produto_id].push(item);
           }
-          mapaAgrupado[item.produto_id].push(item);
         }
-        setMapaAnunciosMl(mapaAgrupado);
+        setMapaAnunciosMl(mapaMl);
+        setMapaAnunciosShopee(mapaShopee);
       }
     } catch (eMl) {
-      console.warn('[ProdutosEstoque] Falha ao atualizar vínculos do Mercado Livre:', eMl);
+      console.warn('[ProdutosEstoque] Falha ao atualizar vínculos de marketplaces:', eMl);
     }
   };
 
@@ -212,6 +233,45 @@ export const ProdutosEstoque: React.FC = () => {
     }
   };
 
+  const sincronizarStatusShopee = async (silencioso: boolean) => {
+    if (!loja?.id || sincronizandoShopee) return;
+    try {
+      setSincronizandoShopee(true);
+      const contaConectada = await shopeeService.buscarContaConectada(loja.id);
+      if (!contaConectada) {
+        if (!silencioso) {
+          setModalConectarShopeeAberto(true);
+        }
+        return;
+      }
+
+      setShopIdShopee(Number(contaConectada.seller_id || contaConectada.ml_user_id) || null);
+      const resSync = await shopeeService.sincronizarStatusAnuncios(loja.id);
+      if (resSync.removidos > 0 || resSync.atualizados > 0) {
+        await recarregarMapaAnunciosMl(loja.id);
+      }
+
+      if (!silencioso) {
+        if (resSync.total_verificados === 0) {
+          mostrarAviso('Nenhum anúncio vinculado à Shopee para sincronizar nesta loja.', 'Shopee');
+        } else {
+          mostrarSucesso(
+            `Sincronização concluída (${resSync.total_verificados} verificado(s), ${resSync.atualizados} atualizado(s) e ${resSync.removidos} removido(s)).`,
+            'Shopee Sincronizada'
+          );
+        }
+      }
+    } catch (err: any) {
+      if (!silencioso) {
+        mostrarErro(err?.message || 'Não foi possível sincronizar o status dos anúncios na Shopee.', 'Erro');
+      } else {
+        console.warn('[ProdutosEstoque] Falha na reconciliação silenciosa da Shopee:', err?.message);
+      }
+    } finally {
+      setSincronizandoShopee(false);
+    }
+  };
+
   const handleDesvincularAnuncioLinha = (anuncio: AnuncioMlResumo, nomeProduto: string) => {
     if (!loja?.id) return;
     confirmar({
@@ -237,6 +297,31 @@ export const ProdutosEstoque: React.FC = () => {
     });
   };
 
+  const handleDesvincularAnuncioShopeeLinha = (anuncio: AnuncioMlResumo, nomeProduto: string) => {
+    if (!loja?.id) return;
+    confirmar({
+      titulo: 'Desvincular da Shopee',
+      mensagem: `Remover o vínculo do anúncio Shopee #${anuncio.ml_item_id} de "${nomeProduto}" no Rubi?`,
+      textoConfirmar: 'Desvincular',
+      textoCancelar: 'Cancelar',
+      onConfirmar: async () => {
+        try {
+          setDesvinculandoShopeeId(anuncio.id);
+          await shopeeService.desvincularAnuncio({
+            lojaId: loja.id,
+            anuncioId: anuncio.id,
+          });
+          await recarregarMapaAnunciosMl(loja.id);
+          mostrarSucesso(`Vínculo Shopee #${anuncio.ml_item_id} removido.`, 'Desvinculado');
+        } catch (err: any) {
+          mostrarErro(err?.message || 'Não foi possível desvincular o anúncio da Shopee.', 'Erro');
+        } finally {
+          setDesvinculandoShopeeId(null);
+        }
+      },
+    });
+  };
+
   const handleAbrirModalMercadoLivre = async (produtoAlvo: Produto) => {
     if (!loja?.id || verificandoConexaoMl) return;
     try {
@@ -251,6 +336,47 @@ export const ProdutosEstoque: React.FC = () => {
       setModalConectarMlAberto(true);
     } finally {
       setVerificandoConexaoMl(false);
+    }
+  };
+
+  const handleAbrirModalShopee = async (produtoAlvo: Produto) => {
+    if (!loja?.id || verificandoConexaoShopee) return;
+    try {
+      setVerificandoConexaoShopee(true);
+      const contaConectada = await shopeeService.buscarContaConectada(loja.id);
+      if (!contaConectada) {
+        setModalConectarShopeeAberto(true);
+        return;
+      }
+      setShopIdShopee(Number(contaConectada.seller_id || contaConectada.ml_user_id) || null);
+      setProdutoShopeeModal(produtoAlvo);
+    } catch {
+      setModalConectarShopeeAberto(true);
+    } finally {
+      setVerificandoConexaoShopee(false);
+    }
+  };
+
+  const handleAbrirPublicarMassaShopee = async (categoriaOverrideId?: string | null) => {
+    if (!loja?.id || verificandoConexaoShopee) return;
+    try {
+      setVerificandoConexaoShopee(true);
+      const contaConectada = await shopeeService.buscarContaConectada(loja.id);
+      if (!contaConectada) {
+        setModalConectarShopeeAberto(true);
+        return;
+      }
+      const categoriaInicial =
+        categoriaOverrideId !== undefined
+          ? categoriaOverrideId
+          : categoriasPrincipaisFiltro.find((c) =>
+              c.todosIds.some((id) => categoriasFiltro.includes(id))
+            )?.id || null;
+      shopeePublicacaoMassaService.abrirModal(categoriaInicial);
+    } catch {
+      setModalConectarShopeeAberto(true);
+    } finally {
+      setVerificandoConexaoShopee(false);
     }
   };
 
@@ -325,31 +451,47 @@ export const ProdutosEstoque: React.FC = () => {
         setProdutos(produtosEnriquecidos as unknown as Produto[]);
       }
 
-      // 3. Carregar vínculos ativos do Mercado Livre por produto
+      // 3. Carregar vínculos ativos do Mercado Livre e Shopee por produto
       try {
-        const { data: anunciosMlData, error: erroAnunciosMl } = await supabase
-          .from('marketplace_anuncios')
-          .select('id, produto_id, variacao_id, ml_item_id, status_anuncio, permalink, sincronizacao_ativa')
-          .eq('loja_id', loja.id);
+        const [{ data: anunciosData, error: erroAnuncios }, contaShopeeAtiva] = await Promise.all([
+          supabase
+            .from('marketplace_anuncios')
+            .select('id, produto_id, variacao_id, plataforma, ml_item_id, status_anuncio, permalink, sincronizacao_ativa')
+            .eq('loja_id', loja.id),
+          shopeeService.obterConta(loja.id).catch(() => null),
+        ]);
 
-        if (!erroAnunciosMl && Array.isArray(anunciosMlData)) {
-          const mapaAgrupado: Record<string, AnuncioMlResumo[]> = {};
-          for (const item of anunciosMlData as AnuncioMlResumo[]) {
+        if (contaShopeeAtiva) {
+          setShopIdShopee(Number(contaShopeeAtiva.seller_id || contaShopeeAtiva.ml_user_id) || null);
+        }
+
+        if (!erroAnuncios && Array.isArray(anunciosData)) {
+          const mapaMl: Record<string, AnuncioMlResumo[]> = {};
+          const mapaShopee: Record<string, AnuncioMlResumo[]> = {};
+          for (const item of anunciosData as AnuncioMlResumo[]) {
             if (!item.produto_id) continue;
-            if (!mapaAgrupado[item.produto_id]) {
-              mapaAgrupado[item.produto_id] = [];
+            if (item.plataforma === 'shopee') {
+              if (!mapaShopee[item.produto_id]) mapaShopee[item.produto_id] = [];
+              mapaShopee[item.produto_id].push(item);
+            } else {
+              if (!mapaMl[item.produto_id]) mapaMl[item.produto_id] = [];
+              mapaMl[item.produto_id].push(item);
             }
-            mapaAgrupado[item.produto_id].push(item);
           }
-          setMapaAnunciosMl(mapaAgrupado);
+          setMapaAnunciosMl(mapaMl);
+          setMapaAnunciosShopee(mapaShopee);
 
-          if (anunciosMlData.length > 0 && syncInicialMlLojaRef.current !== loja.id) {
+          if (Object.keys(mapaMl).length > 0 && syncInicialMlLojaRef.current !== loja.id) {
             syncInicialMlLojaRef.current = loja.id;
             void sincronizarStatusMl(true);
           }
+          if (Object.keys(mapaShopee).length > 0 && syncInicialShopeeLojaRef.current !== loja.id) {
+            syncInicialShopeeLojaRef.current = loja.id;
+            void sincronizarStatusShopee(true);
+          }
         }
       } catch (eMl) {
-        console.warn('[ProdutosEstoque] Falha ao carregar vínculos do Mercado Livre:', eMl);
+        console.warn('[ProdutosEstoque] Falha ao carregar vínculos dos marketplaces:', eMl);
       }
     } catch (err) {
       console.error('Erro ao carregar produtos:', err);
@@ -365,16 +507,33 @@ export const ProdutosEstoque: React.FC = () => {
   const ultimaVersaoMassaRef = useRef<number>(
     mercadoLivrePublicacaoMassaService.getEstado().versaoAtualizacao
   );
+  const ultimaVersaoMassaShopeeRef = useRef<number>(
+    shopeePublicacaoMassaService.getEstado().versaoAtualizacao
+  );
   const ultimaReconciliacaoAbaRef = useRef<number>(0);
   const possuiAnunciosMlRef = useRef<boolean>(false);
+  const possuiAnunciosShopeeRef = useRef<boolean>(false);
 
   possuiAnunciosMlRef.current = Object.keys(mapaAnunciosMl).length > 0;
+  possuiAnunciosShopeeRef.current = Object.keys(mapaAnunciosShopee).length > 0;
 
   useEffect(() => {
     return mercadoLivrePublicacaoMassaService.inscrever(() => {
       const versao = mercadoLivrePublicacaoMassaService.getEstado().versaoAtualizacao;
       if (versao !== ultimaVersaoMassaRef.current) {
         ultimaVersaoMassaRef.current = versao;
+        if (loja?.id) {
+          void carregarProdutos();
+        }
+      }
+    });
+  }, [loja?.id]);
+
+  useEffect(() => {
+    return shopeePublicacaoMassaService.inscrever(() => {
+      const versao = shopeePublicacaoMassaService.getEstado().versaoAtualizacao;
+      if (versao !== ultimaVersaoMassaShopeeRef.current) {
+        ultimaVersaoMassaShopeeRef.current = versao;
         if (loja?.id) {
           void carregarProdutos();
         }
@@ -417,9 +576,14 @@ export const ProdutosEstoque: React.FC = () => {
       if (document.visibilityState !== 'visible') return;
       void recarregarMapaAnunciosMl(lojaAtivaId);
       const agora = Date.now();
-      if (possuiAnunciosMlRef.current && agora - ultimaReconciliacaoAbaRef.current >= 15000) {
+      if (agora - ultimaReconciliacaoAbaRef.current >= 15000) {
         ultimaReconciliacaoAbaRef.current = agora;
-        void sincronizarStatusMl(true);
+        if (possuiAnunciosMlRef.current) {
+          void sincronizarStatusMl(true);
+        }
+        if (possuiAnunciosShopeeRef.current) {
+          void sincronizarStatusShopee(true);
+        }
       }
     };
 
@@ -708,10 +872,15 @@ export const ProdutosEstoque: React.FC = () => {
           carregando={carregando}
           onRecarregar={carregarProdutos}
           mapaAnunciosMl={mapaAnunciosMl}
+          mapaAnunciosShopee={mapaAnunciosShopee}
+          shopIdShopee={shopIdShopee}
           onRecarregarAnunciosMl={carregarProdutos}
           onAbrirPublicarMassaMl={handleAbrirPublicarMassaMl}
           onSincronizarMl={() => void sincronizarStatusMl(false)}
           sincronizandoMl={sincronizandoMl}
+          onAbrirPublicarMassaShopee={handleAbrirPublicarMassaShopee}
+          onSincronizarShopee={() => void sincronizarStatusShopee(false)}
+          sincronizandoShopee={sincronizandoShopee}
         />
       </div>
 
@@ -744,7 +913,7 @@ export const ProdutosEstoque: React.FC = () => {
           </div>
 
           <div className="flex items-center gap-2 flex-wrap">
-            {/* Botão Publicar em Massa no ML */}
+            {/* Botões Publicar em Massa & Sincronizar (ML e Shopee) */}
             {permissions.podeCadastrarAlterarProdutos && (
               <>
                 <button
@@ -766,6 +935,26 @@ export const ProdutosEstoque: React.FC = () => {
                 >
                   <ShoppingBag className="w-4 h-4 text-black" />
                   <span>Publicar em Massa no ML</span>
+                </button>
+                <button
+                  type="button"
+                  disabled={sincronizandoShopee}
+                  onClick={() => void sincronizarStatusShopee(false)}
+                  className="hubi-btn-neutral inline-flex items-center gap-1.5 px-3 py-2.5 rounded-xl bg-slate-100 hover:bg-slate-200 border border-slate-300 text-black text-xs font-medium transition cursor-pointer shadow-sm disabled:opacity-50"
+                  title="Sincronizar status e remover vínculos excluídos diretamente na Shopee"
+                >
+                  <RefreshCw className={`w-3.5 h-3.5 text-black ${sincronizandoShopee ? 'animate-spin' : ''}`} />
+                  <span>{sincronizandoShopee ? 'Sincronizando Shopee...' : 'Sincronizar Shopee'}</span>
+                </button>
+                <button
+                  type="button"
+                  disabled={verificandoConexaoShopee}
+                  onClick={() => void handleAbrirPublicarMassaShopee()}
+                  className="inline-flex items-center gap-1.5 px-3.5 py-2.5 rounded-xl bg-[#EE4D2D] hover:bg-[#D73211] text-white text-xs font-semibold transition cursor-pointer shadow-sm disabled:opacity-50"
+                  title="Publicar vários produtos em lote na Shopee"
+                >
+                  <Store className="w-4 h-4 text-white" />
+                  <span>Publicar em Massa na Shopee</span>
                 </button>
               </>
             )}
@@ -1045,10 +1234,15 @@ export const ProdutosEstoque: React.FC = () => {
                     const temVariacoesGrade = Boolean(produto.tem_variacoes && Array.isArray(produto.variacoes) && produto.variacoes.length > 0);
                     const anunciosMl = mapaAnunciosMl[produto.id] || [];
                     const anuncioPrincipalMl = anunciosMl.find((a) => a.status_anuncio === 'active') || anunciosMl[0] || null;
-                    const possuiMarketplaceVinculado = Boolean(anuncioPrincipalMl);
+                    const anunciosShopee = mapaAnunciosShopee[produto.id] || [];
+                    const anuncioPrincipalShopee = anunciosShopee.find((a) => a.status_anuncio === 'active') || anunciosShopee[0] || null;
+                    const possuiMarketplaceVinculado = Boolean(anuncioPrincipalMl || anuncioPrincipalShopee);
                     const codigoMlLimpo = anuncioPrincipalMl ? anuncioPrincipalMl.ml_item_id.replace(/^MLB-?/i, '') : '';
                     const urlAnuncioMl = anuncioPrincipalMl
                       ? obterPermalinkAnuncioMl(anuncioPrincipalMl.permalink, anuncioPrincipalMl.ml_item_id)
+                      : '';
+                    const urlAnuncioShopee = anuncioPrincipalShopee
+                      ? obterPermalinkAnuncioShopee(anuncioPrincipalShopee.permalink, anuncioPrincipalShopee.ml_item_id, shopIdShopee)
                       : '';
                     const statusMl = anuncioPrincipalMl?.status_anuncio || '';
                     const classeBadgeMl =
@@ -1145,6 +1339,46 @@ export const ProdutosEstoque: React.FC = () => {
                                         >
                                           <Unlink className="w-2.5 h-2.5 shrink-0" />
                                           <span>Desvincular do ML</span>
+                                        </button>
+                                      )}
+                                    </>
+                                  )}
+                                  {anuncioPrincipalShopee && (
+                                    <>
+                                      <a
+                                        href={urlAnuncioShopee || '#'}
+                                        target="_blank"
+                                        rel="noopener noreferrer"
+                                        onClick={(e) => {
+                                          e.stopPropagation();
+                                          if (!urlAnuncioShopee) e.preventDefault();
+                                        }}
+                                        title={`Shopee #${anuncioPrincipalShopee.ml_item_id} (${obterLabelStatusMl(anuncioPrincipalShopee.status_anuncio)})`}
+                                        className="inline-flex items-center gap-1 px-2 py-0.5 rounded-lg text-[10px] font-black font-mono bg-[#EE4D2D]/15 text-[#EE4D2D] border border-[#EE4D2D]/40 hover:bg-[#EE4D2D]/25 transition"
+                                      >
+                                        <span>
+                                          Shopee • #{anuncioPrincipalShopee.ml_item_id}
+                                          {anunciosShopee.length > 1 ? ` (+${anunciosShopee.length - 1})` : ''}
+                                        </span>
+                                        {urlAnuncioShopee && <ExternalLink className="w-2.5 h-2.5 shrink-0" />}
+                                      </a>
+                                      {permissions.podeCadastrarAlterarProdutos && (
+                                        <button
+                                          type="button"
+                                          disabled={desvinculandoShopeeId === anuncioPrincipalShopee.id}
+                                          onClick={(e) => {
+                                            e.stopPropagation();
+                                            handleDesvincularAnuncioShopeeLinha(anuncioPrincipalShopee, produto.nome);
+                                          }}
+                                          title={`Desvincular anúncio #${anuncioPrincipalShopee.ml_item_id} da Shopee`}
+                                          className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-lg text-[10px] font-medium transition cursor-pointer disabled:opacity-50 ${
+                                            isDark
+                                              ? 'bg-slate-900 hover:bg-slate-800 border border-slate-700 text-slate-300'
+                                              : 'bg-slate-100 hover:bg-slate-200 border border-slate-300 text-black'
+                                          }`}
+                                        >
+                                          <Unlink className="w-2.5 h-2.5 shrink-0" />
+                                          <span>Desvincular Shopee</span>
                                         </button>
                                       )}
                                     </>
@@ -1374,6 +1608,28 @@ export const ProdutosEstoque: React.FC = () => {
                                 </button>
 
                                 <button
+                                  type="button"
+                                  disabled={verificandoConexaoShopee}
+                                  onClick={() => handleAbrirModalShopee(produto)}
+                                  className={
+                                    anuncioPrincipalShopee
+                                      ? 'p-1.5 rounded-lg transition cursor-pointer bg-[#EE4D2D] hover:bg-[#D73211] text-white shadow-xs'
+                                      : `p-1.5 rounded-lg transition cursor-pointer ${
+                                          isDark
+                                            ? 'text-[#EE4D2D] hover:bg-[#EE4D2D]/15'
+                                            : 'text-[#EE4D2D] hover:bg-orange-50'
+                                        }`
+                                  }
+                                  title={
+                                    anuncioPrincipalShopee
+                                      ? `Shopee: #${anuncioPrincipalShopee.ml_item_id} (${obterLabelStatusMl(anuncioPrincipalShopee.status_anuncio)})`
+                                      : 'Publicar ou vincular na Shopee'
+                                  }
+                                >
+                                  <Store className={`w-4 h-4 ${anuncioPrincipalShopee ? 'text-white' : 'text-[#EE4D2D]'}`} />
+                                </button>
+
+                                <button
                                   onClick={() => toggleDestaque(produto.id, produto.destaque)}
                                   className={`p-1.5 rounded-lg transition cursor-pointer ${
                                     produto.destaque ? 'text-amber-400' : isDark ? 'text-slate-500 hover:text-white' : 'text-slate-400 hover:text-black'
@@ -1442,6 +1698,22 @@ export const ProdutosEstoque: React.FC = () => {
       <ModalConectarMercadoLivre
         aberto={modalConectarMlAberto}
         onFechar={() => setModalConectarMlAberto(false)}
+        lojaId={loja?.id || ''}
+        nomeLoja={loja?.nome_fantasia}
+      />
+
+      {/* Modal Integração Shopee */}
+      <ModalVincularAnuncioShopee
+        aberto={!!produtoShopeeModal}
+        onFechar={() => setProdutoShopeeModal(null)}
+        produto={produtoShopeeModal}
+        lojaId={loja?.id || ''}
+        onSucesso={carregarProdutos}
+      />
+
+      <ModalConectarShopee
+        aberto={modalConectarShopeeAberto}
+        onFechar={() => setModalConectarShopeeAberto(false)}
         lojaId={loja?.id || ''}
         nomeLoja={loja?.nome_fantasia}
       />

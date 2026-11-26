@@ -262,6 +262,7 @@ async function criarRegistroLoteDb(params: ParamsIniciarPublicacaoMassaMl): Prom
         conta_id: contaIdResolvida,
         usuario_id: params.usuarioId || null,
         provedor: 'mercadolivre',
+        plataforma: 'mercadolivre',
         escopo_tipo: params.escopoTipo,
         escopo_descricao: params.escopoDescricao.slice(0, 200),
         categoria_filtro_id: params.categoriaFiltroId || null,
@@ -1045,6 +1046,7 @@ export const mercadoLivrePublicacaoMassaService = {
       .from('marketplace_lotes_publicacao')
       .select('*')
       .eq('loja_id', lojaId)
+      .eq('plataforma', 'mercadolivre')
       .order('iniciado_em', { ascending: false })
       .limit(limite);
 

@@ -55,6 +55,8 @@ import { useAssinaturaStatus } from '../../hooks/useAssinaturaStatus';
 import { useSystemBillingConfig } from '../../hooks/useSystemBillingConfig';
 import { BarraProgressoPublicacaoMassaMl } from '../mercadolivre/BarraProgressoPublicacaoMassaMl';
 import { ModalPublicarMassaMl } from '../mercadolivre/ModalPublicarMassaMl';
+import { BarraProgressoPublicacaoMassaShopee } from '../shopee/BarraProgressoPublicacaoMassaShopee';
+import { ModalPublicarMassaShopee } from '../shopee/ModalPublicarMassaShopee';
 import { ErrorBoundary } from '../common/ErrorBoundary';
 import { logger } from '../../services/loggerService';
 import { UsuarioLoja } from '../../types';
@@ -1427,6 +1429,8 @@ export const AppLayout: React.FC = () => {
       )}
       <BarraProgressoPublicacaoMassaMl />
       <ModalPublicarMassaMl />
+      <BarraProgressoPublicacaoMassaShopee />
+      <ModalPublicarMassaShopee />
       <div className="hidden"
 
       />

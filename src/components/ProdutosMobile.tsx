@@ -81,7 +81,10 @@ import { ModalEntradaEstoque } from './ModalEntradaEstoque';
 import { ModalGerenciarCategorias } from './ModalGerenciarCategorias';
 import { ModalVincularAnuncioMl } from './mercadolivre/ModalVincularAnuncioMl';
 import { ModalConectarMercadoLivre } from './mercadolivre/ModalConectarMercadoLivre';
+import { ModalVincularAnuncioShopee } from './shopee/ModalVincularAnuncioShopee';
+import { ModalConectarShopee } from './shopee/ModalConectarShopee';
 import { mercadoLivreService } from '../services/mercadoLivreService';
+import { obterPermalinkAnuncioShopee, shopeeService } from '../services/shopeeService';
 import { obterPermalinkAnuncioMl } from '../utils/gdmMercadoLivreMapper';
 import type { AnuncioMlResumo } from './ProdutosEstoque';
 import { pesquisarPrecosMercadoIA, DadosMercadoIA } from './ProdutoCadastro';
@@ -127,10 +130,15 @@ interface ProdutosMobileProps {
   carregando: boolean;
   onRecarregar: () => Promise<void>;
   mapaAnunciosMl?: Record<string, AnuncioMlResumo[]>;
+  mapaAnunciosShopee?: Record<string, AnuncioMlResumo[]>;
+  shopIdShopee?: number | null;
   onRecarregarAnunciosMl?: () => void;
   onAbrirPublicarMassaMl?: (categoriaInicialId?: string | null) => void;
   onSincronizarMl?: () => void;
   sincronizandoMl?: boolean;
+  onAbrirPublicarMassaShopee?: (categoriaInicialId?: string | null) => void;
+  onSincronizarShopee?: () => void;
+  sincronizandoShopee?: boolean;
 }
 
 // 9 Cores da Etiqueta / Tarja (TELA013)
@@ -152,10 +160,15 @@ export const ProdutosMobile: React.FC<ProdutosMobileProps> = ({
   carregando,
   onRecarregar,
   mapaAnunciosMl = {},
+  mapaAnunciosShopee = {},
+  shopIdShopee = null,
   onRecarregarAnunciosMl,
   onAbrirPublicarMassaMl,
   onSincronizarMl,
-  sincronizandoMl = false
+  sincronizandoMl = false,
+  onAbrirPublicarMassaShopee,
+  onSincronizarShopee,
+  sincronizandoShopee = false
 }) => {
   const navigate = useNavigate();
   const { loja, usuario, setLoja } = useAuth();
@@ -198,6 +211,9 @@ export const ProdutosMobile: React.FC<ProdutosMobileProps> = ({
   const [produtoMlModal, setProdutoMlModal] = useState<Produto | null>(null);
   const [modalConectarMlAberto, setModalConectarMlAberto] = useState<boolean>(false);
   const [verificandoConexaoMl, setVerificandoConexaoMl] = useState<boolean>(false);
+  const [produtoShopeeModal, setProdutoShopeeModal] = useState<Produto | null>(null);
+  const [modalConectarShopeeAberto, setModalConectarShopeeAberto] = useState<boolean>(false);
+  const [verificandoConexaoShopee, setVerificandoConexaoShopee] = useState<boolean>(false);
 
   const handleAbrirModalMercadoLivre = async (produtoAlvo: Produto) => {
     if (!loja?.id || verificandoConexaoMl) return;
@@ -213,6 +229,23 @@ export const ProdutosMobile: React.FC<ProdutosMobileProps> = ({
       setModalConectarMlAberto(true);
     } finally {
       setVerificandoConexaoMl(false);
+    }
+  };
+
+  const handleAbrirModalShopee = async (produtoAlvo: Produto) => {
+    if (!loja?.id || verificandoConexaoShopee) return;
+    try {
+      setVerificandoConexaoShopee(true);
+      const contaConectada = await shopeeService.buscarContaConectada(loja.id);
+      if (!contaConectada) {
+        setModalConectarShopeeAberto(true);
+        return;
+      }
+      setProdutoShopeeModal(produtoAlvo);
+    } catch {
+      setModalConectarShopeeAberto(true);
+    } finally {
+      setVerificandoConexaoShopee(false);
     }
   };
   const [fornecedoresLista, setFornecedoresLista] = useState<Fornecedor[]>([]);
@@ -3776,6 +3809,16 @@ export const ProdutosMobile: React.FC<ProdutosMobileProps> = ({
                     <ShoppingBag className="w-3.5 h-3.5 text-[#2D3277]" />
                     <span>ML{mapaAnunciosMl[produtoEditando.id]?.length ? ` (${mapaAnunciosMl[produtoEditando.id].length})` : ''}</span>
                   </button>
+                  <button
+                    type="button"
+                    disabled={verificandoConexaoShopee}
+                    onClick={() => handleAbrirModalShopee(produtoEditando)}
+                    className="px-2.5 py-1.5 rounded-xl text-xs font-semibold flex items-center gap-1 shadow-xs cursor-pointer transition select-none bg-[#EE4D2D] hover:bg-[#D73211] text-white"
+                    title="Vincular ou publicar na Shopee"
+                  >
+                    <Store className="w-3.5 h-3.5 text-white" />
+                    <span>Shopee{mapaAnunciosShopee[produtoEditando.id]?.length ? ` (${mapaAnunciosShopee[produtoEditando.id].length})` : ''}</span>
+                  </button>
                 </>
               )}
 
@@ -6279,6 +6322,32 @@ export const ProdutosMobile: React.FC<ProdutosMobileProps> = ({
           nomeLoja={loja?.nome_fantasia}
         />
 
+        {/* MODAL SHOPEE (VINCULAR / PUBLICAR ANÚNCIO) */}
+        <ModalVincularAnuncioShopee
+          aberto={Boolean(produtoShopeeModal)}
+          onFechar={() => setProdutoShopeeModal(null)}
+          produto={produtoShopeeModal}
+          lojaId={loja?.id || ''}
+          onSucesso={(info) => {
+            if (info?.gtinSincronizado) {
+              const gtinSync = info.gtinSincronizado;
+              setFormData((prev) => ({ ...prev, codigoBarras: gtinSync }));
+              setProdutoEditando((prev) =>
+                prev ? { ...prev, codigo_barras: gtinSync } : prev
+              );
+            }
+            onRecarregarAnunciosMl?.();
+            void onRecarregar();
+          }}
+        />
+
+        <ModalConectarShopee
+          aberto={modalConectarShopeeAberto}
+          onFechar={() => setModalConectarShopeeAberto(false)}
+          lojaId={loja?.id || ''}
+          nomeLoja={loja?.nome_fantasia}
+        />
+
         {/* MODAL ONBOARDING SERPAPI (BYOK) */}
         <ModalOnboardingSerpApi
           isOpen={modalOnboardingSerpApiAberto}
@@ -6539,8 +6608,8 @@ export const ProdutosMobile: React.FC<ProdutosMobileProps> = ({
         </div>
       </div>
 
-      {/* Ação rápida: Sincronização e Publicação em Massa no Mercado Livre (Mobile) */}
-      {abaLista === 'itens' && permissions.podeCadastrarAlterarProdutos && (onAbrirPublicarMassaMl || onSincronizarMl) && (
+      {/* Ação rápida: Sincronização e Publicação em Massa no Mercado Livre e Shopee (Mobile) */}
+      {abaLista === 'itens' && permissions.podeCadastrarAlterarProdutos && (onAbrirPublicarMassaMl || onSincronizarMl || onAbrirPublicarMassaShopee || onSincronizarShopee) && (
         <div className="px-4 py-2 border-b border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-[#08131A] flex items-center justify-end gap-2 shrink-0 flex-wrap">
           {onSincronizarMl && (
             <button
@@ -6567,6 +6636,33 @@ export const ProdutosMobile: React.FC<ProdutosMobileProps> = ({
             >
               <ShoppingBag className="w-3.5 h-3.5 text-black" />
               <span>Publicar em Massa no ML</span>
+            </button>
+          )}
+          {onSincronizarShopee && (
+            <button
+              type="button"
+              disabled={sincronizandoShopee}
+              onClick={onSincronizarShopee}
+              className="hubi-btn-neutral inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-slate-100 hover:bg-slate-200 border border-slate-300 text-black text-xs font-medium transition cursor-pointer shadow-2xs disabled:opacity-50"
+            >
+              <RefreshCw className={`w-3.5 h-3.5 text-black ${sincronizandoShopee ? 'animate-spin' : ''}`} />
+              <span>{sincronizandoShopee ? 'Sincronizando...' : 'Sincronizar Shopee'}</span>
+            </button>
+          )}
+          {onAbrirPublicarMassaShopee && (
+            <button
+              type="button"
+              onClick={() => {
+                const catInicial =
+                  categoriasPrincipaisFiltro.find((c) =>
+                    c.todosIds.some((id) => categoriasFiltro.includes(id))
+                  )?.id || null;
+                onAbrirPublicarMassaShopee(catInicial);
+              }}
+              className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-[#EE4D2D] hover:bg-[#D73211] text-white text-xs font-semibold transition cursor-pointer shadow-sm"
+            >
+              <Store className="w-3.5 h-3.5 text-white" />
+              <span>Publicar em Massa na Shopee</span>
             </button>
           )}
         </div>
@@ -6804,6 +6900,39 @@ export const ProdutosMobile: React.FC<ProdutosMobileProps> = ({
                             Serviço
                           </span>
                         )}
+                        {Boolean(mapaAnunciosShopee[p.id] && mapaAnunciosShopee[p.id].length > 0) && (() => {
+                          const anunciosCardShopee = mapaAnunciosShopee[p.id] || [];
+                          const anuncioPrincipalCardShopee =
+                            anunciosCardShopee.find((a) => a.status_anuncio === 'active') ||
+                            anunciosCardShopee[0];
+                          const linkCardShopee = anuncioPrincipalCardShopee
+                            ? obterPermalinkAnuncioShopee(
+                                anuncioPrincipalCardShopee.permalink,
+                                anuncioPrincipalCardShopee.ml_item_id,
+                                shopIdShopee
+                              )
+                            : '';
+                          return (
+                            <>
+                              <span className="px-1.5 py-0.5 rounded-md text-[9px] font-black font-mono bg-[#EE4D2D]/15 text-[#EE4D2D] border border-[#EE4D2D]/40 shrink-0">
+                                Shopee • #{anuncioPrincipalCardShopee.ml_item_id}
+                              </span>
+                              {linkCardShopee && (
+                                <a
+                                  href={linkCardShopee}
+                                  target="_blank"
+                                  rel="noopener noreferrer"
+                                  onClick={(e) => e.stopPropagation()}
+                                  title="Ver na Shopee"
+                                  className="inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded-md text-[9px] font-bold bg-slate-100 hover:bg-slate-200 border border-slate-300 text-black shrink-0 transition"
+                                >
+                                  <span>Ver na Shopee</span>
+                                  <ExternalLink className="w-2.5 h-2.5 text-black" />
+                                </a>
+                              )}
+                            </>
+                          );
+                        })()}
                         {Boolean(mapaAnunciosMl[p.id] && mapaAnunciosMl[p.id].length > 0) && (() => {
                           const anunciosCardMl = mapaAnunciosMl[p.id] || [];
                           const anuncioPrincipalCardMl =

@@ -5,6 +5,7 @@ import { caixaService } from './caixaService';
 import { EstoquePedidoService, STATUS_QUE_BAIXAM_ESTOQUE } from './estoquePedidoService';
 import { logger } from './loggerService';
 import { mercadoLivreService } from './mercadoLivreService';
+import { shopeeService } from './shopeeService';
 import { Cliente, Pedido, StatusPedido, StatusPagamento, FormaPagamento } from '../types';
 import { PedidoEntrega } from '../types/shipping';
 import { ItemAgendamentoInfo } from '../types/agendamento';
@@ -699,6 +700,7 @@ export class VendaService {
             const produtosIdsUnicos = Array.from(new Set(itens.map((i) => i.produto?.id).filter(Boolean)));
             for (const pId of produtosIdsUnicos) {
               mercadoLivreService.sincronizarEstoqueProduto(lojaId, pId).catch(() => {});
+              shopeeService.sincronizarEstoqueProduto(lojaId, pId).catch(() => {});
             }
           }
         } catch (errEst: any) {
