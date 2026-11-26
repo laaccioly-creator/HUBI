@@ -1,14 +1,15 @@
 import React, { useEffect, useState } from 'react';
-import { X, Package, Clock, ExternalLink, Loader2, AlertCircle, ShoppingBag, CheckCircle, Truck, Receipt, Scale, CreditCard, Paperclip, Upload, Share2 } from 'lucide-react';
+import { X, Package, Clock, ExternalLink, Loader2, AlertCircle, ShoppingBag, CheckCircle, Truck, Receipt, Scale, CreditCard, Paperclip, Upload, Share2, FileText } from 'lucide-react';
 import { Pedido, Loja } from '../types';
 import { ClienteCatalogoService } from '../services/clienteCatalogoService';
 import { ReciboPedidoModal } from './pedidos/ReciboPedidoModal';
 import { ModalPagamentoFechamentoCatalogo } from './catalogo/ModalPagamentoFechamentoCatalogo';
+import { useFeedbackModal } from '../contexts/FeedbackContext';
 import { supabase } from '../lib/supabase';
 import { formatarDataHoraLocal } from '../utils/dateTime';
 import {
+  compartilharComprovanteNoWhatsapp,
   enviarComprovantePedidoCatalogo,
-  montarLinkWhatsappComprovantePix,
   obterEstadoAcaoPagamentoCatalogo
 } from '../services/comprovantePedidoService';
 
@@ -115,28 +116,45 @@ export const ModalPedidosCliente: React.FC<ModalPedidosClienteProps> = ({
   onExplorarCatalogo,
   onPagarPedido
 }) => {
+  const { mostrarToast } = useFeedbackModal();
   const [pedidos, setPedidos] = useState<Pedido[]>([]);
   const [pedidoReciboModal, setPedidoReciboModal] = useState<Pedido | null>(null);
   const [pedidoPagamentoModal, setPedidoPagamentoModal] = useState<Pedido | null>(null);
   const [pedidoEnvioComprovante, setPedidoEnvioComprovante] = useState<Pedido | null>(null);
   const [arquivoComprovante, setArquivoComprovante] = useState<File | null>(null);
+  const [previewComprovanteUrl, setPreviewComprovanteUrl] = useState<string | null>(null);
   const [enviandoComprovante, setEnviandoComprovante] = useState<boolean>(false);
   const [comprovanteEnviadoSucesso, setComprovanteEnviadoSucesso] = useState<boolean>(false);
   const [linkWhatsappComprovante, setLinkWhatsappComprovante] = useState<string | null>(null);
+  const [avisoWhatsapp, setAvisoWhatsapp] = useState<string | null>(null);
   const [erroComprovante, setErroComprovante] = useState<string | null>(null);
   const [carregando, setCarregando] = useState<boolean>(true);
   const [erro, setErro] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (!arquivoComprovante || !arquivoComprovante.type.startsWith('image/')) {
+      setPreviewComprovanteUrl(null);
+      return;
+    }
+    const objUrl = URL.createObjectURL(arquivoComprovante);
+    setPreviewComprovanteUrl(objUrl);
+    return () => {
+      URL.revokeObjectURL(objUrl);
+    };
+  }, [arquivoComprovante]);
 
   const handleSalvarComprovante = async () => {
     if (!pedidoEnvioComprovante || !arquivoComprovante) return;
     try {
       setEnviandoComprovante(true);
       setErroComprovante(null);
+      setAvisoWhatsapp(null);
 
+      const arquivoSelecionado = arquivoComprovante;
       const resultado = await enviarComprovantePedidoCatalogo({
         pedidoId: pedidoEnvioComprovante.id,
         lojaId,
-        arquivo: arquivoComprovante
+        arquivo: arquivoSelecionado
       });
 
       setPedidos((prev) =>
@@ -153,7 +171,8 @@ export const ModalPedidosCliente: React.FC<ModalPedidosClienteProps> = ({
         )
       );
 
-      const urlWpp = montarLinkWhatsappComprovantePix({
+      const resShare = await compartilharComprovanteNoWhatsapp({
+        arquivo: arquivoSelecionado,
         whatsappLoja: loja?.whatsapp || loja?.telefone,
         numeroPedido: pedidoEnvioComprovante.numero_pedido,
         nomeCliente:
@@ -163,9 +182,10 @@ export const ModalPedidosCliente: React.FC<ModalPedidosClienteProps> = ({
         valorTotal: Number(pedidoEnvioComprovante.valor_total || 0),
         comprovanteUrl: resultado.url
       });
-      setLinkWhatsappComprovante(urlWpp);
-      if (urlWpp) {
-        window.open(urlWpp, '_blank', 'noopener,noreferrer');
+      setLinkWhatsappComprovante(resShare.urlWhatsapp);
+      if (resShare.avisoUsuario) {
+        setAvisoWhatsapp(resShare.avisoUsuario);
+        mostrarToast?.(resShare.avisoUsuario, 'sucesso');
       }
 
       setComprovanteEnviadoSucesso(true);
@@ -553,7 +573,9 @@ export const ModalPedidosCliente: React.FC<ModalPedidosClienteProps> = ({
                 </div>
                 <div className="space-y-1">
                   <h5 className="font-bold text-sm text-emerald-600 dark:text-emerald-400">Comprovante Anexado com Sucesso!</h5>
-                  <p className="text-xs text-slate-500 dark:text-slate-400">O comprovante foi salvo no pedido e enviado para conferência da loja.</p>
+                  <p className="text-xs text-slate-500 dark:text-slate-400">
+                    {avisoWhatsapp || 'O comprovante foi salvo no pedido e enviado para conferência da loja.'}
+                  </p>
                 </div>
                 <div className="space-y-2 pt-1">
                   {linkWhatsappComprovante && (
@@ -561,10 +583,10 @@ export const ModalPedidosCliente: React.FC<ModalPedidosClienteProps> = ({
                       href={linkWhatsappComprovante}
                       target="_blank"
                       rel="noopener noreferrer"
-                      className="w-full py-2.5 px-3 rounded-xl bg-cyan-600 hover:bg-cyan-500 text-white text-xs font-bold flex items-center justify-center gap-1.5 transition shadow-md shadow-cyan-600/20"
+                      className="w-full py-2.5 px-3 rounded-xl bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-700 border border-slate-300 dark:border-slate-700 text-slate-900 dark:text-slate-100 text-xs font-semibold flex items-center justify-center gap-1.5 transition"
                     >
-                      <Share2 className="w-3.5 h-3.5" />
-                      <span>Enviar Comprovante no WhatsApp da Loja</span>
+                      <Share2 className="w-3.5 h-3.5 text-emerald-600 dark:text-emerald-400" />
+                      <span>Abrir WhatsApp da Loja</span>
                     </a>
                   )}
                   <button
@@ -574,9 +596,10 @@ export const ModalPedidosCliente: React.FC<ModalPedidosClienteProps> = ({
                       setArquivoComprovante(null);
                       setComprovanteEnviadoSucesso(false);
                       setLinkWhatsappComprovante(null);
+                      setAvisoWhatsapp(null);
                       setErroComprovante(null);
                     }}
-                    className="w-full py-2.5 px-3 rounded-xl border border-slate-300 dark:border-slate-700 hover:bg-slate-100 dark:hover:bg-slate-800 text-xs font-bold text-slate-700 dark:text-slate-200 transition cursor-pointer"
+                    className="w-full py-2.5 px-3 rounded-xl bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-700 border border-slate-300 dark:border-slate-700 text-xs font-semibold text-slate-900 dark:text-slate-200 transition cursor-pointer"
                   >
                     Fechar
                   </button>
@@ -591,15 +614,35 @@ export const ModalPedidosCliente: React.FC<ModalPedidosClienteProps> = ({
                   </div>
                 )}
                 <p className="text-xs text-slate-600 dark:text-slate-300">
-                  Selecione a imagem ou PDF do comprovante bancário da transferência Pix para o estabelecimento:
+                  Selecione a imagem ou PDF do comprovante da transferência Pix para enviar à loja:
                 </p>
 
-                <label className="cursor-pointer flex flex-col items-center justify-center p-4 border-2 border-dashed border-slate-300 dark:border-slate-700 rounded-2xl hover:border-cyan-500/60 bg-slate-50 dark:bg-slate-950/60 transition gap-1.5 text-center">
-                  <Upload className="w-6 h-6 text-cyan-500" />
-                  <span className="text-xs font-bold text-slate-700 dark:text-slate-200">
+                <label className="cursor-pointer flex flex-col items-center justify-center p-4 border-2 border-dashed border-slate-300 dark:border-slate-700 rounded-2xl hover:border-emerald-500/60 bg-slate-50 dark:bg-slate-950/60 transition gap-2 text-center">
+                  {previewComprovanteUrl ? (
+                    <img
+                      src={previewComprovanteUrl}
+                      alt="Prévia do comprovante selecionado"
+                      className="max-h-36 w-auto object-contain rounded-xl border border-slate-200 dark:border-slate-700"
+                    />
+                  ) : arquivoComprovante ? (
+                    <div className="flex items-center gap-2 px-3 py-2 rounded-xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700">
+                      <FileText className="w-5 h-5 text-emerald-500 shrink-0" />
+                      <span className="text-xs font-bold text-slate-800 dark:text-slate-200 truncate max-w-[200px]">
+                        {arquivoComprovante.name}
+                      </span>
+                    </div>
+                  ) : (
+                    <Upload className="w-6 h-6 text-emerald-500" />
+                  )}
+
+                  <span className="text-xs font-bold text-slate-700 dark:text-slate-200 truncate max-w-full px-2">
                     {arquivoComprovante ? arquivoComprovante.name : 'Clique para escolher o arquivo'}
                   </span>
-                  <span className="text-[10px] text-slate-400">JPG, PNG ou PDF</span>
+                  <span className="text-[10px] text-slate-400">
+                    {arquivoComprovante
+                      ? `${(arquivoComprovante.size / 1024).toFixed(0)} KB • Clique para trocar`
+                      : 'JPG, PNG, WEBP ou PDF'}
+                  </span>
                   <input
                     type="file"
                     accept="image/*,application/pdf"
@@ -614,36 +657,19 @@ export const ModalPedidosCliente: React.FC<ModalPedidosClienteProps> = ({
                   />
                 </label>
 
-                <div className="flex items-center gap-2 pt-2">
-                  {loja?.whatsapp && (
-                    <button
-                      type="button"
-                      onClick={() => {
-                        const tel = (loja.whatsapp || '').replace(/\D/g, '');
-                        const msg = `Olá! Segue em anexo o comprovante de pagamento Pix do pedido #${pedidoEnvioComprovante.numero_pedido} no valor de R$ ${(pedidoEnvioComprovante.valor_total || 0).toFixed(2)}.`;
-                        window.open(`https://wa.me/55${tel}?text=${encodeURIComponent(msg)}`, '_blank');
-                      }}
-                      className="flex-1 py-2.5 px-3 rounded-xl border border-slate-300 dark:border-slate-700 hover:bg-slate-100 dark:hover:bg-slate-800 text-xs font-bold flex items-center justify-center gap-1.5 transition cursor-pointer"
-                    >
-                      <Share2 className="w-3.5 h-3.5 text-emerald-500" />
-                      <span>WhatsApp</span>
-                    </button>
+                <button
+                  type="button"
+                  disabled={!arquivoComprovante || enviandoComprovante}
+                  onClick={handleSalvarComprovante}
+                  className="w-full py-2.5 px-4 rounded-xl bg-emerald-300 hover:bg-emerald-400 dark:bg-emerald-600 dark:hover:bg-emerald-500 disabled:opacity-50 disabled:cursor-not-allowed text-black dark:text-white border border-emerald-400 dark:border-emerald-500 text-xs font-bold flex items-center justify-center gap-2 transition cursor-pointer shadow-xs active:scale-95"
+                >
+                  {enviandoComprovante ? (
+                    <Loader2 className="w-4 h-4 animate-spin" />
+                  ) : (
+                    <Paperclip className="w-4 h-4" />
                   )}
-
-                  <button
-                    type="button"
-                    disabled={!arquivoComprovante || enviandoComprovante}
-                    onClick={handleSalvarComprovante}
-                    className="flex-1 py-2.5 px-3 rounded-xl bg-cyan-600 hover:bg-cyan-500 disabled:opacity-50 text-white text-xs font-bold flex items-center justify-center gap-1.5 transition cursor-pointer shadow-md shadow-cyan-600/20 active:scale-95"
-                  >
-                    {enviandoComprovante ? (
-                      <Loader2 className="w-3.5 h-3.5 animate-spin" />
-                    ) : (
-                      <Paperclip className="w-3.5 h-3.5" />
-                    )}
-                    <span>Anexar</span>
-                  </button>
-                </div>
+                  <span>Enviar Comprovante</span>
+                </button>
               </div>
             )}
           </div>

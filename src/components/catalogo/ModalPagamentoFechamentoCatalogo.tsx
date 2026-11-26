@@ -18,8 +18,7 @@ import {
   Upload,
   Calendar,
   Clock,
-  MapPin,
-  MessageCircle
+  MapPin
 } from 'lucide-react';
 import { supabase } from '../../lib/supabase';
 import {
@@ -47,8 +46,8 @@ import { ModalDefinirEnvio } from '../pedidos/ModalDefinirEnvio';
 import { ShippingOrchestrator } from '../../services/shippingOrchestrator';
 import { paymentGatewayService } from '../../services/paymentGatewayService';
 import {
-  enviarComprovantePedidoCatalogo,
-  montarLinkWhatsappComprovantePix
+  compartilharComprovanteNoWhatsapp,
+  enviarComprovantePedidoCatalogo
 } from '../../services/comprovantePedidoService';
 import { gerarPayloadPixEmv } from '../../utils/pixUtils';
 
@@ -181,7 +180,6 @@ export const ModalPagamentoFechamentoCatalogo: React.FC<ModalPagamentoFechamento
   const [chavePixCopiada, setChavePixCopiada] = useState<boolean>(false);
   const [toastPixMsg, setToastPixMsg] = useState<string | null>(null);
   const [comprovanteArquivo, setComprovanteArquivo] = useState<File | null>(null);
-  const [linkWhatsappComprovante, setLinkWhatsappComprovante] = useState<string | null>(null);
   const [pedidoAtualizado, setPedidoAtualizado] = useState<Pedido | null>(null);
   const [pedidoLocal, setPedidoLocal] = useState<Pedido | null>(pedido);
   const [modalDefinirEnvioAberto, setModalDefinirEnvioAberto] = useState<boolean>(false);
@@ -556,7 +554,6 @@ export const ModalPagamentoFechamentoCatalogo: React.FC<ModalPagamentoFechamento
       setErroMsg(null);
       setSucessoModal(false);
       setComprovanteArquivo(null);
-      setLinkWhatsappComprovante(null);
     }
   }, [isOpen]);
 
@@ -1068,7 +1065,6 @@ export const ModalPagamentoFechamentoCatalogo: React.FC<ModalPagamentoFechamento
         : 'aguardando_pagamento'; // NUNCA 'pago' pelo catálogo para meios manuais!
 
       let pedUpd: any = null;
-      let urlWhatsappComprovanteEnvio: string | null = null;
       if (!ehModoCaderneta && SyncService.isUuidValido(pedSeguro.id)) {
         const lojaIdEfetivo = loja?.id || pedSeguro.loja_id;
         const primeiraLinha = linhasAtivas[0];
@@ -1106,10 +1102,11 @@ export const ModalPagamentoFechamentoCatalogo: React.FC<ModalPagamentoFechamento
         // Upload e registro relacional do comprovante Pix se anexado pelo cliente
         if (comprovanteArquivo && pedSeguro.id && lojaIdEfetivo) {
           try {
+            const arquivoSelecionado = comprovanteArquivo;
             const resComprovante = await enviarComprovantePedidoCatalogo({
               pedidoId: pedSeguro.id,
               lojaId: lojaIdEfetivo,
-              arquivo: comprovanteArquivo
+              arquivo: arquivoSelecionado
             });
             pedUpd = {
               ...(pedUpd || {}),
@@ -1125,16 +1122,16 @@ export const ModalPagamentoFechamentoCatalogo: React.FC<ModalPagamentoFechamento
               dadosClienteFresco?.nome ||
               pedSeguro.cliente_nome_avulso ||
               'Cliente';
-            urlWhatsappComprovanteEnvio = montarLinkWhatsappComprovantePix({
+            const resShare = await compartilharComprovanteNoWhatsapp({
+              arquivo: arquivoSelecionado,
               whatsappLoja: loja?.whatsapp || loja?.telefone,
               numeroPedido: pedUpd?.numero_pedido ?? pedSeguro.numero_pedido,
               nomeCliente: nomeCliWpp,
               valorTotal: Number(pedUpd?.valor_total ?? pedSeguro.valor_total ?? valorTotal ?? 0),
               comprovanteUrl: resComprovante.url
             });
-            if (urlWhatsappComprovanteEnvio) {
-              setLinkWhatsappComprovante(urlWhatsappComprovanteEnvio);
-              window.open(urlWhatsappComprovanteEnvio, '_blank', 'noopener,noreferrer');
+            if (resShare.avisoUsuario) {
+              mostrarToast?.(resShare.avisoUsuario, 'sucesso');
             }
           } catch (errComp: any) {
             mostrarToast?.(
@@ -1257,11 +1254,8 @@ export const ModalPagamentoFechamentoCatalogo: React.FC<ModalPagamentoFechamento
 
       const objAtualizado = (pedUpd as unknown as Pedido) || { ...pedSeguro, status_pagamento: statusPagamentoFinal };
       setPedidoAtualizado(objAtualizado);
-      setSucessoModal(true);
-      if (!urlWhatsappComprovanteEnvio) {
-        onPagamentoConcluido(objAtualizado);
-        onClose();
-      }
+      onPagamentoConcluido(objAtualizado);
+      onClose();
     } catch (err: any) {
       console.error('Erro ao registrar pagamento:', err);
       setErroMsg(err.message || 'Erro ao processar pagamento. Tente novamente.');
@@ -1283,10 +1277,6 @@ export const ModalPagamentoFechamentoCatalogo: React.FC<ModalPagamentoFechamento
         // Ignore
       }
     }
-    if (linkWhatsappComprovante && pedidoAtualizado) {
-      onPagamentoConcluido(pedidoAtualizado);
-    }
-    setLinkWhatsappComprovante(null);
     onClose();
   };
 
@@ -1295,88 +1285,7 @@ export const ModalPagamentoFechamentoCatalogo: React.FC<ModalPagamentoFechamento
       <div className={`border rounded-3xl w-full max-w-lg p-5 sm:p-6 space-y-4 shadow-2xl animate-in zoom-in-95 duration-150 my-6 max-h-[92vh] overflow-y-auto ${
         isDark ? 'bg-slate-900 border-slate-800 text-white' : 'bg-white border-slate-200 text-slate-900'
       }`}>
-        {/* MODAL DE SUCESSO / FEEDBACK */}
-        {sucessoModal ? (
-          <div className="py-6 px-2 text-center space-y-4 animate-in fade-in zoom-in-95">
-            <div className="w-14 h-14 rounded-full bg-emerald-500/20 text-emerald-500 flex items-center justify-center mx-auto border border-emerald-500/30">
-              <CheckCircle2 className="w-8 h-8" />
-            </div>
-            <div className="space-y-1">
-              <h3 className="font-black text-lg text-slate-900 dark:text-white">
-                {sucessoConfig?.titulo || 'Pagamento Registrado!'}
-              </h3>
-              <p className="text-xs text-slate-600 dark:text-slate-300 max-w-sm mx-auto leading-relaxed">
-                {sucessoConfig?.mensagem || 'Operação realizada com sucesso.'}
-              </p>
-            </div>
-
-            {sucessoConfig?.aguardandoConferencia && (
-              <div className="p-3 bg-amber-500/10 border border-amber-500/20 rounded-2xl text-[11px] text-amber-700 dark:text-amber-300 font-medium max-w-sm mx-auto">
-                ⏳ Pedido aguardando conferência do pagamento pelo estabelecimento.
-              </div>
-            )}
-
-            {/* Bloco de Agendamentos no Modal de Sucesso */}
-            {(((pedidoAtualizado as any)?.agendamentos || pedSeguro.agendamentos || [])).length > 0 && (
-              <div className="p-3.5 bg-teal-50 dark:bg-teal-950/40 border border-teal-200 dark:border-teal-800/60 rounded-2xl text-left space-y-2 max-w-sm mx-auto">
-                <div className="flex items-center gap-2 text-xs font-bold text-teal-800 dark:text-teal-300">
-                  <Calendar className="w-4 h-4 text-teal-600 dark:text-teal-400 shrink-0" />
-                  <span>Horário(s) Agendado(s) com Sucesso</span>
-                </div>
-                {(((pedidoAtualizado as any)?.agendamentos || pedSeguro.agendamentos || [])).map((ag: any) => (
-                  <div key={ag.id} className="text-[11px] text-slate-700 dark:text-slate-300 bg-white dark:bg-slate-900/80 p-2.5 rounded-xl border border-teal-100 dark:border-teal-900/50 space-y-1">
-                    <p className="font-bold text-slate-900 dark:text-white truncate">
-                      {ag.produto?.nome || 'Serviço Agendado'}
-                    </p>
-                    <div className="flex items-center gap-1.5 text-teal-700 dark:text-teal-300 font-medium">
-                      <Clock className="w-3 h-3 shrink-0" />
-                      <span>{formatarDataPtBr(ag.data_agendamento)} às {ag.hora_inicio}</span>
-                    </div>
-                    {ag.profissional?.nome_completo && (
-                      <p className="text-[10px] text-slate-500 dark:text-slate-400">
-                        Profissional: {ag.profissional.nome_completo}
-                      </p>
-                    )}
-                    <p className="text-[10px] text-slate-500 dark:text-slate-400">
-                      Local: {ag.modalidade_local === 'loja' ? '🏪 Na Loja' : '🏠 A Domicílio (Externo)'}
-                    </p>
-                    {ag.token_confirmacao && (
-                      <a
-                        href={`/confirmar-agendamento/${ag.token_confirmacao}`}
-                        target="_blank"
-                        rel="noreferrer"
-                        className="inline-block mt-1 text-[10px] text-teal-600 dark:text-teal-400 underline font-semibold hover:text-teal-700"
-                      >
-                        Abrir comprovante do agendamento ↗
-                      </a>
-                    )}
-                  </div>
-                ))}
-              </div>
-            )}
-
-            {linkWhatsappComprovante && (
-              <a
-                href={linkWhatsappComprovante}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="w-full py-3 px-4 rounded-2xl bg-cyan-600 hover:bg-cyan-500 text-white font-bold text-xs shadow-md shadow-cyan-600/20 transition flex items-center justify-center gap-2"
-              >
-                <MessageCircle className="w-4 h-4" />
-                <span>Enviar Comprovante no WhatsApp da Loja</span>
-              </a>
-            )}
-
-            <button
-              type="button"
-              onClick={handleFecharTudo}
-              className="hubi-btn-neutral w-full py-3 px-4 rounded-2xl bg-emerald-600 hover:bg-emerald-500 text-white font-bold text-xs shadow-md shadow-emerald-600/20 transition cursor-pointer"
-            >
-              Concluir e Voltar
-            </button>
-          </div>
-        ) : (
-          <form onSubmit={handleConfirmarPagamento} className="space-y-4">
+        <form onSubmit={handleConfirmarPagamento} className="space-y-4">
             {/* Header */}
             <div className="flex items-center justify-between border-b border-slate-200 dark:border-slate-800 pb-3">
               <div className="flex items-center gap-2.5">
@@ -2050,7 +1959,6 @@ export const ModalPagamentoFechamentoCatalogo: React.FC<ModalPagamentoFechamento
               </button>
             </div>
           </form>
-        )}
 
         {/* Modal de Definição de Envio com modoCatalogo=true (Apenas para pedidos reais) */}
         {modalDefinirEnvioAberto && pedSeguro && !ehModoCaderneta && (

@@ -4625,18 +4625,6 @@ Fico no aguardo da confirmação! ✨`;
                 <span>Acompanhar Pedido #{pedidoConcluidoModal.numeroPedido}</span>
               </Link>
 
-              {pedidoConcluidoModal.whatsAppUrl && (
-                <a
-                  href={pedidoConcluidoModal.whatsAppUrl}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="w-full py-2.5 rounded-xl bg-emerald-500/10 hover:bg-emerald-500/20 text-emerald-400 font-bold text-xs flex items-center justify-center gap-2 border border-emerald-500/30 transition cursor-pointer shadow-xs active:scale-98"
-                >
-                  <Share2 className="w-4 h-4 text-emerald-400" />
-                  <span>Enviar Resumo no WhatsApp da Loja</span>
-                </a>
-              )}
-
               <button
                 type="button"
                 onClick={() => {
