@@ -365,6 +365,10 @@ export const ProdutosEstoque: React.FC = () => {
   const ultimaVersaoMassaRef = useRef<number>(
     mercadoLivrePublicacaoMassaService.getEstado().versaoAtualizacao
   );
+  const ultimaReconciliacaoAbaRef = useRef<number>(0);
+  const possuiAnunciosMlRef = useRef<boolean>(false);
+
+  possuiAnunciosMlRef.current = Object.keys(mapaAnunciosMl).length > 0;
 
   useEffect(() => {
     return mercadoLivrePublicacaoMassaService.inscrever(() => {
@@ -376,6 +380,56 @@ export const ProdutosEstoque: React.FC = () => {
         }
       }
     });
+  }, [loja?.id]);
+
+  // Assinatura Supabase Realtime em marketplace_anuncios (atualiza UI imediatamente quando webhook altera/remove vínculo)
+  useEffect(() => {
+    if (!loja?.id) return;
+    const lojaAtivaId = loja.id;
+
+    const canalMl = supabase
+      .channel(`marketplace-anuncios-rt-${lojaAtivaId}`)
+      .on(
+        'postgres_changes',
+        {
+          event: '*',
+          schema: 'public',
+          table: 'marketplace_anuncios',
+          filter: `loja_id=eq.${lojaAtivaId}`,
+        },
+        () => {
+          void recarregarMapaAnunciosMl(lojaAtivaId);
+        }
+      )
+      .subscribe();
+
+    return () => {
+      void supabase.removeChannel(canalMl);
+    };
+  }, [loja?.id]);
+
+  // Reconciliação discreta ao retornar para a aba do navegador (visibilitychange / focus)
+  useEffect(() => {
+    if (!loja?.id) return;
+    const lojaAtivaId = loja.id;
+
+    const handleRetornoAba = () => {
+      if (document.visibilityState !== 'visible') return;
+      void recarregarMapaAnunciosMl(lojaAtivaId);
+      const agora = Date.now();
+      if (possuiAnunciosMlRef.current && agora - ultimaReconciliacaoAbaRef.current >= 15000) {
+        ultimaReconciliacaoAbaRef.current = agora;
+        void sincronizarStatusMl(true);
+      }
+    };
+
+    document.addEventListener('visibilitychange', handleRetornoAba);
+    window.addEventListener('focus', handleRetornoAba);
+
+    return () => {
+      document.removeEventListener('visibilitychange', handleRetornoAba);
+      window.removeEventListener('focus', handleRetornoAba);
+    };
   }, [loja?.id]);
 
   // Limpeza de filtros antigos legados em localStorage permanente

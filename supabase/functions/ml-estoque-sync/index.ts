@@ -184,7 +184,7 @@ async function fazerUploadUnicaFotoMl(
   }
 
   try {
-    const respImg = await fetch(urlNormalizada, {
+    let respImg = await fetch(urlNormalizada, {
       method: "GET",
       redirect: "follow",
       headers: {
@@ -195,6 +195,20 @@ async function fazerUploadUnicaFotoMl(
       },
       signal: controllerImg.signal,
     });
+
+    // Segunda tentativa imediata sem Referer quando CDNs (ex.: Magalu / KaBuM) bloqueiam com 403/400
+    if (!respImg.ok && (respImg.status === 403 || respImg.status === 400)) {
+      console.warn(`[ml-estoque-sync] Download da foto ${indice + 1} com Referer retornou HTTP ${respImg.status}; tentando novamente sem Referer.`);
+      respImg = await fetch(urlNormalizada, {
+        method: "GET",
+        redirect: "follow",
+        headers: {
+          "User-Agent": USER_AGENT_NAVEGADOR,
+          "Accept": "image/*",
+        },
+        signal: controllerImg.signal,
+      });
+    }
 
     if (!respImg.ok) {
       console.warn(`[ml-estoque-sync] Download da foto ${indice + 1} retornou HTTP ${respImg.status}; usando fallback { source }.`);
@@ -207,14 +221,15 @@ async function fazerUploadUnicaFotoMl(
       return { source: urlNormalizada };
     }
 
+    const contentTypeBruto = (respImg.headers.get("content-type") || "").split(";")[0].trim().toLowerCase();
     const infoImg = inferirMimeEExtensaoImagem(
       respImg.headers.get("content-type"),
       urlNormalizada,
       new Uint8Array(arrayBuffer)
     );
 
-    if (!infoImg) {
-      console.warn(`[ml-estoque-sync] Content-Type inválido para foto ${indice + 1}; usando fallback { source }.`);
+    if (!infoImg || (contentTypeBruto && !contentTypeBruto.startsWith("image/") && contentTypeBruto !== "application/octet-stream")) {
+      console.warn(`[ml-estoque-sync] Content-Type inválido ('${contentTypeBruto}') para foto ${indice + 1}; usando fallback { source }.`);
       return { source: urlNormalizada };
     }
 
@@ -1149,8 +1164,8 @@ serve(async (req: Request) => {
         token
       );
 
-      type ModoTituloMl = "only_title" | "only_family_name" | "both";
-      const modosParaTentar: ModoTituloMl[] = ["only_title", "only_family_name", "both"];
+      type ModoTituloMl = "only_family_name" | "only_title" | "both";
+      const modosParaTentar: ModoTituloMl[] = ["only_family_name", "only_title", "both"];
       let respPostOk = false;
       let dadosCriado: any = null;
       let ultimoErroMl: any = null;
@@ -1171,12 +1186,12 @@ serve(async (req: Request) => {
             attributes: atributosBase,
           };
 
-          if (modo === "only_title") {
-            delete payloadTentativa.family_name;
-            payloadTentativa.title = tituloLimpo;
-          } else if (modo === "only_family_name") {
+          if (modo === "only_family_name") {
             delete payloadTentativa.title;
             payloadTentativa.family_name = nomeFamiliaLimpo;
+          } else if (modo === "only_title") {
+            delete payloadTentativa.family_name;
+            payloadTentativa.title = tituloLimpo;
           } else {
             payloadTentativa.title = tituloLimpo;
             payloadTentativa.family_name = nomeFamiliaLimpo;
@@ -1275,10 +1290,12 @@ serve(async (req: Request) => {
             break;
           }
 
-          if (modo === "only_title") {
-            const rejeitouTitlePedeBoth = /\btitle\b.*family_name|family_name.*\btitle\b/i.test(textoErro);
-            if (rejeitouTitlePedeBoth && !/title.*not.*allowed|not_allowed.*title/i.test(textoErro)) {
-              // Pula direto para both quando a categoria exige explicitamente os dois juntos
+          if (modo === "only_family_name") {
+            const rejeitouFamilyName = /family_name.*not.*allowed|not_allowed.*family_name|invalid.*family_name|cannot.*family_name/i.test(textoErro);
+            if (rejeitouFamilyName && !/\btitle\b/i.test(textoErro)) {
+              // Avança para only_title (idxModo = 0 -> próximo iteração será idxModo = 1)
+            } else if (/family_name.*\btitle\b|\btitle\b.*family_name/i.test(textoErro)) {
+              // Pula direto para both quando a categoria exige ambos
               idxModo = 1;
             }
           }
@@ -1480,6 +1497,91 @@ serve(async (req: Request) => {
       let atualizados = 0;
       const idsRemovidos: string[] = [];
 
+      const processarStatusItem = async (
+        itemId: string,
+        code: number,
+        body: Record<string, any> | null | undefined
+      ) => {
+        const subStatuses = Array.isArray(body?.sub_status)
+          ? body.sub_status.map((s: any) => String(s || "").toLowerCase())
+          : [];
+        const statusItem = String(body?.status || "").trim().toLowerCase();
+        const foiExcluidoOuEncerrado =
+          code === 404 ||
+          (code === 200 && (statusItem === "closed" || subStatuses.includes("deleted")));
+
+        if (foiExcluidoOuEncerrado) {
+          const { error: erroDelete } = await supabaseAdmin
+            .from("marketplace_anuncios")
+            .delete()
+            .eq("loja_id", loja_id)
+            .eq("ml_item_id", itemId);
+
+          if (!erroDelete) {
+            removidos++;
+            idsRemovidos.push(itemId);
+          }
+          return;
+        }
+
+        if (code === 200 && ["active", "paused", "under_review"].includes(statusItem)) {
+          const registrosLocais = listaVinculos.filter(
+            (v: any) => String(v.ml_item_id || "").trim().toUpperCase() === itemId
+          );
+          const permalinkNovo =
+            typeof body?.permalink === "string" && body.permalink.trim()
+              ? body.permalink.trim()
+              : null;
+          const precoNovo =
+            typeof body?.price === "number" && Number.isFinite(body.price) && body.price > 0
+              ? body.price
+              : null;
+
+          const houveMudanca = registrosLocais.some((r: any) => {
+            const mudouStatus = String(r.status_anuncio || "").toLowerCase() !== statusItem;
+            const mudouPermalink = Boolean(permalinkNovo && r.permalink !== permalinkNovo);
+            const mudouPreco = Boolean(
+              precoNovo !== null && Number(r.preco_anuncio || 0) !== precoNovo
+            );
+            return mudouStatus || mudouPermalink || mudouPreco;
+          });
+
+          if (houveMudanca) {
+            const payloadUpdate: Record<string, any> = {
+              status_anuncio: statusItem,
+              ultima_sincronizacao_estoque_em: new Date().toISOString(),
+            };
+            if (permalinkNovo) payloadUpdate.permalink = permalinkNovo;
+            if (precoNovo !== null) payloadUpdate.preco_anuncio = precoNovo;
+
+            const { error: erroUpd } = await supabaseAdmin
+              .from("marketplace_anuncios")
+              .update(payloadUpdate)
+              .eq("loja_id", loja_id)
+              .eq("ml_item_id", itemId);
+
+            if (!erroUpd) {
+              atualizados++;
+            }
+          }
+        }
+      };
+
+      const consultarItemIndividualMl = async (itemId: string) => {
+        const respInd = await fetch(
+          `https://api.mercadolibre.com/items/${itemId}?attributes=id,status,sub_status,permalink,price`,
+          {
+            headers: {
+              "Authorization": `Bearer ${token}`,
+              "Accept": "application/json",
+            },
+          }
+        );
+
+        const bodyInd = await respInd.json().catch(() => ({}));
+        await processarStatusItem(itemId, respInd.status, bodyInd);
+      };
+
       // Endpoint multiget oficial do Mercado Livre suporta até 20 IDs por chamada
       for (let i = 0; i < idsUnicos.length; i += 20) {
         const lote = idsUnicos.slice(i, i + 20);
@@ -1492,13 +1594,25 @@ serve(async (req: Request) => {
           },
         });
 
-        if (!respBatch.ok) {
-          console.warn(`[ml-estoque-sync] Multiget de status retornou HTTP ${respBatch.status}`);
+        if (respBatch.status === 403 || !respBatch.ok) {
+          console.warn(`[ml-estoque-sync] Multiget de status retornou HTTP ${respBatch.status}; ativando fallback individual para ${lote.length} item(ns).`);
+          for (const itemIdLote of lote) {
+            await consultarItemIndividualMl(itemIdLote).catch((eInd) =>
+              console.warn(`[ml-estoque-sync] Falha na consulta individual de ${itemIdLote}:`, eInd)
+            );
+          }
           continue;
         }
 
         const resultados = await respBatch.json().catch(() => []);
-        if (!Array.isArray(resultados)) continue;
+        if (!Array.isArray(resultados)) {
+          for (const itemIdLote of lote) {
+            await consultarItemIndividualMl(itemIdLote).catch((eInd) =>
+              console.warn(`[ml-estoque-sync] Falha na consulta individual de ${itemIdLote}:`, eInd)
+            );
+          }
+          continue;
+        }
 
         for (let idx = 0; idx < resultados.length; idx++) {
           const entrada = resultados[idx];
@@ -1507,68 +1621,14 @@ serve(async (req: Request) => {
           const itemId = String(body?.id || lote[idx] || "").trim().toUpperCase();
           if (!itemId) continue;
 
-          const subStatuses = Array.isArray(body?.sub_status)
-            ? body.sub_status.map((s: any) => String(s || "").toLowerCase())
-            : [];
-          const statusItem = String(body?.status || "").trim().toLowerCase();
-          const foiExcluidoOuEncerrado =
-            code === 404 ||
-            (code === 200 && (statusItem === "closed" || subStatuses.includes("deleted")));
-
-          if (foiExcluidoOuEncerrado) {
-            const { error: erroDelete } = await supabaseAdmin
-              .from("marketplace_anuncios")
-              .delete()
-              .eq("loja_id", loja_id)
-              .eq("ml_item_id", itemId);
-
-            if (!erroDelete) {
-              removidos++;
-              idsRemovidos.push(itemId);
-            }
+          if (code === 403) {
+            await consultarItemIndividualMl(itemId).catch((eInd) =>
+              console.warn(`[ml-estoque-sync] Fallback individual 403 falhou para ${itemId}:`, eInd)
+            );
             continue;
           }
 
-          if (code === 200 && ["active", "paused", "under_review"].includes(statusItem)) {
-            const registrosLocais = listaVinculos.filter(
-              (v: any) => String(v.ml_item_id || "").trim().toUpperCase() === itemId
-            );
-            const permalinkNovo =
-              typeof body?.permalink === "string" && body.permalink.trim()
-                ? body.permalink.trim()
-                : null;
-            const precoNovo =
-              typeof body?.price === "number" && Number.isFinite(body.price) && body.price > 0
-                ? body.price
-                : null;
-
-            const houveMudanca = registrosLocais.some((r: any) => {
-              const mudouStatus = String(r.status_anuncio || "").toLowerCase() !== statusItem;
-              const mudouPermalink = Boolean(permalinkNovo && r.permalink !== permalinkNovo);
-              const mudouPreco = Boolean(
-                precoNovo !== null && Number(r.preco_anuncio || 0) !== precoNovo
-              );
-              return mudouStatus || mudouPermalink || mudouPreco;
-            });
-
-            if (houveMudanca) {
-              const payloadUpdate: Record<string, any> = {
-                status_anuncio: statusItem,
-              };
-              if (permalinkNovo) payloadUpdate.permalink = permalinkNovo;
-              if (precoNovo !== null) payloadUpdate.preco_anuncio = precoNovo;
-
-              const { error: erroUpd } = await supabaseAdmin
-                .from("marketplace_anuncios")
-                .update(payloadUpdate)
-                .eq("loja_id", loja_id)
-                .eq("ml_item_id", itemId);
-
-              if (!erroUpd) {
-                atualizados++;
-              }
-            }
-          }
+          await processarStatusItem(itemId, code, body);
         }
       }
 
