@@ -3966,14 +3966,21 @@ Fico no aguardo da confirmação! ✨`;
                 regrasAtivas?.tiposVendaAtivos?.atacado ||
                 regrasAtivas?.tiposVendaAtivos?.distribuidor
               );
-              const regraAtacarejoDireto = (regrasAtivas?.tipoMinimoAtacado === 'minimo_sku' || (!regrasAtivas?.valorMinimoAtacado && !regrasAtivas?.qtdTotalMinimaAtacado)) &&
-                (regrasAtivas?.tipoMinimoDistribuidor === 'minimo_sku' || (!regrasAtivas?.valorMinimoAutoatacado && !regrasAtivas?.qtdTotalMinimaAutoatacado) || !regrasAtivas?.tiposVendaAtivos?.distribuidor);
+              const temMetaGlobalAtacado = Boolean(
+                regrasAtivas?.tiposVendaAtivos?.atacado &&
+                regrasAtivas?.tipoMinimoAtacado !== 'minimo_sku' &&
+                (Number(regrasAtivas?.qtdTotalMinimaAtacado || 0) > 0 || Number(regrasAtivas?.valorMinimoAtacado || 0) > 0)
+              );
+              const temMetaGlobalAuto = Boolean(
+                regrasAtivas?.tiposVendaAtivos?.distribuidor &&
+                regrasAtivas?.tipoMinimoDistribuidor !== 'minimo_sku' &&
+                (Number(regrasAtivas?.qtdTotalMinimaAutoatacado || 0) > 0 || Number(regrasAtivas?.valorMinimoAutoatacado || 0) > 0)
+              );
 
               const temRegraAtacado = Boolean(
-                !regraAtacarejoDireto &&
                 atacadoAtivoNaLoja && (
-                  (loja?.qtd_minima_padrao_atacado && Number(loja.qtd_minima_padrao_atacado) > 0) ||
-                  (loja?.valor_minimo_padrao_atacado && Number(loja.valor_minimo_padrao_atacado) > 0) ||
+                  temMetaGlobalAtacado ||
+                  temMetaGlobalAuto ||
                   avaliacaoCarrinho.proximoNivel ||
                   avaliacaoCarrinho.tabelaAtiva !== 'varejo'
                 )
@@ -4004,11 +4011,11 @@ Fico no aguardo da confirmação! ✨`;
                                 Faltam <b className="text-emerald-600 dark:text-emerald-400 font-black">
                                   {(() => {
                                     const isAuto = avaliacaoCarrinho.proximoNivel === 'autoatacado';
-                                    const qtdMin = isAuto ? loja?.qtd_minima_padrao_autoatacado : loja?.qtd_minima_padrao_atacado;
-                                    const valMin = isAuto ? loja?.valor_minimo_padrao_autoatacado : loja?.valor_minimo_padrao_atacado;
-                                    const tipoMin = isAuto ? loja?.tipo_minimo_padrao_autoatacado : loja?.tipo_minimo_padrao_atacado;
+                                    const tipoMin = isAuto ? regrasAtivas.tipoMinimoDistribuidor : regrasAtivas.tipoMinimoAtacado;
+                                    const qtdMin = isAuto ? regrasAtivas.qtdTotalMinimaAutoatacado : regrasAtivas.qtdTotalMinimaAtacado;
+                                    const valMin = isAuto ? regrasAtivas.valorMinimoAutoatacado : regrasAtivas.valorMinimoAtacado;
 
-                                    if (tipoMin === 'quantidade' || (Number(qtdMin) > 0 && (!valMin || Number(valMin) === 0))) {
+                                    if (tipoMin === 'quantidade' || tipoMin === 'quantidade_total' || (Number(qtdMin) > 0 && (!valMin || Number(valMin) <= 0))) {
                                       const faltamPecas = avaliacaoCarrinho.faltaPecasParaProximo;
                                       return `${faltamPecas} ${faltamPecas === 1 ? 'peça' : 'peças'}`;
                                     }
@@ -4096,8 +4103,8 @@ Fico no aguardo da confirmação! ✨`;
                     regrasAtivas
                   );
                   const subtotalItem = precoUnitarioAtivo * item.quantidade;
-                  const minAtacado = (item.produto.tipo_minimo_atacado === 'minimo_sku' && Number(item.produto.qtd_minima_atacado) > 0) ? Number(item.produto.qtd_minima_atacado) : 0;
-                  const minDistribuidor = (item.produto.tipo_minimo_autoatacado === 'minimo_sku' && Number(item.produto.qtd_minima_autoatacado) > 0) ? Number(item.produto.qtd_minima_autoatacado) : 0;
+                  const minAtacado = (regrasAtivas.tipoMinimoAtacado === 'minimo_sku' && item.produto.tipo_minimo_atacado === 'minimo_sku' && Number(item.produto.qtd_minima_atacado) > 0) ? Number(item.produto.qtd_minima_atacado) : 0;
+                  const minDistribuidor = (regrasAtivas.tipoMinimoDistribuidor === 'minimo_sku' && item.produto.tipo_minimo_autoatacado === 'minimo_sku' && Number(item.produto.qtd_minima_autoatacado) > 0) ? Number(item.produto.qtd_minima_autoatacado) : 0;
                   const msgVolume = minDistribuidor > 0 && (item.quantidade >= minAtacado || minAtacado === 0)
                     ? `Mínimo ${minDistribuidor} para distribuidor`
                     : minAtacado > 0
