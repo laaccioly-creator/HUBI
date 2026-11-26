@@ -75,8 +75,13 @@ export function consolidarHistoricoPedidos<T extends Record<string, any>>(histor
   const itensFiltrados: T[] = [];
 
   for (const item of ordenadoRecente) {
-    const isEdicao = item.tipo === 'edicao' || item.tipo_evento === 'pedido_editado' || item.tipo_evento === 'edicao_pdv';
-    const chaveStatus = !isEdicao ? (item.status_novo || item.status) : null;
+    const isEventoDescritivo =
+      item.tipo === 'edicao' ||
+      item.tipo_evento === 'pedido_editado' ||
+      item.tipo_evento === 'edicao_pdv' ||
+      item.tipo_evento === 'comprovante_enviado' ||
+      item.tipo_evento === 'pagamento_catalogo';
+    const chaveStatus = !isEventoDescritivo ? (item.status_novo || item.status) : null;
 
     if (chaveStatus) {
       if (!statusVistos.has(chaveStatus)) {

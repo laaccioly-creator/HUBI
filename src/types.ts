@@ -812,6 +812,8 @@ export interface Pedido {
   valor_desconto_cupom?: number | null;
   troco_para?: number | null;
   forma_pagamento_catalogo?: string | null;
+  comprovante_pagamento_url?: string | null;
+  comprovante_enviado_em?: string | null;
   cliente?: Cliente | null;
   vendedor?: UsuarioLoja | null;
   itens?: ItemPedido[];

@@ -45,6 +45,7 @@ import { formatarMoeda, formatarValorBRL } from '../../utils/formatters';
 import { ModalDefinirEnvio } from '../pedidos/ModalDefinirEnvio';
 import { ShippingOrchestrator } from '../../services/shippingOrchestrator';
 import { paymentGatewayService } from '../../services/paymentGatewayService';
+import { enviarComprovantePedidoCatalogo } from '../../services/comprovantePedidoService';
 import { gerarPayloadPixEmv } from '../../utils/pixUtils';
 
 interface MoneyInputProps {
@@ -1094,6 +1095,31 @@ export const ModalPagamentoFechamentoCatalogo: React.FC<ModalPagamentoFechamento
 
         if (erroUpd) throw erroUpd;
         pedUpd = data;
+
+        // Upload e registro relacional do comprovante Pix se anexado pelo cliente
+        if (comprovanteArquivo && pedSeguro.id && lojaIdEfetivo) {
+          try {
+            const resComprovante = await enviarComprovantePedidoCatalogo({
+              pedidoId: pedSeguro.id,
+              lojaId: lojaIdEfetivo,
+              arquivo: comprovanteArquivo
+            });
+            pedUpd = {
+              ...(pedUpd || {}),
+              comprovante_pagamento_url: resComprovante.url,
+              comprovante_enviado_em: resComprovante.enviadoEm,
+              forma_pagamento_catalogo:
+                resComprovante.formaPagamentoCatalogo || pedUpd?.forma_pagamento_catalogo || 'pix'
+            };
+            setComprovanteArquivo(null);
+          } catch (errComp: any) {
+            mostrarToast?.(
+              errComp?.message ||
+                'Pagamento registrado, mas não foi possível anexar o comprovante agora. Você pode enviá-lo em Meus Pedidos.',
+              'aviso'
+            );
+          }
+        }
 
         // Auditoria relacional em historico_pedidos (não-bloqueante para clientes públicos sem auth de funcionário)
         try {

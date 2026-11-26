@@ -2203,6 +2203,28 @@ export const PedidosListaMobile: React.FC<PedidosListaMobileProps> = ({
                       </div>
                     )}
 
+                    {pedidoSelecionado.comprovante_pagamento_url && (
+                      <div className={`p-2.5 rounded-xl border flex items-center justify-between gap-2 ${
+                        isDark
+                          ? 'bg-emerald-950/30 border-emerald-500/40 text-emerald-200'
+                          : 'bg-emerald-50 border-emerald-300 text-emerald-950'
+                      }`}>
+                        <div className="flex items-center gap-1.5 min-w-0">
+                          <Receipt className="w-3.5 h-3.5 text-emerald-500 shrink-0" />
+                          <span className="text-[11px] font-bold truncate">Comprovante Pix Anexado</span>
+                        </div>
+                        <a
+                          href={pedidoSelecionado.comprovante_pagamento_url}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="shrink-0 inline-flex items-center gap-1 px-2.5 py-1.5 rounded-lg bg-emerald-600 hover:bg-emerald-700 text-white text-[11px] font-bold transition"
+                        >
+                          <span>Ver Comprovante Pix</span>
+                          <ExternalLink className="w-3 h-3" />
+                        </a>
+                      </div>
+                    )}
+
                     {ehFiadoEmAberto && onAbrirReceberFiado && (
                       <button
                         type="button"

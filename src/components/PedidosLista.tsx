@@ -4276,6 +4276,8 @@ export const PedidosLista: React.FC = () => {
                     <span className="capitalize">
                       {pedidoSelecionado.pagamentos && pedidoSelecionado.pagamentos.length > 0
                         ? pedidoSelecionado.pagamentos[pedidoSelecionado.pagamentos.length - 1]?.forma_pagamento?.nome || 'Dinheiro / Pix'
+                        : pedidoSelecionado.forma_pagamento_catalogo === 'pix'
+                        ? 'Pix (Catálogo)'
                         : 'Dinheiro / Pix'}
                     </span>
                   </div>
@@ -4325,6 +4327,41 @@ export const PedidosLista: React.FC = () => {
                     </div>
                   );
                 })()}
+
+                {pedidoSelecionado.comprovante_pagamento_url && (
+                  <div className={`p-3 rounded-2xl border flex items-center justify-between gap-2 ${
+                    isDark
+                      ? 'bg-emerald-950/25 border-emerald-500/35 text-emerald-200'
+                      : 'bg-emerald-50 border-emerald-300 text-emerald-950'
+                  }`}>
+                    <div className="flex items-center gap-2 min-w-0">
+                      <Receipt className="w-4 h-4 text-emerald-500 shrink-0" />
+                      <div className="min-w-0">
+                        <span className="text-[11px] font-bold block truncate">
+                          Comprovante Pix Anexado
+                        </span>
+                        {pedidoSelecionado.comprovante_enviado_em && (
+                          <span className={`text-[10px] block ${isDark ? 'text-emerald-300/80' : 'text-emerald-800/80'}`}>
+                            Enviado em {new Date(pedidoSelecionado.comprovante_enviado_em).toLocaleString('pt-BR')}
+                          </span>
+                        )}
+                      </div>
+                    </div>
+                    <a
+                      href={pedidoSelecionado.comprovante_pagamento_url}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className={`shrink-0 inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-[11px] font-bold transition shadow-xs ${
+                        isDark
+                          ? 'bg-emerald-600 hover:bg-emerald-500 text-white'
+                          : 'bg-emerald-600 hover:bg-emerald-700 text-white'
+                      }`}
+                    >
+                      <span>Ver Comprovante Pix</span>
+                      <ExternalLink className="w-3.5 h-3.5" />
+                    </a>
+                  </div>
+                )}
 
                 {resolverStatusPagamento(pedidoSelecionado) !== 'pago' &&
                  resolverStatusPagamento(pedidoSelecionado) !== 'fiado' &&

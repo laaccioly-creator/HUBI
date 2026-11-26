@@ -19,7 +19,11 @@ import {
   Scale,
   CreditCard,
   Calendar,
-  Clock
+  Clock,
+  Paperclip,
+  Upload,
+  X,
+  Share2
 } from 'lucide-react';
 import { supabase } from '../lib/supabase';
 import {
@@ -51,6 +55,11 @@ import {
   formatarDataHoraHistorico
 } from '../utils/historicoPedidoUtils';
 import { ModalPagamentoFechamentoCatalogo } from './catalogo/ModalPagamentoFechamentoCatalogo';
+import {
+  enviarComprovantePedidoCatalogo,
+  obterEstadoAcaoPagamentoCatalogo,
+  pedidoEhPixCatalogo
+} from '../services/comprovantePedidoService';
 
 export const PedidoAndamentoPublico: React.FC = () => {
   const { id } = useParams<{ id: string }>();
@@ -62,6 +71,11 @@ export const PedidoAndamentoPublico: React.FC = () => {
   const [copiado, setCopiado] = useState<boolean>(false);
   const [baixandoPdf, setBaixandoPdf] = useState<boolean>(false);
   const [modalPagamentoAberto, setModalPagamentoAberto] = useState<boolean>(false);
+  const [modalComprovanteAberto, setModalComprovanteAberto] = useState<boolean>(false);
+  const [arquivoComprovante, setArquivoComprovante] = useState<File | null>(null);
+  const [enviandoComprovante, setEnviandoComprovante] = useState<boolean>(false);
+  const [comprovanteEnviadoSucesso, setComprovanteEnviadoSucesso] = useState<boolean>(false);
+  const [erroComprovante, setErroComprovante] = useState<string | null>(null);
   const [refreshTrigger, setRefreshTrigger] = useState<number>(0);
   const reciboRef = useRef<HTMLDivElement>(null);
 
@@ -300,6 +314,52 @@ export const PedidoAndamentoPublico: React.FC = () => {
   } = obterInfoEntregaRecibo(pedido, loja);
 
   const infoEntrega = extrairInfoPagamentoEntrega(pedido);
+  const estadoAcaoPagamento = obterEstadoAcaoPagamentoCatalogo(pedido, {
+    ehPresencial: Boolean(infoEntrega),
+    historico
+  });
+  const ehPixPedido = pedidoEhPixCatalogo(pedido, historico);
+
+  const handleEnviarComprovantePix = async () => {
+    if (!pedido?.id || !pedido?.loja_id || !arquivoComprovante) return;
+    try {
+      setEnviandoComprovante(true);
+      setErroComprovante(null);
+
+      const resultado = await enviarComprovantePedidoCatalogo({
+        pedidoId: pedido.id,
+        lojaId: pedido.loja_id,
+        arquivo: arquivoComprovante
+      });
+
+      setPedido((prev) =>
+        prev
+          ? {
+              ...prev,
+              comprovante_pagamento_url: resultado.url,
+              comprovante_enviado_em: resultado.enviadoEm,
+              forma_pagamento_catalogo:
+                resultado.formaPagamentoCatalogo || prev.forma_pagamento_catalogo || 'pix'
+            }
+          : prev
+      );
+      setComprovanteEnviadoSucesso(true);
+      setRefreshTrigger((prev) => prev + 1);
+
+      setTimeout(() => {
+        setModalComprovanteAberto(false);
+        setArquivoComprovante(null);
+        setComprovanteEnviadoSucesso(false);
+        setErroComprovante(null);
+      }, 1800);
+    } catch (err: any) {
+      setErroComprovante(
+        err?.message || 'Não foi possível enviar o comprovante. Tente novamente.'
+      );
+    } finally {
+      setEnviandoComprovante(false);
+    }
+  };
 
   const badgeEstilo = ehRetirada
     ? 'bg-purple-500/10 text-purple-600 dark:text-purple-400 border border-purple-500/20'
@@ -407,8 +467,12 @@ export const PedidoAndamentoPublico: React.FC = () => {
     timelineItens = historico.map((h, idx, arr) => {
       const isLast = idx === arr.length - 1;
       const statusNome = h.status_novo || h.tipo_evento;
+      const tituloCustom =
+        h.tipo_evento === 'comprovante_enviado'
+          ? 'Comprovante Pix Enviado'
+          : mapearStatusParaTitulo(statusNome);
       return {
-        titulo: mapearStatusParaTitulo(statusNome),
+        titulo: tituloCustom,
         dataHora: formatarDataHora(h.criado_em),
         descricao: h.descricao || undefined,
         destaque: isLast
@@ -556,7 +620,39 @@ export const PedidoAndamentoPublico: React.FC = () => {
                         }
                       </p>
                     </div>
-                  ) : (
+                  ) : estadoAcaoPagamento === 'comprovante_enviado' ? (
+                    <div className={`p-3.5 rounded-2xl border text-center space-y-1 ${
+                      isDark
+                        ? 'bg-emerald-950/30 border-emerald-500/40 text-emerald-300'
+                        : 'bg-emerald-50 border-emerald-300 text-emerald-800'
+                    }`}>
+                      <div className="flex items-center justify-center gap-2 font-black text-xs">
+                        <CheckCircle2 className="w-4 h-4 shrink-0" />
+                        <span>Comprovante Enviado • Aguardando confirmação da loja</span>
+                      </div>
+                    </div>
+                  ) : estadoAcaoPagamento === 'enviar_comprovante_pix' ? (
+                    <div className="space-y-2">
+                      <p className={`text-xs font-semibold ${
+                        isDark ? 'text-cyan-300' : 'text-cyan-800'
+                      }`}>
+                        Pix registrado • Aguardando comprovante/confirmação
+                      </p>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setArquivoComprovante(null);
+                          setComprovanteEnviadoSucesso(false);
+                          setErroComprovante(null);
+                          setModalComprovanteAberto(true);
+                        }}
+                        className="w-full py-3.5 px-4 rounded-2xl bg-cyan-600 hover:bg-cyan-500 text-white font-black text-xs uppercase tracking-wider flex items-center justify-center gap-2 shadow-lg shadow-cyan-600/25 transition cursor-pointer active:scale-95 border border-cyan-500"
+                      >
+                        <Paperclip className="w-4 h-4" />
+                        <span>Enviar Comprovante do Pix</span>
+                      </button>
+                    </div>
+                  ) : estadoAcaoPagamento === 'pagar_pedido' ? (
                     <button
                       type="button"
                       onClick={() => setModalPagamentoAberto(true)}
@@ -565,7 +661,7 @@ export const PedidoAndamentoPublico: React.FC = () => {
                       <CreditCard className="w-4 h-4" />
                       <span>Efetuar Pagamento Agora ({formatarMoeda ? formatarMoeda(valorTotal) : `R$ ${valorTotal.toFixed(2)}`})</span>
                     </button>
-                  )}
+                  ) : null}
                 </div>
               )}
 
@@ -894,7 +990,7 @@ export const PedidoAndamentoPublico: React.FC = () => {
                 <div className="flex justify-between items-center pt-1 text-[11px] text-slate-600">
                   <span>Forma:</span>
                   <span className="font-bold text-slate-900">
-                    {pagInfo.pagamentosDetalhados?.[0]?.forma || (infoEntrega ? (infoEntrega.tipo === 'dinheiro' ? 'Dinheiro na entrega' : infoEntrega.tipo === 'debito' ? 'Cartão de Débito na entrega' : 'Cartão de Crédito na entrega') : pedido.pagamentos?.[0]?.forma_pagamento?.nome || 'A Combinar')}
+                    {pagInfo.pagamentosDetalhados?.[0]?.forma || (infoEntrega ? (infoEntrega.tipo === 'dinheiro' ? 'Dinheiro na entrega' : infoEntrega.tipo === 'debito' ? 'Cartão de Débito na entrega' : 'Cartão de Crédito na entrega') : pedido.pagamentos?.[0]?.forma_pagamento?.nome || (ehPixPedido ? 'Pix (Aguardando confirmação)' : 'A Combinar'))}
                   </span>
                 </div>
                 {infoEntrega && !pagInfo.foiPago && (
@@ -938,6 +1034,130 @@ export const PedidoAndamentoPublico: React.FC = () => {
             setRefreshTrigger(prev => prev + 1);
           }}
         />
+      )}
+
+      {/* Modal de Envio de Comprovante Pix */}
+      {modalComprovanteAberto && pedido && (
+        <div className="fixed inset-0 bg-black/80 backdrop-blur-xs flex items-center justify-center p-4 z-50 animate-in fade-in">
+          <div className={`border rounded-3xl w-full max-w-sm p-5 space-y-4 shadow-2xl animate-in zoom-in-95 ${
+            isDark
+              ? 'bg-slate-900 border-slate-800 text-white'
+              : 'bg-white border-slate-200 text-slate-900'
+          }`}>
+            <div className={`flex items-center justify-between border-b pb-3 ${
+              isDark ? 'border-slate-800' : 'border-slate-200'
+            }`}>
+              <div className="flex items-center gap-2">
+                <div className="w-8 h-8 rounded-xl bg-cyan-500/20 text-cyan-600 dark:text-cyan-400 flex items-center justify-center">
+                  <Paperclip className="w-4 h-4" />
+                </div>
+                <div>
+                  <h4 className="font-bold text-sm">Enviar Comprovante Pix</h4>
+                  <span className={`text-[11px] ${isDark ? 'text-slate-400' : 'text-slate-500'}`}>
+                    Pedido #{pedido.numero_pedido}
+                  </span>
+                </div>
+              </div>
+              <button
+                type="button"
+                onClick={() => {
+                  setModalComprovanteAberto(false);
+                  setArquivoComprovante(null);
+                  setErroComprovante(null);
+                }}
+                className={`p-1 rounded-lg ${isDark ? 'hover:bg-slate-800 text-slate-400' : 'hover:bg-slate-100 text-slate-500'}`}
+              >
+                <X className="w-4 h-4" />
+              </button>
+            </div>
+
+            {comprovanteEnviadoSucesso ? (
+              <div className="py-4 text-center space-y-2">
+                <div className="w-12 h-12 bg-emerald-500/20 text-emerald-500 rounded-full flex items-center justify-center mx-auto">
+                  <CheckCircle2 className="w-6 h-6" />
+                </div>
+                <h5 className="font-bold text-sm text-emerald-600 dark:text-emerald-400">
+                  Comprovante Enviado com Sucesso!
+                </h5>
+                <p className={`text-xs ${isDark ? 'text-slate-400' : 'text-slate-500'}`}>
+                  Aguardando confirmação da loja.
+                </p>
+              </div>
+            ) : (
+              <div className="space-y-3">
+                {erroComprovante && (
+                  <div className="p-2.5 rounded-xl bg-rose-500/10 border border-rose-500/30 text-rose-600 dark:text-rose-300 text-xs flex items-center gap-2">
+                    <AlertCircle className="w-4 h-4 shrink-0" />
+                    <span>{erroComprovante}</span>
+                  </div>
+                )}
+
+                <p className={`text-xs ${isDark ? 'text-slate-300' : 'text-slate-600'}`}>
+                  Selecione a imagem ou PDF do comprovante da transferência Pix para enviar à loja:
+                </p>
+
+                <label className={`cursor-pointer flex flex-col items-center justify-center p-4 border-2 border-dashed rounded-2xl hover:border-cyan-500/60 transition gap-1.5 text-center ${
+                  isDark
+                    ? 'border-slate-700 bg-slate-950/60'
+                    : 'border-slate-300 bg-slate-50'
+                }`}>
+                  <Upload className="w-6 h-6 text-cyan-500" />
+                  <span className={`text-xs font-bold ${isDark ? 'text-slate-200' : 'text-slate-700'}`}>
+                    {arquivoComprovante ? arquivoComprovante.name : 'Clique para escolher o arquivo'}
+                  </span>
+                  <span className="text-[10px] text-slate-400">JPG, PNG ou PDF</span>
+                  <input
+                    type="file"
+                    accept="image/*,application/pdf"
+                    className="hidden"
+                    onChange={(e) => {
+                      const f = e.target.files?.[0];
+                      if (f) {
+                        setArquivoComprovante(f);
+                        setErroComprovante(null);
+                      }
+                    }}
+                  />
+                </label>
+
+                <div className="flex items-center gap-2 pt-2">
+                  {loja?.whatsapp && (
+                    <button
+                      type="button"
+                      onClick={() => {
+                        const tel = (loja.whatsapp || '').replace(/\D/g, '');
+                        const msg = `Olá! Segue em anexo o comprovante de pagamento Pix do pedido #${pedido.numero_pedido} no valor de R$ ${(pedido.valor_total || 0).toFixed(2)}.`;
+                        window.open(`https://wa.me/55${tel}?text=${encodeURIComponent(msg)}`, '_blank');
+                      }}
+                      className={`flex-1 py-2.5 px-3 rounded-xl border text-xs font-bold flex items-center justify-center gap-1.5 transition cursor-pointer ${
+                        isDark
+                          ? 'border-slate-700 hover:bg-slate-800 text-slate-200'
+                          : 'border-slate-300 hover:bg-slate-100 text-slate-700'
+                      }`}
+                    >
+                      <Share2 className="w-3.5 h-3.5 text-emerald-500" />
+                      <span>WhatsApp</span>
+                    </button>
+                  )}
+
+                  <button
+                    type="button"
+                    disabled={!arquivoComprovante || enviandoComprovante}
+                    onClick={handleEnviarComprovantePix}
+                    className="flex-1 py-2.5 px-3 rounded-xl bg-cyan-600 hover:bg-cyan-500 disabled:opacity-50 text-white text-xs font-bold flex items-center justify-center gap-1.5 transition cursor-pointer shadow-md shadow-cyan-600/20 active:scale-95"
+                  >
+                    {enviandoComprovante ? (
+                      <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                    ) : (
+                      <Paperclip className="w-3.5 h-3.5" />
+                    )}
+                    <span>Enviar</span>
+                  </button>
+                </div>
+              </div>
+            )}
+          </div>
+        </div>
       )}
     </div>
   );

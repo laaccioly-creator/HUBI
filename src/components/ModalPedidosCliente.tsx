@@ -6,6 +6,10 @@ import { ReciboPedidoModal } from './pedidos/ReciboPedidoModal';
 import { ModalPagamentoFechamentoCatalogo } from './catalogo/ModalPagamentoFechamentoCatalogo';
 import { supabase } from '../lib/supabase';
 import { formatarDataHoraLocal } from '../utils/dateTime';
+import {
+  enviarComprovantePedidoCatalogo,
+  obterEstadoAcaoPagamentoCatalogo
+} from '../services/comprovantePedidoService';
 
 interface ModalPedidosClienteProps {
   isOpen: boolean;
@@ -117,6 +121,7 @@ export const ModalPedidosCliente: React.FC<ModalPedidosClienteProps> = ({
   const [arquivoComprovante, setArquivoComprovante] = useState<File | null>(null);
   const [enviandoComprovante, setEnviandoComprovante] = useState<boolean>(false);
   const [comprovanteEnviadoSucesso, setComprovanteEnviadoSucesso] = useState<boolean>(false);
+  const [erroComprovante, setErroComprovante] = useState<string | null>(null);
   const [carregando, setCarregando] = useState<boolean>(true);
   const [erro, setErro] = useState<string | null>(null);
 
@@ -124,32 +129,39 @@ export const ModalPedidosCliente: React.FC<ModalPedidosClienteProps> = ({
     if (!pedidoEnvioComprovante || !arquivoComprovante) return;
     try {
       setEnviandoComprovante(true);
-      const reader = new FileReader();
-      reader.onload = async (e) => {
-        const dataUrl = e.target?.result as string;
-        const metaAtual = (pedidoEnvioComprovante as any).metadados || {};
-        await supabase
-          .from('pedidos')
-          .update({
-            metadados: {
-              ...metaAtual,
-              comprovante_pix_url: dataUrl,
-              comprovante_enviado_em: new Date().toISOString()
-            }
-          })
-          .eq('id', pedidoEnvioComprovante.id)
-          .eq('loja_id', lojaId);
+      setErroComprovante(null);
 
-        setComprovanteEnviadoSucesso(true);
-        setTimeout(() => {
-          setPedidoEnvioComprovante(null);
-          setArquivoComprovante(null);
-          setComprovanteEnviadoSucesso(false);
-        }, 2000);
-      };
-      reader.readAsDataURL(arquivoComprovante);
-    } catch (err) {
-      console.error('Erro ao enviar comprovante:', err);
+      const resultado = await enviarComprovantePedidoCatalogo({
+        pedidoId: pedidoEnvioComprovante.id,
+        lojaId,
+        arquivo: arquivoComprovante
+      });
+
+      setPedidos((prev) =>
+        prev.map((item) =>
+          item.id === pedidoEnvioComprovante.id
+            ? {
+                ...item,
+                comprovante_pagamento_url: resultado.url,
+                comprovante_enviado_em: resultado.enviadoEm,
+                forma_pagamento_catalogo:
+                  resultado.formaPagamentoCatalogo || item.forma_pagamento_catalogo || 'pix'
+              }
+            : item
+        )
+      );
+
+      setComprovanteEnviadoSucesso(true);
+      setTimeout(() => {
+        setPedidoEnvioComprovante(null);
+        setArquivoComprovante(null);
+        setComprovanteEnviadoSucesso(false);
+        setErroComprovante(null);
+      }, 1800);
+    } catch (err: any) {
+      setErroComprovante(
+        err?.message || 'Não foi possível enviar o comprovante. Tente novamente.'
+      );
     } finally {
       setEnviandoComprovante(false);
     }
@@ -347,7 +359,7 @@ export const ModalPedidosCliente: React.FC<ModalPedidosClienteProps> = ({
                   {getStatusBadge(ped.status, ped.status_pagamento)}
                 </div>
 
-                <div className="flex flex-row items-center justify-between gap-2 pt-1 border-t border-slate-200 dark:border-slate-800/60 text-xs">
+                <div className="flex flex-wrap items-center justify-between gap-2 pt-1 border-t border-slate-200 dark:border-slate-800/60 text-xs">
                   <div className="shrink-0">
                     <span className="text-slate-700 dark:text-slate-300 text-[11px] font-medium">Total: </span>
                     <strong className="text-slate-900 dark:text-white font-extrabold font-mono">
@@ -357,7 +369,7 @@ export const ModalPedidosCliente: React.FC<ModalPedidosClienteProps> = ({
                     </strong>
                   </div>
 
-                  <div className="flex flex-row items-center gap-2 flex-wrap sm:flex-nowrap">
+                  <div className="flex flex-row items-center justify-end gap-2 flex-wrap">
                     {/* Tag informativa de Pagamento na Entrega se definido */}
                     {infoPresencial.ehPresencial && (
                       <span className="inline-flex items-center px-2.5 py-1 rounded-xl text-xs font-medium bg-amber-500/15 text-amber-700 dark:text-amber-300 border border-amber-500/30 whitespace-nowrap shadow-2xs">
@@ -365,19 +377,22 @@ export const ModalPedidosCliente: React.FC<ModalPedidosClienteProps> = ({
                       </span>
                     )}
 
-                    {/* Botão Enviar Comprovante exibido exclusivamente se escolheu PIX e está aguardando confirmação (sem meio presencial) */}
+                    {/* Regra mutuamente exclusiva para comprovante / pagamento Pix no catálogo */}
                     {(() => {
-                      if (infoPresencial.ehPresencial) return null;
+                      const estadoAcao = obterEstadoAcaoPagamentoCatalogo(ped, {
+                        ehPresencial: infoPresencial.ehPresencial
+                      });
 
-                      const ehPedidoPix = Boolean(
-                        (ped as any).forma_pagamento_catalogo === 'pix' ||
-                        (ped.metadados as any)?.forma_pagamento === 'pix' ||
-                        (ped as any).forma_pagamento_nome?.toLowerCase().includes('pix') ||
-                        (Array.isArray(ped.pagamentos) && ped.pagamentos.some((p: any) => (p.forma_pagamento?.tipo || p.forma_tipo || '').toLowerCase().includes('pix'))) ||
-                        (Array.isArray((ped as any).pagamentos_previstos) && (ped as any).pagamentos_previstos.some((p: any) => (p.forma_tipo || p.forma_nome || '').toLowerCase().includes('pix')))
-                      );
+                      if (estadoAcao === 'comprovante_enviado') {
+                        return (
+                          <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-xl text-[11px] font-bold bg-emerald-500/15 text-emerald-700 dark:text-emerald-300 border border-emerald-500/30">
+                            <CheckCircle className="w-3.5 h-3.5 shrink-0" />
+                            <span>Comprovante Enviado • Aguardando confirmação da loja</span>
+                          </span>
+                        );
+                      }
 
-                      if (ped.status !== 'cancelado' && ped.status_pagamento === 'aguardando_pagamento' && ehPedidoPix) {
+                      if (estadoAcao === 'enviar_comprovante_pix') {
                         return (
                           <button
                             type="button"
@@ -385,6 +400,7 @@ export const ModalPedidosCliente: React.FC<ModalPedidosClienteProps> = ({
                               setPedidoEnvioComprovante(ped);
                               setArquivoComprovante(null);
                               setComprovanteEnviadoSucesso(false);
+                              setErroComprovante(null);
                             }}
                             className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-cyan-600 hover:bg-cyan-500 text-white font-bold text-xs shadow-xs transition cursor-pointer active:scale-95 whitespace-nowrap"
                             title="Enviar comprovante do Pix para o estabelecimento"
@@ -394,27 +410,29 @@ export const ModalPedidosCliente: React.FC<ModalPedidosClienteProps> = ({
                           </button>
                         );
                       }
+
+                      if (estadoAcao === 'pagar_pedido') {
+                        return (
+                          <button
+                            type="button"
+                            onClick={() => {
+                              if (onPagarPedido) {
+                                onPagarPedido(ped);
+                              } else {
+                                setPedidoPagamentoModal(ped);
+                              }
+                            }}
+                            className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white font-bold text-xs shadow-xs transition cursor-pointer active:scale-95 whitespace-nowrap"
+                            title="Efetuar pagamento do pedido"
+                          >
+                            <CreditCard className="w-3.5 h-3.5" />
+                            <span>Pagar Pedido</span>
+                          </button>
+                        );
+                      }
+
                       return null;
                     })()}
-
-                    {/* Botão Pagar Pedido exibido exclusivamente quando aguardando pagamento SEM definição presencial */}
-                    {!infoPresencial.ehPresencial && ped.status !== 'cancelado' && ped.status_pagamento === 'aguardando_pagamento' && (
-                      <button
-                        type="button"
-                        onClick={() => {
-                          if (onPagarPedido) {
-                            onPagarPedido(ped);
-                          } else {
-                            setPedidoPagamentoModal(ped);
-                          }
-                        }}
-                        className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white font-bold text-xs shadow-xs transition cursor-pointer active:scale-95 whitespace-nowrap"
-                        title="Efetuar pagamento do pedido"
-                      >
-                        <CreditCard className="w-3.5 h-3.5" />
-                        <span>Pagar Pedido</span>
-                      </button>
-                    )}
 
                     <button
                       type="button"
@@ -510,6 +528,7 @@ export const ModalPedidosCliente: React.FC<ModalPedidosClienteProps> = ({
                 onClick={() => {
                   setPedidoEnvioComprovante(null);
                   setArquivoComprovante(null);
+                  setErroComprovante(null);
                 }}
                 className="p-1 rounded-lg hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-400"
               >
@@ -527,6 +546,12 @@ export const ModalPedidosCliente: React.FC<ModalPedidosClienteProps> = ({
               </div>
             ) : (
               <div className="space-y-3">
+                {erroComprovante && (
+                  <div className="p-2.5 rounded-xl bg-rose-500/10 border border-rose-500/30 text-rose-600 dark:text-rose-300 text-xs flex items-center gap-2">
+                    <AlertCircle className="w-4 h-4 shrink-0" />
+                    <span>{erroComprovante}</span>
+                  </div>
+                )}
                 <p className="text-xs text-slate-600 dark:text-slate-300">
                   Selecione a imagem ou PDF do comprovante bancário da transferência Pix para o estabelecimento:
                 </p>
@@ -543,7 +568,10 @@ export const ModalPedidosCliente: React.FC<ModalPedidosClienteProps> = ({
                     className="hidden"
                     onChange={(e) => {
                       const f = e.target.files?.[0];
-                      if (f) setArquivoComprovante(f);
+                      if (f) {
+                        setArquivoComprovante(f);
+                        setErroComprovante(null);
+                      }
                     }}
                   />
                 </label>
