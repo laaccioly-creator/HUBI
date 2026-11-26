@@ -63,6 +63,7 @@ import { obterDataOperacaoISO, obterDataOperacaoISOParaLoja, definirDataOperacao
 import { obterDataLocalYYYYMMDD } from '../utils/dateTime';
 import { isUuidValido } from '../services/syncService';
 import { formatarMoeda, ehProdutoFracionado, formatarQuantidadeUnidade, obterSiglaUnidade, formatarLinhaCalculoItem } from '../utils/formatters';
+import { filterOutCanaryItems, loadShieldConfig } from '../../packages/anti-rea-shield/src';
 import { calcularTaxaVisitaPedido } from '../utils/taxaDomicilioUtils';
 import { ModalInputPesoFracionado } from './ui/ModalInputPesoFracionado';
 import { SeletorCategoriasHibrido } from './ui/SeletorCategoriasHibrido';
@@ -1061,7 +1062,15 @@ export const CatalogoPublico: React.FC = () => {
             .eq('loja_id', l.id)
             .eq('exibir_catalogo', true)
             .eq('ativo', true);
-          if (prods) setProdutos(prods as unknown as Produto[]);
+          if (prods) {
+            const shieldCfg = loadShieldConfig();
+            const produtosSeguros = filterOutCanaryItems(
+              prods as unknown as Produto[],
+              l.id,
+              shieldCfg.secretSeed
+            );
+            setProdutos(produtosSeguros);
+          }
 
           const { data: cats } = await supabase
             .from('categorias')

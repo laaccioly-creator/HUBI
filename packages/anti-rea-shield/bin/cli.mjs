@@ -9,9 +9,12 @@
 
 import fs from 'node:fs';
 import path from 'node:path';
+import { fileURLToPath } from 'node:url';
 
 const args = process.argv.slice(2);
 const command = (args[0] || 'status').toLowerCase();
+const __dirname = path.dirname(fileURLToPath(import.meta.url));
+const packageRoot = path.resolve(__dirname, '..');
 
 function printBanner() {
   console.log('\n========================================================');
@@ -21,8 +24,8 @@ function printBanner() {
 
 function runStatus() {
   printBanner();
-  const skillsDir = path.resolve(process.cwd(), 'packages/anti-rea-shield/skills');
-  const sqlDir = path.resolve(process.cwd(), 'packages/anti-rea-shield/sql');
+  const skillsDir = path.join(packageRoot, 'skills');
+  const sqlDir = path.join(packageRoot, 'sql');
 
   console.log('📦 Status dos Módulos Instalados:');
   if (fs.existsSync(skillsDir)) {
@@ -41,10 +44,23 @@ function runStatus() {
       console.log(`  📜 ${f}`);
     }
   }
-  console.log('\nModo padrão recomendado para homologação: VITE_SHIELD_MODE=simulation\n');
+  console.log('\nModo padrão recomendado para produção: VITE_SHIELD_MODE=production\n');
 }
 
-function runQuickAudit() {
+async function loadAstScanner(ts) {
+  const scannerTsPath = path.join(packageRoot, 'skills', '04-zero-trust-migrator', 'ast-scanner.ts');
+  const scannerSource = fs.readFileSync(scannerTsPath, 'utf8');
+  const transpiled = ts.transpileModule(scannerSource, {
+    compilerOptions: {
+      module: ts.ModuleKind.ESNext,
+      target: ts.ScriptTarget.ES2022,
+    },
+  });
+  const moduleUrl = `data:text/javascript;base64,${Buffer.from(transpiled.outputText, 'utf8').toString('base64')}`;
+  return import(moduleUrl);
+}
+
+async function runAstAudit() {
   printBanner();
   const srcDir = path.resolve(process.cwd(), 'src');
   if (!fs.existsSync(srcDir)) {
@@ -52,9 +68,13 @@ function runQuickAudit() {
     return;
   }
 
-  console.log('🔍 Executando varredura rápida Zero-Trust em src/ ...');
+  const tsMod = await import('typescript');
+  const ts = tsMod.default ?? tsMod;
+  const { scanSourceCodeForZeroTrustViolations } = await loadAstScanner(ts);
+
+  console.log('🔍 Executando auditoria AST Zero-Trust em src/ (TypeScript Compiler API)...');
+  const allFindings = [];
   let filesScanned = 0;
-  let envWarnings = 0;
 
   function walk(dir) {
     const entries = fs.readdirSync(dir, { withFileTypes: true });
@@ -64,28 +84,69 @@ function runQuickAudit() {
         walk(fullPath);
       } else if (entry.name.endsWith('.ts') || entry.name.endsWith('.tsx')) {
         filesScanned++;
+        const relPath = path.relative(process.cwd(), fullPath).replace(/\\/g, '/');
         const content = fs.readFileSync(fullPath, 'utf8');
-        const matches = content.match(/import\.meta\.env\.VITE_[A-Z0-9_]+/g) || [];
-        for (const m of matches) {
-          if (
-            !m.includes('SUPABASE_URL') &&
-            !m.includes('SUPABASE_ANON_KEY') &&
-            !m.includes('SHIELD_')
-          ) {
-            envWarnings++;
-            console.log(`  [AVISO] Variável exposta no bundle cliente: ${m} (${ path.relative(process.cwd(), fullPath) })`);
-          }
-        }
+        const findings = scanSourceCodeForZeroTrustViolations(content, relPath, ts);
+        allFindings.push(...findings);
       }
     }
   }
 
   walk(srcDir);
-  console.log(`\n✅ Varredura concluída: ${filesScanned} arquivos analisados | ${envWarnings} pontos de atenção.`);
+
+  const byRule = {
+    EXPOSED_VITE_SECRET: [],
+    PUBLIC_SELECT_STAR: [],
+    DIRECT_CRITICAL_MUTATION: [],
+  };
+  const mutationsByTable = {};
+
+  for (const f of allFindings) {
+    if (byRule[f.ruleId]) byRule[f.ruleId].push(f);
+    if (f.ruleId === 'DIRECT_CRITICAL_MUTATION' && f.table) {
+      mutationsByTable[f.table] = (mutationsByTable[f.table] || 0) + 1;
+    }
+  }
+
+  console.log(`\n📊 Resumo da Auditoria (${filesScanned} arquivos analisados):`);
+  console.log(`  - EXPOSED_VITE_SECRET:      ${byRule.EXPOSED_VITE_SECRET.length}`);
+  console.log(`  - PUBLIC_SELECT_STAR:       ${byRule.PUBLIC_SELECT_STAR.length}`);
+  console.log(`  - DIRECT_CRITICAL_MUTATION: ${byRule.DIRECT_CRITICAL_MUTATION.length}`);
+
+  if (Object.keys(mutationsByTable).length > 0) {
+    console.log('\n🗄️ Mutações PostgREST Diretas por Tabela Crítica:');
+    const sorted = Object.entries(mutationsByTable).sort((a, b) => b[1] - a[1]);
+    for (const [tbl, count] of sorted) {
+      console.log(`  - ${tbl}: ${count}`);
+    }
+  }
+
+  if (byRule.EXPOSED_VITE_SECRET.length > 0) {
+    console.log('\n🚨 [HIGH] Variáveis VITE_* sensíveis expostas:');
+    for (const f of byRule.EXPOSED_VITE_SECRET) {
+      console.log(`  - ${f.filePath}:${f.line} | ${f.snippet}`);
+    }
+  }
+
+  if (byRule.PUBLIC_SELECT_STAR.length > 0) {
+    console.log('\n⚠️ [HIGH] Consultas .select("*") em rotas/serviços públicos:');
+    for (const f of byRule.PUBLIC_SELECT_STAR) {
+      console.log(`  - ${f.filePath}:${f.line} | ${f.snippet}`);
+    }
+  }
+
+  if (byRule.DIRECT_CRITICAL_MUTATION.length > 0) {
+    console.log('\n📌 [MEDIUM] Mutações diretas em tabelas críticas:');
+    for (const f of byRule.DIRECT_CRITICAL_MUTATION) {
+      console.log(`  - ${f.filePath}:${f.line} | ${f.snippet}`);
+    }
+  }
+
+  console.log(`\n✅ Auditoria concluída: ${filesScanned} arquivos | ${allFindings.length} achados totais.\n`);
 }
 
 if (command === 'audit') {
-  runQuickAudit();
+  await runAstAudit();
 } else {
   runStatus();
 }
