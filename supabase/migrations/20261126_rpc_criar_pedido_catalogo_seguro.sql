@@ -81,10 +81,10 @@ SET search_path = public, security_audit
 AS $$
 DECLARE
   v_loja record;
-  v_prod record;
-  v_var record;
-  v_cupom record;
-  v_forma_entrega record;
+  v_prod public.produtos%ROWTYPE;
+  v_var public.variacoes_produto%ROWTYPE;
+  v_cupom public.cupons%ROWTYPE;
+  v_forma_entrega public.formas_entrega%ROWTYPE;
   v_qtd_itens integer;
   v_idx integer;
   v_prod_id uuid;
@@ -240,6 +240,7 @@ BEGIN
 
   -- 4A. Primeira passada: valida catálogo e acumula total varejo + peças + elegibilidade SKU
   FOR v_idx IN 1..v_qtd_itens LOOP
+    v_var := NULL;
     v_prod_id := p_produto_ids[v_idx];
     v_var_id := p_variacao_ids[v_idx];
     v_qtd := p_quantidades[v_idx];
@@ -260,7 +261,6 @@ BEGIN
       RAISE EXCEPTION 'Um dos produtos selecionados não está disponível no catálogo.';
     END IF;
 
-    v_var := NULL;
     IF v_var_id IS NOT NULL THEN
       SELECT *
       INTO v_var
@@ -275,11 +275,11 @@ BEGIN
       END IF;
     END IF;
 
-    v_preco_varejo := COALESCE(
-      CASE WHEN v_var.id IS NOT NULL THEN v_var.preco_venda_varejo ELSE NULL END,
-      v_prod.preco_venda_varejo,
-      0
-    );
+    IF v_var_id IS NOT NULL AND v_var.id IS NOT NULL THEN
+      v_preco_varejo := COALESCE(v_var.preco_venda_varejo, v_prod.preco_venda_varejo, 0);
+    ELSE
+      v_preco_varejo := COALESCE(v_prod.preco_venda_varejo, 0);
+    END IF;
 
     v_total_varejo := v_total_varejo + (v_preco_varejo * v_qtd);
     v_total_pecas := v_total_pecas + v_qtd;
@@ -330,26 +330,30 @@ BEGIN
 
   -- 4B. Segunda passada de cálculo: soma subtotal autoritativo aplicando a tabela efetiva
   FOR v_idx IN 1..v_qtd_itens LOOP
+    v_var := NULL;
     v_prod_id := p_produto_ids[v_idx];
     v_var_id := p_variacao_ids[v_idx];
     v_qtd := p_quantidades[v_idx];
 
     SELECT * INTO v_prod FROM public.produtos p WHERE p.id = v_prod_id AND p.loja_id = p_loja_id;
-    v_var := NULL;
     IF v_var_id IS NOT NULL THEN
       SELECT * INTO v_var FROM public.variacoes_produto vp WHERE vp.id = v_var_id AND vp.produto_id = v_prod.id AND vp.loja_id = p_loja_id;
     END IF;
 
-    v_preco_varejo := COALESCE(
-      CASE WHEN v_var.id IS NOT NULL THEN v_var.preco_venda_varejo ELSE NULL END,
-      v_prod.preco_venda_varejo,
-      0
-    );
-    v_preco_promo := CASE
-      WHEN v_var.id IS NOT NULL AND COALESCE(v_var.preco_promocional, 0) > 0 THEN v_var.preco_promocional
-      WHEN COALESCE(v_prod.promocao_ativa, false) = true AND COALESCE(v_prod.preco_promocional, 0) > 0 THEN v_prod.preco_promocional
-      ELSE NULL
-    END;
+    IF v_var_id IS NOT NULL AND v_var.id IS NOT NULL THEN
+      v_preco_varejo := COALESCE(v_var.preco_venda_varejo, v_prod.preco_venda_varejo, 0);
+      v_preco_promo := CASE
+        WHEN COALESCE(v_var.preco_promocional, 0) > 0 THEN v_var.preco_promocional
+        WHEN COALESCE(v_prod.promocao_ativa, false) = true AND COALESCE(v_prod.preco_promocional, 0) > 0 THEN v_prod.preco_promocional
+        ELSE NULL
+      END;
+    ELSE
+      v_preco_varejo := COALESCE(v_prod.preco_venda_varejo, 0);
+      v_preco_promo := CASE
+        WHEN COALESCE(v_prod.promocao_ativa, false) = true AND COALESCE(v_prod.preco_promocional, 0) > 0 THEN v_prod.preco_promocional
+        ELSE NULL
+      END;
+    END IF;
 
     v_tabela_item := v_tabela_efetiva;
     IF v_criterio_auto = 'minimo_sku' OR v_criterio_atacado = 'minimo_sku' THEN
@@ -376,26 +380,30 @@ BEGIN
     END IF;
 
     IF v_tabela_item = 'autoatacado' THEN
-      v_preco_explicit := COALESCE(
-        NULLIF(CASE WHEN v_var.id IS NOT NULL THEN v_var.preco_venda_autoatacado ELSE NULL END, 0),
-        NULLIF(v_prod.preco_venda_autoatacado, 0)
-      );
+      IF v_var_id IS NOT NULL AND v_var.id IS NOT NULL THEN
+        v_preco_explicit := COALESCE(NULLIF(v_var.preco_venda_autoatacado, 0), NULLIF(v_prod.preco_venda_autoatacado, 0));
+      ELSE
+        v_preco_explicit := NULLIF(v_prod.preco_venda_autoatacado, 0);
+      END IF;
+
       IF v_preco_explicit IS NOT NULL THEN
         v_preco_unitario := v_preco_explicit;
       ELSIF v_desc_auto > 0 THEN
         v_preco_unitario := ROUND(v_preco_varejo * (1 - v_desc_auto / 100.0), 2);
       ELSE
-        v_preco_unitario := COALESCE(
-          NULLIF(CASE WHEN v_var.id IS NOT NULL THEN v_var.preco_venda_atacado ELSE NULL END, 0),
-          NULLIF(v_prod.preco_venda_atacado, 0),
-          v_preco_varejo
-        );
+        IF v_var_id IS NOT NULL AND v_var.id IS NOT NULL THEN
+          v_preco_unitario := COALESCE(NULLIF(v_var.preco_venda_atacado, 0), NULLIF(v_prod.preco_venda_atacado, 0), v_preco_varejo);
+        ELSE
+          v_preco_unitario := COALESCE(NULLIF(v_prod.preco_venda_atacado, 0), v_preco_varejo);
+        END IF;
       END IF;
     ELSIF v_tabela_item = 'atacado' THEN
-      v_preco_explicit := COALESCE(
-        NULLIF(CASE WHEN v_var.id IS NOT NULL THEN v_var.preco_venda_atacado ELSE NULL END, 0),
-        NULLIF(v_prod.preco_venda_atacado, 0)
-      );
+      IF v_var_id IS NOT NULL AND v_var.id IS NOT NULL THEN
+        v_preco_explicit := COALESCE(NULLIF(v_var.preco_venda_atacado, 0), NULLIF(v_prod.preco_venda_atacado, 0));
+      ELSE
+        v_preco_explicit := NULLIF(v_prod.preco_venda_atacado, 0);
+      END IF;
+
       IF v_preco_explicit IS NOT NULL THEN
         v_preco_unitario := v_preco_explicit;
       ELSIF v_desc_atacado > 0 THEN
@@ -552,6 +560,7 @@ BEGIN
 
   -- 8. Inserção atômica dos itens com snapshot de preço e custo autoritativo
   FOR v_idx IN 1..v_qtd_itens LOOP
+    v_var := NULL;
     v_prod_id := p_produto_ids[v_idx];
     v_var_id := p_variacao_ids[v_idx];
     v_qtd := p_quantidades[v_idx];
@@ -562,7 +571,6 @@ BEGIN
     WHERE p.id = v_prod_id
       AND p.loja_id = p_loja_id;
 
-    v_var := NULL;
     IF v_var_id IS NOT NULL THEN
       SELECT *
       INTO v_var
@@ -572,17 +580,20 @@ BEGIN
         AND vp.loja_id = p_loja_id;
     END IF;
 
-    v_preco_varejo := COALESCE(
-      CASE WHEN v_var.id IS NOT NULL THEN v_var.preco_venda_varejo ELSE NULL END,
-      v_prod.preco_venda_varejo,
-      0
-    );
-
-    v_preco_promo := CASE
-      WHEN v_var.id IS NOT NULL AND COALESCE(v_var.preco_promocional, 0) > 0 THEN v_var.preco_promocional
-      WHEN COALESCE(v_prod.promocao_ativa, false) = true AND COALESCE(v_prod.preco_promocional, 0) > 0 THEN v_prod.preco_promocional
-      ELSE NULL
-    END;
+    IF v_var_id IS NOT NULL AND v_var.id IS NOT NULL THEN
+      v_preco_varejo := COALESCE(v_var.preco_venda_varejo, v_prod.preco_venda_varejo, 0);
+      v_preco_promo := CASE
+        WHEN COALESCE(v_var.preco_promocional, 0) > 0 THEN v_var.preco_promocional
+        WHEN COALESCE(v_prod.promocao_ativa, false) = true AND COALESCE(v_prod.preco_promocional, 0) > 0 THEN v_prod.preco_promocional
+        ELSE NULL
+      END;
+    ELSE
+      v_preco_varejo := COALESCE(v_prod.preco_venda_varejo, 0);
+      v_preco_promo := CASE
+        WHEN COALESCE(v_prod.promocao_ativa, false) = true AND COALESCE(v_prod.preco_promocional, 0) > 0 THEN v_prod.preco_promocional
+        ELSE NULL
+      END;
+    END IF;
 
     v_tabela_item := v_tabela_efetiva;
     IF v_criterio_auto = 'minimo_sku' OR v_criterio_atacado = 'minimo_sku' THEN
@@ -609,26 +620,30 @@ BEGIN
     END IF;
 
     IF v_tabela_item = 'autoatacado' THEN
-      v_preco_explicit := COALESCE(
-        NULLIF(CASE WHEN v_var.id IS NOT NULL THEN v_var.preco_venda_autoatacado ELSE NULL END, 0),
-        NULLIF(v_prod.preco_venda_autoatacado, 0)
-      );
+      IF v_var_id IS NOT NULL AND v_var.id IS NOT NULL THEN
+        v_preco_explicit := COALESCE(NULLIF(v_var.preco_venda_autoatacado, 0), NULLIF(v_prod.preco_venda_autoatacado, 0));
+      ELSE
+        v_preco_explicit := NULLIF(v_prod.preco_venda_autoatacado, 0);
+      END IF;
+
       IF v_preco_explicit IS NOT NULL THEN
         v_preco_unitario := v_preco_explicit;
       ELSIF v_desc_auto > 0 THEN
         v_preco_unitario := ROUND(v_preco_varejo * (1 - v_desc_auto / 100.0), 2);
       ELSE
-        v_preco_unitario := COALESCE(
-          NULLIF(CASE WHEN v_var.id IS NOT NULL THEN v_var.preco_venda_atacado ELSE NULL END, 0),
-          NULLIF(v_prod.preco_venda_atacado, 0),
-          v_preco_varejo
-        );
+        IF v_var_id IS NOT NULL AND v_var.id IS NOT NULL THEN
+          v_preco_unitario := COALESCE(NULLIF(v_var.preco_venda_atacado, 0), NULLIF(v_prod.preco_venda_atacado, 0), v_preco_varejo);
+        ELSE
+          v_preco_unitario := COALESCE(NULLIF(v_prod.preco_venda_atacado, 0), v_preco_varejo);
+        END IF;
       END IF;
     ELSIF v_tabela_item = 'atacado' THEN
-      v_preco_explicit := COALESCE(
-        NULLIF(CASE WHEN v_var.id IS NOT NULL THEN v_var.preco_venda_atacado ELSE NULL END, 0),
-        NULLIF(v_prod.preco_venda_atacado, 0)
-      );
+      IF v_var_id IS NOT NULL AND v_var.id IS NOT NULL THEN
+        v_preco_explicit := COALESCE(NULLIF(v_var.preco_venda_atacado, 0), NULLIF(v_prod.preco_venda_atacado, 0));
+      ELSE
+        v_preco_explicit := NULLIF(v_prod.preco_venda_atacado, 0);
+      END IF;
+
       IF v_preco_explicit IS NOT NULL THEN
         v_preco_unitario := v_preco_explicit;
       ELSIF v_desc_atacado > 0 THEN
@@ -640,11 +655,13 @@ BEGIN
       v_preco_unitario := COALESCE(v_preco_promo, v_preco_varejo);
     END IF;
 
-    v_preco_custo := COALESCE(
-      CASE WHEN v_var.id IS NOT NULL THEN v_var.preco_custo ELSE NULL END,
-      v_prod.preco_custo,
-      0
-    );
+    IF v_var_id IS NOT NULL AND v_var.id IS NOT NULL THEN
+      v_preco_custo := COALESCE(v_var.preco_custo, v_prod.preco_custo, 0);
+      v_rotulo_variacao := NULLIF(TRIM(CONCAT(v_var.valor_variacao_1, ' ', COALESCE(v_var.valor_variacao_2, ''))), '');
+    ELSE
+      v_preco_custo := COALESCE(v_prod.preco_custo, 0);
+      v_rotulo_variacao := NULL;
+    END IF;
 
     v_tipo_unidade := LOWER(COALESCE(NULLIF(TRIM(v_prod.tipo_unidade), ''), NULLIF(TRIM(v_prod.unidade_medida), ''), 'un'));
     v_eh_kg := v_tipo_unidade = 'kg';
@@ -652,11 +669,6 @@ BEGIN
       WHEN v_eh_kg THEN 'KG'
       WHEN NULLIF(TRIM(v_prod.unidade_medida), '') IS NOT NULL THEN UPPER(TRIM(v_prod.unidade_medida))
       ELSE 'UN'
-    END;
-
-    v_rotulo_variacao := CASE
-      WHEN v_var.id IS NOT NULL THEN NULLIF(TRIM(CONCAT(v_var.valor_variacao_1, ' ', COALESCE(v_var.valor_variacao_2, ''))), '')
-      ELSE NULL
     END;
 
     v_subtotal_item := ROUND(v_preco_unitario * v_qtd, 2);
@@ -685,8 +697,8 @@ BEGIN
       v_pedido_id,
       v_prod.id,
       COALESCE(v_prod.tipo_item, 'produto'),
-      v_var.id,
-      v_tabela_efetiva,
+      CASE WHEN v_var_id IS NOT NULL AND v_var.id IS NOT NULL THEN v_var.id ELSE NULL END,
+      v_tabela_item,
       v_prod.nome,
       v_rotulo_variacao,
       v_preco_custo,
