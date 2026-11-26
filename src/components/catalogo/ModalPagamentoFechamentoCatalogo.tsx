@@ -18,7 +18,8 @@ import {
   Upload,
   Calendar,
   Clock,
-  MapPin
+  MapPin,
+  MessageCircle
 } from 'lucide-react';
 import { supabase } from '../../lib/supabase';
 import {
@@ -45,7 +46,10 @@ import { formatarMoeda, formatarValorBRL } from '../../utils/formatters';
 import { ModalDefinirEnvio } from '../pedidos/ModalDefinirEnvio';
 import { ShippingOrchestrator } from '../../services/shippingOrchestrator';
 import { paymentGatewayService } from '../../services/paymentGatewayService';
-import { enviarComprovantePedidoCatalogo } from '../../services/comprovantePedidoService';
+import {
+  enviarComprovantePedidoCatalogo,
+  montarLinkWhatsappComprovantePix
+} from '../../services/comprovantePedidoService';
 import { gerarPayloadPixEmv } from '../../utils/pixUtils';
 
 interface MoneyInputProps {
@@ -177,6 +181,7 @@ export const ModalPagamentoFechamentoCatalogo: React.FC<ModalPagamentoFechamento
   const [chavePixCopiada, setChavePixCopiada] = useState<boolean>(false);
   const [toastPixMsg, setToastPixMsg] = useState<string | null>(null);
   const [comprovanteArquivo, setComprovanteArquivo] = useState<File | null>(null);
+  const [linkWhatsappComprovante, setLinkWhatsappComprovante] = useState<string | null>(null);
   const [pedidoAtualizado, setPedidoAtualizado] = useState<Pedido | null>(null);
   const [pedidoLocal, setPedidoLocal] = useState<Pedido | null>(pedido);
   const [modalDefinirEnvioAberto, setModalDefinirEnvioAberto] = useState<boolean>(false);
@@ -551,6 +556,7 @@ export const ModalPagamentoFechamentoCatalogo: React.FC<ModalPagamentoFechamento
       setErroMsg(null);
       setSucessoModal(false);
       setComprovanteArquivo(null);
+      setLinkWhatsappComprovante(null);
     }
   }, [isOpen]);
 
@@ -1062,6 +1068,7 @@ export const ModalPagamentoFechamentoCatalogo: React.FC<ModalPagamentoFechamento
         : 'aguardando_pagamento'; // NUNCA 'pago' pelo catálogo para meios manuais!
 
       let pedUpd: any = null;
+      let urlWhatsappComprovanteEnvio: string | null = null;
       if (!ehModoCaderneta && SyncService.isUuidValido(pedSeguro.id)) {
         const lojaIdEfetivo = loja?.id || pedSeguro.loja_id;
         const primeiraLinha = linhasAtivas[0];
@@ -1112,6 +1119,23 @@ export const ModalPagamentoFechamentoCatalogo: React.FC<ModalPagamentoFechamento
                 resComprovante.formaPagamentoCatalogo || pedUpd?.forma_pagamento_catalogo || 'pix'
             };
             setComprovanteArquivo(null);
+
+            const nomeCliWpp =
+              clientePedidoMemo?.nome ||
+              dadosClienteFresco?.nome ||
+              pedSeguro.cliente_nome_avulso ||
+              'Cliente';
+            urlWhatsappComprovanteEnvio = montarLinkWhatsappComprovantePix({
+              whatsappLoja: loja?.whatsapp || loja?.telefone,
+              numeroPedido: pedUpd?.numero_pedido ?? pedSeguro.numero_pedido,
+              nomeCliente: nomeCliWpp,
+              valorTotal: Number(pedUpd?.valor_total ?? pedSeguro.valor_total ?? valorTotal ?? 0),
+              comprovanteUrl: resComprovante.url
+            });
+            if (urlWhatsappComprovanteEnvio) {
+              setLinkWhatsappComprovante(urlWhatsappComprovanteEnvio);
+              window.open(urlWhatsappComprovanteEnvio, '_blank', 'noopener,noreferrer');
+            }
           } catch (errComp: any) {
             mostrarToast?.(
               errComp?.message ||
@@ -1234,8 +1258,10 @@ export const ModalPagamentoFechamentoCatalogo: React.FC<ModalPagamentoFechamento
       const objAtualizado = (pedUpd as unknown as Pedido) || { ...pedSeguro, status_pagamento: statusPagamentoFinal };
       setPedidoAtualizado(objAtualizado);
       setSucessoModal(true);
-      onPagamentoConcluido(objAtualizado);
-      onClose();
+      if (!urlWhatsappComprovanteEnvio) {
+        onPagamentoConcluido(objAtualizado);
+        onClose();
+      }
     } catch (err: any) {
       console.error('Erro ao registrar pagamento:', err);
       setErroMsg(err.message || 'Erro ao processar pagamento. Tente novamente.');
@@ -1257,6 +1283,10 @@ export const ModalPagamentoFechamentoCatalogo: React.FC<ModalPagamentoFechamento
         // Ignore
       }
     }
+    if (linkWhatsappComprovante && pedidoAtualizado) {
+      onPagamentoConcluido(pedidoAtualizado);
+    }
+    setLinkWhatsappComprovante(null);
     onClose();
   };
 
@@ -1323,6 +1353,18 @@ export const ModalPagamentoFechamentoCatalogo: React.FC<ModalPagamentoFechamento
                   </div>
                 ))}
               </div>
+            )}
+
+            {linkWhatsappComprovante && (
+              <a
+                href={linkWhatsappComprovante}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="w-full py-3 px-4 rounded-2xl bg-cyan-600 hover:bg-cyan-500 text-white font-bold text-xs shadow-md shadow-cyan-600/20 transition flex items-center justify-center gap-2"
+              >
+                <MessageCircle className="w-4 h-4" />
+                <span>Enviar Comprovante no WhatsApp da Loja</span>
+              </a>
             )}
 
             <button

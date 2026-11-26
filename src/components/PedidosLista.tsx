@@ -48,9 +48,11 @@ import {
   ShoppingBag,
   Scale,
   Home,
-  Calendar
+  Calendar,
+  Paperclip
 } from 'lucide-react';
 import { extrairInfoVisitaPedido } from '../utils/taxaDomicilioUtils';
+import { abrirComprovanteEmNovaAba } from '../services/comprovantePedidoService';
 import { supabase } from '../lib/supabase';
 import { useAuth } from '../contexts/AuthContext';
 import { useTheme } from '../contexts/ThemeContext';
@@ -4347,11 +4349,10 @@ export const PedidosLista: React.FC = () => {
                         )}
                       </div>
                     </div>
-                    <a
-                      href={pedidoSelecionado.comprovante_pagamento_url}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className={`shrink-0 inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-[11px] font-bold transition shadow-xs ${
+                    <button
+                      type="button"
+                      onClick={() => abrirComprovanteEmNovaAba(pedidoSelecionado.comprovante_pagamento_url)}
+                      className={`shrink-0 inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-[11px] font-bold transition shadow-xs cursor-pointer ${
                         isDark
                           ? 'bg-emerald-600 hover:bg-emerald-500 text-white'
                           : 'bg-emerald-600 hover:bg-emerald-700 text-white'
@@ -4359,7 +4360,7 @@ export const PedidosLista: React.FC = () => {
                     >
                       <span>Ver Comprovante Pix</span>
                       <ExternalLink className="w-3.5 h-3.5" />
-                    </a>
+                    </button>
                   </div>
                 )}
 
@@ -4982,6 +4983,21 @@ export const PedidosLista: React.FC = () => {
                               </div>
                             ) : (
                               <>
+                                {Boolean((pedido.comprovante_pagamento_url || '').trim()) && (
+                                  <button
+                                    type="button"
+                                    onClick={(e) => {
+                                      e.stopPropagation();
+                                      abrirComprovanteEmNovaAba(pedido.comprovante_pagamento_url);
+                                    }}
+                                    className={`inline-flex items-center gap-1 px-2.5 py-1 rounded-xl text-xs font-semibold shadow-xs transition cursor-pointer active:scale-95 ${isDark ? 'bg-[#000000] hover:bg-slate-900 border border-slate-700 text-slate-200' : 'bg-slate-100 hover:bg-slate-200 border border-slate-300 text-slate-900'}`}
+                                    title="Abrir comprovante Pix enviado pelo cliente"
+                                  >
+                                    <Paperclip className="w-3.5 h-3.5" />
+                                    <span>Comprovante</span>
+                                  </button>
+                                )}
+
                                 {podeEditarPedido(pedido) && (
                                   <button
                                     type="button"

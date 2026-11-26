@@ -8,6 +8,7 @@ import { supabase } from '../lib/supabase';
 import { formatarDataHoraLocal } from '../utils/dateTime';
 import {
   enviarComprovantePedidoCatalogo,
+  montarLinkWhatsappComprovantePix,
   obterEstadoAcaoPagamentoCatalogo
 } from '../services/comprovantePedidoService';
 
@@ -121,6 +122,7 @@ export const ModalPedidosCliente: React.FC<ModalPedidosClienteProps> = ({
   const [arquivoComprovante, setArquivoComprovante] = useState<File | null>(null);
   const [enviandoComprovante, setEnviandoComprovante] = useState<boolean>(false);
   const [comprovanteEnviadoSucesso, setComprovanteEnviadoSucesso] = useState<boolean>(false);
+  const [linkWhatsappComprovante, setLinkWhatsappComprovante] = useState<string | null>(null);
   const [erroComprovante, setErroComprovante] = useState<string | null>(null);
   const [carregando, setCarregando] = useState<boolean>(true);
   const [erro, setErro] = useState<string | null>(null);
@@ -151,13 +153,22 @@ export const ModalPedidosCliente: React.FC<ModalPedidosClienteProps> = ({
         )
       );
 
+      const urlWpp = montarLinkWhatsappComprovantePix({
+        whatsappLoja: loja?.whatsapp || loja?.telefone,
+        numeroPedido: pedidoEnvioComprovante.numero_pedido,
+        nomeCliente:
+          pedidoEnvioComprovante.cliente?.nome ||
+          pedidoEnvioComprovante.cliente_nome_avulso ||
+          'Cliente',
+        valorTotal: Number(pedidoEnvioComprovante.valor_total || 0),
+        comprovanteUrl: resultado.url
+      });
+      setLinkWhatsappComprovante(urlWpp);
+      if (urlWpp) {
+        window.open(urlWpp, '_blank', 'noopener,noreferrer');
+      }
+
       setComprovanteEnviadoSucesso(true);
-      setTimeout(() => {
-        setPedidoEnvioComprovante(null);
-        setArquivoComprovante(null);
-        setComprovanteEnviadoSucesso(false);
-        setErroComprovante(null);
-      }, 1800);
     } catch (err: any) {
       setErroComprovante(
         err?.message || 'Não foi possível enviar o comprovante. Tente novamente.'
@@ -344,22 +355,38 @@ export const ModalPedidosCliente: React.FC<ModalPedidosClienteProps> = ({
           ) : (
             pedidos.map((ped) => {
               const infoPresencial = obterInfoPagamentoEntregaCliente(ped);
+              const estadoAcao = obterEstadoAcaoPagamentoCatalogo(ped, {
+                ehPresencial: infoPresencial.ehPresencial
+              });
+              const mostrarBadgeComprovanteTopo =
+                Boolean((ped.comprovante_pagamento_url || '').trim()) &&
+                ped.status_pagamento !== 'pago' &&
+                ped.status !== 'cancelado';
+
               return (
               <div
                 key={ped.id}
                 className="bg-slate-50 dark:bg-slate-950/60 border border-slate-200 dark:border-slate-800 hover:border-slate-300 dark:hover:border-slate-700 rounded-2xl p-3.5 space-y-2.5 transition"
               >
-                <div className="flex items-center justify-between gap-2">
-                  <div className="flex items-center gap-2">
-                    <span className="text-xs font-black text-slate-900 dark:text-white">Pedido #{ped.numero_pedido}</span>
-                    <span className="text-[10px] text-slate-700 dark:text-slate-300 font-medium">
+                <div className="flex items-center justify-between gap-2 flex-wrap">
+                  <div className="flex items-center gap-2 min-w-0">
+                    <span className="text-xs font-black text-slate-900 dark:text-white shrink-0">Pedido #{ped.numero_pedido}</span>
+                    <span className="text-[10px] text-slate-700 dark:text-slate-300 font-medium truncate">
                       • {formatarData(ped.criado_em || ped.data_venda)}
                     </span>
                   </div>
-                  {getStatusBadge(ped.status, ped.status_pagamento)}
+                  <div className="flex items-center gap-1.5 flex-wrap justify-end">
+                    {mostrarBadgeComprovanteTopo && (
+                      <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold bg-emerald-50 dark:bg-emerald-500/15 text-emerald-700 dark:text-emerald-300 border border-emerald-200 dark:border-emerald-500/30 whitespace-nowrap">
+                        <CheckCircle className="w-3 h-3 shrink-0" />
+                        <span>Comprovante Enviado</span>
+                      </span>
+                    )}
+                    {getStatusBadge(ped.status, ped.status_pagamento)}
+                  </div>
                 </div>
 
-                <div className="flex flex-wrap items-center justify-between gap-2 pt-1 border-t border-slate-200 dark:border-slate-800/60 text-xs">
+                <div className="flex flex-wrap items-center justify-between gap-2 pt-1.5 border-t border-slate-200 dark:border-slate-800/60 text-xs">
                   <div className="shrink-0">
                     <span className="text-slate-700 dark:text-slate-300 text-[11px] font-medium">Total: </span>
                     <strong className="text-slate-900 dark:text-white font-extrabold font-mono">
@@ -369,70 +396,51 @@ export const ModalPedidosCliente: React.FC<ModalPedidosClienteProps> = ({
                     </strong>
                   </div>
 
-                  <div className="flex flex-row items-center justify-end gap-2 flex-wrap">
+                  <div className="flex flex-row items-center justify-end gap-1.5 flex-wrap">
                     {/* Tag informativa de Pagamento na Entrega se definido */}
                     {infoPresencial.ehPresencial && (
-                      <span className="inline-flex items-center px-2.5 py-1 rounded-xl text-xs font-medium bg-amber-500/15 text-amber-700 dark:text-amber-300 border border-amber-500/30 whitespace-nowrap shadow-2xs">
+                      <span className="inline-flex items-center px-2 py-1 rounded-xl text-[11px] font-medium bg-amber-500/15 text-amber-700 dark:text-amber-300 border border-amber-500/30 whitespace-nowrap shadow-2xs">
                         {infoPresencial.label}
                       </span>
                     )}
 
-                    {/* Regra mutuamente exclusiva para comprovante / pagamento Pix no catálogo */}
-                    {(() => {
-                      const estadoAcao = obterEstadoAcaoPagamentoCatalogo(ped, {
-                        ehPresencial: infoPresencial.ehPresencial
-                      });
+                    {/* Botão Enviar Comprovante compacto (exibido exclusivamente quando Pix sem comprovante) */}
+                    {estadoAcao === 'enviar_comprovante_pix' && (
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setPedidoEnvioComprovante(ped);
+                          setArquivoComprovante(null);
+                          setComprovanteEnviadoSucesso(false);
+                          setLinkWhatsappComprovante(null);
+                          setErroComprovante(null);
+                        }}
+                        className="inline-flex items-center gap-1 px-2.5 py-1 rounded-xl bg-cyan-600 hover:bg-cyan-500 text-white font-bold text-[11px] shadow-xs transition cursor-pointer active:scale-95 whitespace-nowrap"
+                        title="Enviar comprovante do Pix para o estabelecimento"
+                      >
+                        <Paperclip className="w-3 h-3" />
+                        <span>Enviar Comprovante</span>
+                      </button>
+                    )}
 
-                      if (estadoAcao === 'comprovante_enviado') {
-                        return (
-                          <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-xl text-[11px] font-bold bg-emerald-500/15 text-emerald-700 dark:text-emerald-300 border border-emerald-500/30">
-                            <CheckCircle className="w-3.5 h-3.5 shrink-0" />
-                            <span>Comprovante Enviado • Aguardando confirmação da loja</span>
-                          </span>
-                        );
-                      }
-
-                      if (estadoAcao === 'enviar_comprovante_pix') {
-                        return (
-                          <button
-                            type="button"
-                            onClick={() => {
-                              setPedidoEnvioComprovante(ped);
-                              setArquivoComprovante(null);
-                              setComprovanteEnviadoSucesso(false);
-                              setErroComprovante(null);
-                            }}
-                            className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-cyan-600 hover:bg-cyan-500 text-white font-bold text-xs shadow-xs transition cursor-pointer active:scale-95 whitespace-nowrap"
-                            title="Enviar comprovante do Pix para o estabelecimento"
-                          >
-                            <Paperclip className="w-3.5 h-3.5" />
-                            <span>Enviar Comprovante</span>
-                          </button>
-                        );
-                      }
-
-                      if (estadoAcao === 'pagar_pedido') {
-                        return (
-                          <button
-                            type="button"
-                            onClick={() => {
-                              if (onPagarPedido) {
-                                onPagarPedido(ped);
-                              } else {
-                                setPedidoPagamentoModal(ped);
-                              }
-                            }}
-                            className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white font-bold text-xs shadow-xs transition cursor-pointer active:scale-95 whitespace-nowrap"
-                            title="Efetuar pagamento do pedido"
-                          >
-                            <CreditCard className="w-3.5 h-3.5" />
-                            <span>Pagar Pedido</span>
-                          </button>
-                        );
-                      }
-
-                      return null;
-                    })()}
+                    {/* Botão Pagar Pedido compacto (exibido quando ainda não escolheu Pix/presencial) */}
+                    {estadoAcao === 'pagar_pedido' && (
+                      <button
+                        type="button"
+                        onClick={() => {
+                          if (onPagarPedido) {
+                            onPagarPedido(ped);
+                          } else {
+                            setPedidoPagamentoModal(ped);
+                          }
+                        }}
+                        className="inline-flex items-center gap-1 px-2.5 py-1 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white font-bold text-[11px] shadow-xs transition cursor-pointer active:scale-95 whitespace-nowrap"
+                        title="Efetuar pagamento do pedido"
+                      >
+                        <CreditCard className="w-3 h-3" />
+                        <span>Pagar Pedido</span>
+                      </button>
+                    )}
 
                     <button
                       type="button"
@@ -455,10 +463,10 @@ export const ModalPedidosCliente: React.FC<ModalPedidosClienteProps> = ({
                           setPedidoReciboModal(ped);
                         }
                       }}
-                      className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-white dark:bg-slate-800 hover:bg-slate-100 dark:hover:bg-slate-700 text-slate-800 dark:text-slate-200 hover:text-slate-900 dark:hover:text-white font-medium text-xs border border-slate-300 dark:border-slate-600 transition cursor-pointer active:scale-95 shadow-xs whitespace-nowrap"
+                      className="inline-flex items-center gap-1 px-2.5 py-1 rounded-xl bg-white dark:bg-slate-800 hover:bg-slate-100 dark:hover:bg-slate-700 text-slate-800 dark:text-slate-200 hover:text-slate-900 dark:hover:text-white font-medium text-[11px] border border-slate-300 dark:border-slate-600 transition cursor-pointer active:scale-95 shadow-xs whitespace-nowrap"
                       title="Visualizar Recibo do Pedido"
                     >
-                      <Receipt className="w-3.5 h-3.5 text-emerald-600 dark:text-emerald-400" />
+                      <Receipt className="w-3 h-3 text-emerald-600 dark:text-emerald-400" />
                       <span>Recibo</span>
                     </button>
 
@@ -466,10 +474,10 @@ export const ModalPedidosCliente: React.FC<ModalPedidosClienteProps> = ({
                       href={`/order-tracking/${ped.id || ped.numero_pedido}`}
                       target="_blank"
                       rel="noreferrer"
-                      className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-white dark:bg-slate-800 hover:bg-slate-100 dark:hover:bg-slate-700 text-emerald-600 dark:text-emerald-400 hover:text-emerald-700 dark:hover:text-emerald-300 font-medium text-xs border border-slate-300 dark:border-slate-600 transition cursor-pointer shadow-xs whitespace-nowrap"
+                      className="inline-flex items-center gap-1 px-2.5 py-1 rounded-xl bg-white dark:bg-slate-800 hover:bg-slate-100 dark:hover:bg-slate-700 text-emerald-600 dark:text-emerald-400 hover:text-emerald-700 dark:hover:text-emerald-300 font-medium text-[11px] border border-slate-300 dark:border-slate-600 transition cursor-pointer shadow-xs whitespace-nowrap"
                     >
                       <span>Rastrear</span>
-                      <ExternalLink className="w-3.5 h-3.5" />
+                      <ExternalLink className="w-3 h-3" />
                     </a>
                   </div>
                 </div>
@@ -528,6 +536,8 @@ export const ModalPedidosCliente: React.FC<ModalPedidosClienteProps> = ({
                 onClick={() => {
                   setPedidoEnvioComprovante(null);
                   setArquivoComprovante(null);
+                  setComprovanteEnviadoSucesso(false);
+                  setLinkWhatsappComprovante(null);
                   setErroComprovante(null);
                 }}
                 className="p-1 rounded-lg hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-400"
@@ -537,12 +547,40 @@ export const ModalPedidosCliente: React.FC<ModalPedidosClienteProps> = ({
             </div>
 
             {comprovanteEnviadoSucesso ? (
-              <div className="py-4 text-center space-y-2">
+              <div className="py-3 text-center space-y-3">
                 <div className="w-12 h-12 bg-emerald-500/20 text-emerald-500 rounded-full flex items-center justify-center mx-auto">
                   <CheckCircle className="w-6 h-6" />
                 </div>
-                <h5 className="font-bold text-sm text-emerald-600 dark:text-emerald-400">Comprovante Anexado com Sucesso!</h5>
-                <p className="text-xs text-slate-500 dark:text-slate-400">O lojista foi notificado para conferência do pagamento.</p>
+                <div className="space-y-1">
+                  <h5 className="font-bold text-sm text-emerald-600 dark:text-emerald-400">Comprovante Anexado com Sucesso!</h5>
+                  <p className="text-xs text-slate-500 dark:text-slate-400">O comprovante foi salvo no pedido e enviado para conferência da loja.</p>
+                </div>
+                <div className="space-y-2 pt-1">
+                  {linkWhatsappComprovante && (
+                    <a
+                      href={linkWhatsappComprovante}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="w-full py-2.5 px-3 rounded-xl bg-cyan-600 hover:bg-cyan-500 text-white text-xs font-bold flex items-center justify-center gap-1.5 transition shadow-md shadow-cyan-600/20"
+                    >
+                      <Share2 className="w-3.5 h-3.5" />
+                      <span>Enviar Comprovante no WhatsApp da Loja</span>
+                    </a>
+                  )}
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setPedidoEnvioComprovante(null);
+                      setArquivoComprovante(null);
+                      setComprovanteEnviadoSucesso(false);
+                      setLinkWhatsappComprovante(null);
+                      setErroComprovante(null);
+                    }}
+                    className="w-full py-2.5 px-3 rounded-xl border border-slate-300 dark:border-slate-700 hover:bg-slate-100 dark:hover:bg-slate-800 text-xs font-bold text-slate-700 dark:text-slate-200 transition cursor-pointer"
+                  >
+                    Fechar
+                  </button>
+                </div>
               </div>
             ) : (
               <div className="space-y-3">

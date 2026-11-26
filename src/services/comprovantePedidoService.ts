@@ -1,5 +1,6 @@
 import { supabase } from '../lib/supabase';
 import { Pedido } from '../types';
+import { normalizarTelefoneComDDI } from '../utils/formatters';
 
 export type EstadoAcaoPagamentoCatalogo =
   | 'oculto'
@@ -237,4 +238,74 @@ export async function enviarComprovantePedidoCatalogo(params: {
     enviadoEm: registro?.comprovante_enviado_em || new Date().toISOString(),
     formaPagamentoCatalogo: registro?.forma_pagamento_catalogo || 'pix'
   };
+}
+
+/**
+ * Monta o link oficial do WhatsApp da loja (com DDI 55 higienizado)
+ * contendo identificação do pedido, nome do cliente, valor e link do comprovante.
+ */
+export function montarLinkWhatsappComprovantePix(params: {
+  whatsappLoja?: string | null;
+  numeroPedido?: number | string | null;
+  nomeCliente?: string | null;
+  valorTotal?: number | null;
+  comprovanteUrl?: string | null;
+}): string | null {
+  const telefoneDDI = normalizarTelefoneComDDI(params.whatsappLoja);
+  if (!telefoneDDI) return null;
+
+  const numeroFmt = params.numeroPedido != null && String(params.numeroPedido).trim() !== ''
+    ? `#${params.numeroPedido}`
+    : '';
+  const nomeClienteFmt = (params.nomeCliente || '').trim() || 'Cliente do Catálogo';
+  const valorFmt = new Intl.NumberFormat('pt-BR', {
+    style: 'currency',
+    currency: 'BRL'
+  }).format(Number(params.valorTotal || 0));
+
+  const url = (params.comprovanteUrl || '').trim();
+  const linhaComprovante = /^https?:\/\//i.test(url)
+    ? `📎 *Comprovante:* ${url}`
+    : '📎 *Comprovante:* Anexado diretamente no pedido (disponível no painel da loja).';
+
+  const linhas = [
+    `Olá! Segue o comprovante de pagamento Pix do *Pedido ${numeroFmt}*.`.replace('  ', ' '),
+    `👤 *Cliente:* ${nomeClienteFmt}`,
+    `💰 *Valor total:* ${valorFmt}`,
+    linhaComprovante
+  ];
+
+  return `https://wa.me/${telefoneDDI}?text=${encodeURIComponent(linhas.join('\n'))}`;
+}
+
+/**
+ * Abre o comprovante em nova aba com segurança (suporta URLs HTTP(S) e fallback Data URL via Blob).
+ */
+export function abrirComprovanteEmNovaAba(url?: string | null): void {
+  const limpa = (url || '').trim();
+  if (!limpa || typeof window === 'undefined') return;
+
+  if (/^https?:\/\//i.test(limpa)) {
+    window.open(limpa, '_blank', 'noopener,noreferrer');
+    return;
+  }
+
+  if (limpa.startsWith('data:')) {
+    try {
+      const [header, base64] = limpa.split(',');
+      const mimeMatch = header.match(/data:([^;]+);base64/i);
+      const mime = mimeMatch ? mimeMatch[1] : 'application/octet-stream';
+      const binario = atob(base64 || '');
+      const bytes = new Uint8Array(binario.length);
+      for (let i = 0; i < binario.length; i += 1) {
+        bytes[i] = binario.charCodeAt(i);
+      }
+      const blobUrl = URL.createObjectURL(new Blob([bytes], { type: mime }));
+      window.open(blobUrl, '_blank', 'noopener,noreferrer');
+      setTimeout(() => URL.revokeObjectURL(blobUrl), 60_000);
+      return;
+    } catch {
+      window.open(limpa, '_blank', 'noopener,noreferrer');
+    }
+  }
 }

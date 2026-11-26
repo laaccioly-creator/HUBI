@@ -57,6 +57,7 @@ import {
 import { ModalPagamentoFechamentoCatalogo } from './catalogo/ModalPagamentoFechamentoCatalogo';
 import {
   enviarComprovantePedidoCatalogo,
+  montarLinkWhatsappComprovantePix,
   obterEstadoAcaoPagamentoCatalogo,
   pedidoEhPixCatalogo
 } from '../services/comprovantePedidoService';
@@ -75,6 +76,7 @@ export const PedidoAndamentoPublico: React.FC = () => {
   const [arquivoComprovante, setArquivoComprovante] = useState<File | null>(null);
   const [enviandoComprovante, setEnviandoComprovante] = useState<boolean>(false);
   const [comprovanteEnviadoSucesso, setComprovanteEnviadoSucesso] = useState<boolean>(false);
+  const [linkWhatsappComprovante, setLinkWhatsappComprovante] = useState<string | null>(null);
   const [erroComprovante, setErroComprovante] = useState<string | null>(null);
   const [refreshTrigger, setRefreshTrigger] = useState<number>(0);
   const reciboRef = useRef<HTMLDivElement>(null);
@@ -343,15 +345,21 @@ export const PedidoAndamentoPublico: React.FC = () => {
             }
           : prev
       );
+
+      const urlWpp = montarLinkWhatsappComprovantePix({
+        whatsappLoja: loja?.whatsapp || loja?.telefone,
+        numeroPedido: pedido.numero_pedido,
+        nomeCliente: pedido.cliente?.nome || pedido.cliente_nome_avulso || 'Cliente',
+        valorTotal: Number(pedido.valor_total || 0),
+        comprovanteUrl: resultado.url
+      });
+      setLinkWhatsappComprovante(urlWpp);
+      if (urlWpp) {
+        window.open(urlWpp, '_blank', 'noopener,noreferrer');
+      }
+
       setComprovanteEnviadoSucesso(true);
       setRefreshTrigger((prev) => prev + 1);
-
-      setTimeout(() => {
-        setModalComprovanteAberto(false);
-        setArquivoComprovante(null);
-        setComprovanteEnviadoSucesso(false);
-        setErroComprovante(null);
-      }, 1800);
     } catch (err: any) {
       setErroComprovante(
         err?.message || 'Não foi possível enviar o comprovante. Tente novamente.'
@@ -643,6 +651,7 @@ export const PedidoAndamentoPublico: React.FC = () => {
                         onClick={() => {
                           setArquivoComprovante(null);
                           setComprovanteEnviadoSucesso(false);
+                          setLinkWhatsappComprovante(null);
                           setErroComprovante(null);
                           setModalComprovanteAberto(true);
                         }}
@@ -1063,6 +1072,8 @@ export const PedidoAndamentoPublico: React.FC = () => {
                 onClick={() => {
                   setModalComprovanteAberto(false);
                   setArquivoComprovante(null);
+                  setComprovanteEnviadoSucesso(false);
+                  setLinkWhatsappComprovante(null);
                   setErroComprovante(null);
                 }}
                 className={`p-1 rounded-lg ${isDark ? 'hover:bg-slate-800 text-slate-400' : 'hover:bg-slate-100 text-slate-500'}`}
@@ -1072,16 +1083,48 @@ export const PedidoAndamentoPublico: React.FC = () => {
             </div>
 
             {comprovanteEnviadoSucesso ? (
-              <div className="py-4 text-center space-y-2">
+              <div className="py-3 text-center space-y-3">
                 <div className="w-12 h-12 bg-emerald-500/20 text-emerald-500 rounded-full flex items-center justify-center mx-auto">
                   <CheckCircle2 className="w-6 h-6" />
                 </div>
-                <h5 className="font-bold text-sm text-emerald-600 dark:text-emerald-400">
-                  Comprovante Enviado com Sucesso!
-                </h5>
-                <p className={`text-xs ${isDark ? 'text-slate-400' : 'text-slate-500'}`}>
-                  Aguardando confirmação da loja.
-                </p>
+                <div className="space-y-1">
+                  <h5 className="font-bold text-sm text-emerald-600 dark:text-emerald-400">
+                    Comprovante Enviado com Sucesso!
+                  </h5>
+                  <p className={`text-xs ${isDark ? 'text-slate-400' : 'text-slate-500'}`}>
+                    O comprovante foi salvo no pedido e enviado para conferência da loja.
+                  </p>
+                </div>
+                <div className="space-y-2 pt-1">
+                  {linkWhatsappComprovante && (
+                    <a
+                      href={linkWhatsappComprovante}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="w-full py-2.5 px-3 rounded-xl bg-cyan-600 hover:bg-cyan-500 text-white text-xs font-bold flex items-center justify-center gap-1.5 transition shadow-md shadow-cyan-600/20"
+                    >
+                      <Share2 className="w-3.5 h-3.5" />
+                      <span>Enviar Comprovante no WhatsApp da Loja</span>
+                    </a>
+                  )}
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setModalComprovanteAberto(false);
+                      setArquivoComprovante(null);
+                      setComprovanteEnviadoSucesso(false);
+                      setLinkWhatsappComprovante(null);
+                      setErroComprovante(null);
+                    }}
+                    className={`w-full py-2.5 px-3 rounded-xl border text-xs font-bold transition cursor-pointer ${
+                      isDark
+                        ? 'border-slate-700 hover:bg-slate-800 text-slate-200'
+                        : 'border-slate-300 hover:bg-slate-100 text-slate-700'
+                    }`}
+                  >
+                    Fechar
+                  </button>
+                </div>
               </div>
             ) : (
               <div className="space-y-3">
