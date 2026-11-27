@@ -805,6 +805,8 @@ export const PedidosListaMobile: React.FC<PedidosListaMobileProps> = ({
   const [salvandoVendedor, setSalvandoVendedor] = useState<boolean>(false);
   const [modalVincularCliente, setModalVincularCliente] = useState<boolean>(false);
   const [buscaVincularCliente, setBuscaVincularCliente] = useState<string>('');
+  const [sheetFiltroStatusPedidoAberto, setSheetFiltroStatusPedidoAberto] = useState<boolean>(false);
+  const [sheetFiltroStatusPagamentoAberto, setSheetFiltroStatusPagamentoAberto] = useState<boolean>(false);
 
   // Registro na Pilha LIFO de Overlays Mobile (pai antes de filhos)
   useRegisterOverlay(Boolean(pedidoSelecionado), () => {
@@ -814,6 +816,8 @@ export const PedidosListaMobile: React.FC<PedidosListaMobileProps> = ({
   useRegisterOverlay(Boolean(clientePerfilSelecionado), () => setClientePerfilSelecionado(null), 'pedidos-mobile-cliente-perfil', 'drawer');
   useRegisterOverlay(modalFiltrosAvancados, () => setModalFiltrosAvancados(false), 'pedidos-mobile-filtros', 'drawer');
   useRegisterOverlay(modalStatusAberto, () => setModalStatusAberto(false), 'pedidos-mobile-filtro-status', 'modal');
+  useRegisterOverlay(sheetFiltroStatusPedidoAberto, () => setSheetFiltroStatusPedidoAberto(false), 'pedidos-mobile-sheet-status-pedido', 'modal');
+  useRegisterOverlay(sheetFiltroStatusPagamentoAberto, () => setSheetFiltroStatusPagamentoAberto(false), 'pedidos-mobile-sheet-status-pagamento', 'modal');
   useRegisterOverlay(modalVendedoresAberto, () => setModalVendedoresAberto(false), 'pedidos-mobile-filtro-vendedores', 'modal');
   useRegisterOverlay(modalAlterarStatus, () => setModalAlterarStatus(false), 'pedidos-mobile-alterar-status', 'modal');
   useRegisterOverlay(modalOpcoesPedido, () => setModalOpcoesPedido(false), 'pedidos-mobile-opcoes-pedido', 'modal');
@@ -1012,6 +1016,30 @@ export const PedidosListaMobile: React.FC<PedidosListaMobileProps> = ({
 
     return opcoes;
   }, [pedidosBaseMobile]);
+
+  const statusPedidoAtivo = statusSelecionados.length > 0 && !statusSelecionados.includes('todos');
+  const rotuloStatusPedidoBotao = useMemo(() => {
+    if (!statusPedidoAtivo) {
+      return `Todos (${pedidosBaseMobile.length})`;
+    }
+    if (statusSelecionados.length === 1) {
+      const idSel = statusSelecionados[0];
+      const encontrado = opcoesStatusPedidoMobile.find((op) => op.id === idSel);
+      if (encontrado) return `${encontrado.label} (${encontrado.count})`;
+      return ROTULOS_STATUS_PEDIDO[idSel] || idSel;
+    }
+    return `${statusSelecionados.length} selecionados`;
+  }, [statusPedidoAtivo, statusSelecionados, opcoesStatusPedidoMobile, pedidosBaseMobile.length]);
+
+  const statusPagamentoAtivo = statusPagamentoSelecionado !== 'todos';
+  const rotuloStatusPagamentoBotao = useMemo(() => {
+    if (!statusPagamentoAtivo) {
+      return `Todos (${pedidosBaseMobile.length})`;
+    }
+    const encontrado = opcoesStatusPagamentoMobile.find((op) => op.id === statusPagamentoSelecionado);
+    if (encontrado) return `${encontrado.label} (${encontrado.count})`;
+    return ROTULOS_STATUS_PAGAMENTO[statusPagamentoSelecionado] || statusPagamentoSelecionado;
+  }, [statusPagamentoAtivo, statusPagamentoSelecionado, opcoesStatusPagamentoMobile, pedidosBaseMobile.length]);
 
   // Contagem de pedidos por status (tudo diferente de 'concluido' é pedido aberto)
   const contagensPorStatus = useMemo(() => {
@@ -3446,49 +3474,75 @@ export const PedidosListaMobile: React.FC<PedidosListaMobileProps> = ({
         </div>
       </div>
 
-      {/* 3. Menus Dropdown: Status e Vendedores */}
-      <div className={`px-3 py-2 flex items-center gap-2 shrink-0 ${isDark ? 'bg-[#08131A] border-b border-slate-800' : 'bg-slate-100 border-b border-slate-300'}`}>
-        {/* Dropdown 1: Status Pedido */}
-        <div className="relative flex-1 min-w-0">
-          <Clock className={`w-3.5 h-3.5 absolute left-2.5 top-1/2 -translate-y-1/2 pointer-events-none ${isDark ? 'text-slate-400' : 'text-slate-700'}`} />
-          <select
-            value={statusSelecionados[0] || 'todos'}
-            onChange={(e) => setStatusSelecionados([e.target.value])}
-            aria-label="Filtrar por status do pedido"
-            className={`w-full appearance-none rounded-xl pl-8 pr-7 py-2 text-xs font-semibold cursor-pointer truncate focus:outline-none focus:border-emerald-500 ${
-              isDark ? 'bg-[#000000] border border-slate-700 text-slate-200' : 'bg-white border border-slate-300 text-black'
-            }`}
-          >
-            <option value="todos">Status Pedido: Todos ({pedidosBaseMobile.length})</option>
-            {opcoesStatusPedidoMobile.map((st) => (
-              <option key={st.id} value={st.id}>
-                Status Pedido: {st.label} ({st.count})
-              </option>
-            ))}
-          </select>
-          <ChevronDown className={`w-3.5 h-3.5 absolute right-2.5 top-1/2 -translate-y-1/2 pointer-events-none ${isDark ? 'text-slate-400' : 'text-slate-700'}`} />
-        </div>
+      {/* 3. Filtros Limpos (Padrão Desktop): Status Pedido e Status Pagamento */}
+      <div className={`px-3 py-2 grid grid-cols-2 gap-2 shrink-0 ${isDark ? 'bg-[#08131A] border-b border-slate-800' : 'bg-slate-100 border-b border-slate-200'}`}>
+        {/* Botão 1: Status Pedido */}
+        <button
+          type="button"
+          onClick={() => {
+            setSheetFiltroStatusPagamentoAberto(false);
+            setSheetFiltroStatusPedidoAberto(true);
+          }}
+          aria-label="Filtrar por status do pedido"
+          className={`w-full rounded-xl px-2.5 py-2 flex items-center justify-between gap-1.5 text-left border transition cursor-pointer ${
+            statusPedidoAtivo
+              ? isDark
+                ? 'bg-emerald-500/15 border-emerald-500 text-emerald-300 shadow-xs'
+                : 'bg-emerald-50 border-emerald-500 text-emerald-900 shadow-xs'
+              : isDark
+              ? 'bg-[#000000] border-slate-700 text-slate-200 hover:bg-slate-900'
+              : 'bg-white border-slate-200 text-slate-900 hover:bg-slate-50 shadow-2xs'
+          }`}
+        >
+          <div className="flex items-center gap-2 min-w-0 flex-1">
+            <Clock className={`w-3.5 h-3.5 shrink-0 ${statusPedidoAtivo ? 'text-emerald-600 dark:text-emerald-400' : isDark ? 'text-slate-400' : 'text-slate-500'}`} />
+            <div className="min-w-0 flex-1">
+              <span className={`block text-[10px] font-bold uppercase tracking-wide leading-none ${
+                statusPedidoAtivo ? 'text-emerald-700 dark:text-emerald-400' : isDark ? 'text-slate-400' : 'text-slate-500'
+              }`}>
+                Status Pedido
+              </span>
+              <span className="block text-xs font-bold leading-tight mt-0.5 whitespace-normal break-words">
+                {rotuloStatusPedidoBotao}
+              </span>
+            </div>
+          </div>
+          <ChevronDown className={`w-3.5 h-3.5 shrink-0 transition-transform duration-200 ${sheetFiltroStatusPedidoAberto ? 'rotate-180' : ''} ${statusPedidoAtivo ? 'text-emerald-600 dark:text-emerald-400' : isDark ? 'text-slate-400' : 'text-slate-500'}`} />
+        </button>
 
-        {/* Dropdown 2: Status Pagamento */}
-        <div className="relative flex-1 min-w-0">
-          <DollarSign className={`w-3.5 h-3.5 absolute left-2.5 top-1/2 -translate-y-1/2 pointer-events-none ${isDark ? 'text-slate-400' : 'text-slate-700'}`} />
-          <select
-            value={statusPagamentoSelecionado}
-            onChange={(e) => setStatusPagamentoSelecionado(e.target.value)}
-            aria-label="Filtrar por status de pagamento"
-            className={`w-full appearance-none rounded-xl pl-8 pr-7 py-2 text-xs font-semibold cursor-pointer truncate focus:outline-none focus:border-emerald-500 ${
-              isDark ? 'bg-[#000000] border border-slate-700 text-slate-200' : 'bg-white border border-slate-300 text-black'
-            }`}
-          >
-            <option value="todos">Status Pagamento: Todos ({pedidosBaseMobile.length})</option>
-            {opcoesStatusPagamentoMobile.map((sp) => (
-              <option key={sp.id} value={sp.id}>
-                Status Pagamento: {sp.label} ({sp.count})
-              </option>
-            ))}
-          </select>
-          <ChevronDown className={`w-3.5 h-3.5 absolute right-2.5 top-1/2 -translate-y-1/2 pointer-events-none ${isDark ? 'text-slate-400' : 'text-slate-700'}`} />
-        </div>
+        {/* Botão 2: Status Pagamento */}
+        <button
+          type="button"
+          onClick={() => {
+            setSheetFiltroStatusPedidoAberto(false);
+            setSheetFiltroStatusPagamentoAberto(true);
+          }}
+          aria-label="Filtrar por status de pagamento"
+          className={`w-full rounded-xl px-2.5 py-2 flex items-center justify-between gap-1.5 text-left border transition cursor-pointer ${
+            statusPagamentoAtivo
+              ? isDark
+                ? 'bg-emerald-500/15 border-emerald-500 text-emerald-300 shadow-xs'
+                : 'bg-emerald-50 border-emerald-500 text-emerald-900 shadow-xs'
+              : isDark
+              ? 'bg-[#000000] border-slate-700 text-slate-200 hover:bg-slate-900'
+              : 'bg-white border-slate-200 text-slate-900 hover:bg-slate-50 shadow-2xs'
+          }`}
+        >
+          <div className="flex items-center gap-2 min-w-0 flex-1">
+            <DollarSign className={`w-3.5 h-3.5 shrink-0 ${statusPagamentoAtivo ? 'text-emerald-600 dark:text-emerald-400' : isDark ? 'text-slate-400' : 'text-slate-500'}`} />
+            <div className="min-w-0 flex-1">
+              <span className={`block text-[10px] font-bold uppercase tracking-wide leading-none ${
+                statusPagamentoAtivo ? 'text-emerald-700 dark:text-emerald-400' : isDark ? 'text-slate-400' : 'text-slate-500'
+              }`}>
+                Status Pagamento
+              </span>
+              <span className="block text-xs font-bold leading-tight mt-0.5 whitespace-normal break-words">
+                {rotuloStatusPagamentoBotao}
+              </span>
+            </div>
+          </div>
+          <ChevronDown className={`w-3.5 h-3.5 shrink-0 transition-transform duration-200 ${sheetFiltroStatusPagamentoAberto ? 'rotate-180' : ''} ${statusPagamentoAtivo ? 'text-emerald-600 dark:text-emerald-400' : isDark ? 'text-slate-400' : 'text-slate-500'}`} />
+        </button>
       </div>
 
       {/* 4. Lista Agrupada de Pedidos por Data */}
@@ -3945,6 +3999,186 @@ export const PedidosListaMobile: React.FC<PedidosListaMobileProps> = ({
             >
               Filtrar
             </button>
+          </div>
+        </div>
+      )}
+
+      {/* ================================================================= */}
+      {/* BOTTOM SHEET LIMPO: FILTRO DE STATUS DO PEDIDO (PADRÃO DESKTOP)   */}
+      {/* ================================================================= */}
+      {sheetFiltroStatusPedidoAberto && (
+        <div
+          onClick={() => setSheetFiltroStatusPedidoAberto(false)}
+          className="fixed inset-0 z-50 bg-black/60 flex items-end justify-center"
+        >
+          <div
+            onClick={(e) => e.stopPropagation()}
+            className={`rounded-t-3xl p-4 pb-6 w-full max-w-md space-y-3 shadow-2xl border-t animate-in slide-in-from-bottom duration-150 ${
+              isDark
+                ? 'bg-[#0B151B] border-slate-700 text-slate-100'
+                : 'bg-white border-slate-200 text-slate-900'
+            }`}
+          >
+            <div className={`flex items-center justify-between border-b pb-2.5 ${isDark ? 'border-slate-800' : 'border-slate-200'}`}>
+              <div className="flex items-center gap-2">
+                <Clock className="w-4 h-4 text-emerald-600 dark:text-emerald-400" />
+                <h3 className={`font-bold text-sm ${isDark ? 'text-white' : 'text-slate-900'}`}>
+                  Status do Pedido
+                </h3>
+              </div>
+              <button
+                type="button"
+                onClick={() => setSheetFiltroStatusPedidoAberto(false)}
+                className={`hubi-btn-close-x p-1.5 rounded-xl transition cursor-pointer ${
+                  isDark
+                    ? 'bg-slate-800 hover:bg-slate-700 text-slate-300 hover:text-white border border-slate-700'
+                    : 'bg-slate-100 hover:bg-slate-200 text-slate-800 border border-slate-200'
+                }`}
+                aria-label="Fechar filtro de status do pedido"
+              >
+                <X className="w-4 h-4" />
+              </button>
+            </div>
+
+            <div className="space-y-1">
+              {/* Opção fixa: Todos os status */}
+              <button
+                type="button"
+                onClick={() => {
+                  setStatusSelecionados(['todos']);
+                  setSheetFiltroStatusPedidoAberto(false);
+                }}
+                className={`w-full text-left px-3.5 py-2.5 rounded-xl text-xs flex items-center justify-between transition cursor-pointer ${
+                  !statusPedidoAtivo
+                    ? 'bg-emerald-600 text-white font-bold shadow-xs'
+                    : isDark
+                    ? 'hover:bg-slate-800 text-slate-200 font-semibold'
+                    : 'hover:bg-slate-100 text-slate-900 font-semibold'
+                }`}
+              >
+                <span>Todos os status</span>
+                <span className="text-[11px] opacity-85 font-mono">({pedidosBaseMobile.length})</span>
+              </button>
+
+              <div className={`my-1.5 border-t ${isDark ? 'border-slate-800' : 'border-slate-200'}`} />
+
+              {/* Opções dinâmicas (> 0) sem repetir prefixo */}
+              <div className="max-h-64 overflow-y-auto space-y-1">
+                {opcoesStatusPedidoMobile.map((op) => {
+                  const selecionado = statusSelecionados.length === 1 && statusSelecionados[0] === op.id;
+                  return (
+                    <button
+                      key={op.id}
+                      type="button"
+                      onClick={() => {
+                        setStatusSelecionados([op.id]);
+                        setSheetFiltroStatusPedidoAberto(false);
+                      }}
+                      className={`w-full text-left px-3.5 py-2.5 rounded-xl text-xs flex items-center justify-between transition cursor-pointer ${
+                        selecionado
+                          ? 'bg-emerald-600 text-white font-bold shadow-xs'
+                          : isDark
+                          ? 'hover:bg-slate-800 text-slate-200 font-medium'
+                          : 'hover:bg-slate-100 text-slate-900 font-medium'
+                      }`}
+                    >
+                      <span>{op.label}</span>
+                      <span className="text-[11px] opacity-85 font-mono">({op.count})</span>
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ================================================================= */}
+      {/* BOTTOM SHEET LIMPO: FILTRO DE STATUS DO PAGAMENTO (PADRÃO DESKTOP)*/}
+      {/* ================================================================= */}
+      {sheetFiltroStatusPagamentoAberto && (
+        <div
+          onClick={() => setSheetFiltroStatusPagamentoAberto(false)}
+          className="fixed inset-0 z-50 bg-black/60 flex items-end justify-center"
+        >
+          <div
+            onClick={(e) => e.stopPropagation()}
+            className={`rounded-t-3xl p-4 pb-6 w-full max-w-md space-y-3 shadow-2xl border-t animate-in slide-in-from-bottom duration-150 ${
+              isDark
+                ? 'bg-[#0B151B] border-slate-700 text-slate-100'
+                : 'bg-white border-slate-200 text-slate-900'
+            }`}
+          >
+            <div className={`flex items-center justify-between border-b pb-2.5 ${isDark ? 'border-slate-800' : 'border-slate-200'}`}>
+              <div className="flex items-center gap-2">
+                <DollarSign className="w-4 h-4 text-emerald-600 dark:text-emerald-400" />
+                <h3 className={`font-bold text-sm ${isDark ? 'text-white' : 'text-slate-900'}`}>
+                  Status do Pagamento
+                </h3>
+              </div>
+              <button
+                type="button"
+                onClick={() => setSheetFiltroStatusPagamentoAberto(false)}
+                className={`hubi-btn-close-x p-1.5 rounded-xl transition cursor-pointer ${
+                  isDark
+                    ? 'bg-slate-800 hover:bg-slate-700 text-slate-300 hover:text-white border border-slate-700'
+                    : 'bg-slate-100 hover:bg-slate-200 text-slate-800 border border-slate-200'
+                }`}
+                aria-label="Fechar filtro de status do pagamento"
+              >
+                <X className="w-4 h-4" />
+              </button>
+            </div>
+
+            <div className="space-y-1">
+              {/* Opção fixa: Todos os pagamentos */}
+              <button
+                type="button"
+                onClick={() => {
+                  setStatusPagamentoSelecionado('todos');
+                  setSheetFiltroStatusPagamentoAberto(false);
+                }}
+                className={`w-full text-left px-3.5 py-2.5 rounded-xl text-xs flex items-center justify-between transition cursor-pointer ${
+                  !statusPagamentoAtivo
+                    ? 'bg-emerald-600 text-white font-bold shadow-xs'
+                    : isDark
+                    ? 'hover:bg-slate-800 text-slate-200 font-semibold'
+                    : 'hover:bg-slate-100 text-slate-900 font-semibold'
+                }`}
+              >
+                <span>Todos os pagamentos</span>
+                <span className="text-[11px] opacity-85 font-mono">({pedidosBaseMobile.length})</span>
+              </button>
+
+              <div className={`my-1.5 border-t ${isDark ? 'border-slate-800' : 'border-slate-200'}`} />
+
+              {/* Opções dinâmicas (> 0) sem repetir prefixo */}
+              <div className="max-h-64 overflow-y-auto space-y-1">
+                {opcoesStatusPagamentoMobile.map((op) => {
+                  const selecionado = statusPagamentoSelecionado === op.id;
+                  return (
+                    <button
+                      key={op.id}
+                      type="button"
+                      onClick={() => {
+                        setStatusPagamentoSelecionado(op.id);
+                        setSheetFiltroStatusPagamentoAberto(false);
+                      }}
+                      className={`w-full text-left px-3.5 py-2.5 rounded-xl text-xs flex items-center justify-between transition cursor-pointer ${
+                        selecionado
+                          ? 'bg-emerald-600 text-white font-bold shadow-xs'
+                          : isDark
+                          ? 'hover:bg-slate-800 text-slate-200 font-medium'
+                          : 'hover:bg-slate-100 text-slate-900 font-medium'
+                      }`}
+                    >
+                      <span>{op.label}</span>
+                      <span className="text-[11px] opacity-85 font-mono">({op.count})</span>
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
           </div>
         </div>
       )}

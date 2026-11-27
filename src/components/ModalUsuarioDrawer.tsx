@@ -385,8 +385,17 @@ export const ModalUsuarioDrawer: React.FC<ModalUsuarioDrawerProps> = ({
       onSalvo();
       onClose();
     } catch (err: unknown) {
-      const msgErro = err instanceof Error ? err.message : 'Erro ao gravar usuário no banco de dados.';
-      console.error('Erro ao salvar usuário:', err);
+      const msgBruta =
+        err instanceof Error
+          ? err.message
+          : typeof err === 'object' && err !== null && 'message' in err
+          ? String((err as { message?: unknown }).message || '')
+          : '';
+      const msgErro =
+        msgBruta && !msgBruta.toLowerCase().includes('usuarios_loja') && !msgBruta.toLowerCase().includes('sqlstate')
+          ? msgBruta
+          : 'Erro ao gravar usuário no banco de dados. Tente novamente.';
+      console.error('Erro ao salvar usuário:', msgErro);
       setErro(msgErro);
     } finally {
       setSalvando(false);
