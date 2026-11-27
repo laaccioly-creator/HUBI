@@ -56,10 +56,10 @@ import {
   formatarDataHoraHistorico
 } from '../utils/historicoPedidoUtils';
 import { ModalPagamentoFechamentoCatalogo } from './catalogo/ModalPagamentoFechamentoCatalogo';
-import { useFeedbackModal } from '../contexts/FeedbackContext';
 import {
-  compartilharComprovanteNoWhatsapp,
+  abrirWhatsappComprovanteDireto,
   enviarComprovantePedidoCatalogo,
+  montarLinkWhatsappComprovantePix,
   obterEstadoAcaoPagamentoCatalogo,
   pedidoEhPixCatalogo
 } from '../services/comprovantePedidoService';
@@ -67,7 +67,6 @@ import {
 export const PedidoAndamentoPublico: React.FC = () => {
   const { id } = useParams<{ id: string }>();
   const { isDark } = useTheme();
-  const { mostrarToast } = useFeedbackModal();
   const [pedido, setPedido] = useState<Pedido | null>(null);
   const [loja, setLoja] = useState<Loja | null>(null);
   const [historico, setHistorico] = useState<any[]>([]);
@@ -81,7 +80,6 @@ export const PedidoAndamentoPublico: React.FC = () => {
   const [enviandoComprovante, setEnviandoComprovante] = useState<boolean>(false);
   const [comprovanteEnviadoSucesso, setComprovanteEnviadoSucesso] = useState<boolean>(false);
   const [linkWhatsappComprovante, setLinkWhatsappComprovante] = useState<string | null>(null);
-  const [avisoWhatsapp, setAvisoWhatsapp] = useState<string | null>(null);
   const [erroComprovante, setErroComprovante] = useState<string | null>(null);
   const [refreshTrigger, setRefreshTrigger] = useState<number>(0);
   const reciboRef = useRef<HTMLDivElement>(null);
@@ -344,7 +342,6 @@ export const PedidoAndamentoPublico: React.FC = () => {
     try {
       setEnviandoComprovante(true);
       setErroComprovante(null);
-      setAvisoWhatsapp(null);
 
       const arquivoSelecionado = arquivoComprovante;
       const resultado = await enviarComprovantePedidoCatalogo({
@@ -365,18 +362,16 @@ export const PedidoAndamentoPublico: React.FC = () => {
           : prev
       );
 
-      const resShare = await compartilharComprovanteNoWhatsapp({
-        arquivo: arquivoSelecionado,
+      const urlWpp = montarLinkWhatsappComprovantePix({
         whatsappLoja: loja?.whatsapp || loja?.telefone,
         numeroPedido: pedido.numero_pedido,
         nomeCliente: pedido.cliente?.nome || pedido.cliente_nome_avulso || 'Cliente',
         valorTotal: Number(pedido.valor_total || 0),
         comprovanteUrl: resultado.url
       });
-      setLinkWhatsappComprovante(resShare.urlWhatsapp);
-      if (resShare.avisoUsuario) {
-        setAvisoWhatsapp(resShare.avisoUsuario);
-        mostrarToast?.(resShare.avisoUsuario, 'sucesso');
+      setLinkWhatsappComprovante(urlWpp);
+      if (urlWpp) {
+        abrirWhatsappComprovanteDireto(urlWpp);
       }
 
       setComprovanteEnviadoSucesso(true);
@@ -673,7 +668,6 @@ export const PedidoAndamentoPublico: React.FC = () => {
                           setArquivoComprovante(null);
                           setComprovanteEnviadoSucesso(false);
                           setLinkWhatsappComprovante(null);
-                          setAvisoWhatsapp(null);
                           setErroComprovante(null);
                           setModalComprovanteAberto(true);
                         }}
@@ -1096,7 +1090,6 @@ export const PedidoAndamentoPublico: React.FC = () => {
                   setArquivoComprovante(null);
                   setComprovanteEnviadoSucesso(false);
                   setLinkWhatsappComprovante(null);
-                  setAvisoWhatsapp(null);
                   setErroComprovante(null);
                 }}
                 className={`p-1 rounded-lg ${isDark ? 'hover:bg-slate-800 text-slate-400' : 'hover:bg-slate-100 text-slate-500'}`}
@@ -1115,7 +1108,7 @@ export const PedidoAndamentoPublico: React.FC = () => {
                     Comprovante Enviado com Sucesso!
                   </h5>
                   <p className={`text-xs ${isDark ? 'text-slate-400' : 'text-slate-500'}`}>
-                    {avisoWhatsapp || 'O comprovante foi salvo no pedido e enviado para conferência da loja.'}
+                    O comprovante foi salvo no pedido e enviado para conferência da loja.
                   </p>
                 </div>
                 <div className="space-y-2 pt-1">
@@ -1131,7 +1124,7 @@ export const PedidoAndamentoPublico: React.FC = () => {
                       }`}
                     >
                       <Share2 className="w-3.5 h-3.5 text-emerald-600 dark:text-emerald-400" />
-                      <span>Abrir WhatsApp da Loja</span>
+                      <span>Reabrir WhatsApp da Loja</span>
                     </a>
                   )}
                   <button
@@ -1141,7 +1134,6 @@ export const PedidoAndamentoPublico: React.FC = () => {
                       setArquivoComprovante(null);
                       setComprovanteEnviadoSucesso(false);
                       setLinkWhatsappComprovante(null);
-                      setAvisoWhatsapp(null);
                       setErroComprovante(null);
                     }}
                     className={`w-full py-2.5 px-3 rounded-xl border text-xs font-semibold transition cursor-pointer ${

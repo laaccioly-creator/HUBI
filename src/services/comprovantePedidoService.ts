@@ -258,24 +258,56 @@ export function montarLinkWhatsappComprovantePix(params: {
     ? `#${params.numeroPedido}`
     : '';
   const nomeClienteFmt = (params.nomeCliente || '').trim() || 'Cliente do Catálogo';
-  const valorFmt = new Intl.NumberFormat('pt-BR', {
-    style: 'currency',
-    currency: 'BRL'
-  }).format(Number(params.valorTotal || 0));
+  const valorFmt = Number(params.valorTotal || 0).toFixed(2).replace('.', ',');
 
   const url = (params.comprovanteUrl || '').trim();
-  const linhaComprovante = /^https?:\/\//i.test(url)
-    ? `📎 *Comprovante:* ${url}`
-    : '📎 *Comprovante:* Anexado diretamente no pedido (disponível no painel da loja).';
-
   const linhas = [
-    `Olá! Segue o comprovante de pagamento Pix do *Pedido ${numeroFmt}*.`.replace('  ', ' '),
-    `👤 *Cliente:* ${nomeClienteFmt}`,
-    `💰 *Valor total:* ${valorFmt}`,
-    linhaComprovante
+    `Olá! Segue o comprovante de pagamento Pix do Pedido ${numeroFmt}.`.replace('  ', ' '),
+    `Cliente: ${nomeClienteFmt}`,
+    `Valor total: R$ ${valorFmt}`
   ];
 
+  if (/^https?:\/\//i.test(url)) {
+    linhas.push('Comprovante:', url);
+  } else {
+    linhas.push('Comprovante: anexado diretamente no pedido no painel da loja.');
+  }
+
   return `https://wa.me/${telefoneDDI}?text=${encodeURIComponent(linhas.join('\n'))}`;
+}
+
+/**
+ * Abre o link direto do WhatsApp da loja no navegador/PWA evitando bloqueio de pop-up após await.
+ */
+export function abrirWhatsappComprovanteDireto(url: string | null | undefined): boolean {
+  const limpa = (url || '').trim();
+  if (!limpa || typeof window === 'undefined') return false;
+
+  const win = window.open(limpa, '_blank', 'noopener,noreferrer');
+  if (win) return true;
+
+  const ehMobileOuPwa =
+    /Android|iPhone|iPad|iPod/i.test(navigator.userAgent || '') ||
+    Boolean(window.matchMedia?.('(display-mode: standalone)')?.matches);
+
+  if (ehMobileOuPwa) {
+    window.location.href = limpa;
+    return true;
+  }
+
+  try {
+    const anchor = document.createElement('a');
+    anchor.href = limpa;
+    anchor.target = '_blank';
+    anchor.rel = 'noopener noreferrer';
+    anchor.style.display = 'none';
+    document.body.appendChild(anchor);
+    anchor.click();
+    document.body.removeChild(anchor);
+    return true;
+  } catch {
+    return false;
+  }
 }
 
 /**
@@ -308,172 +340,4 @@ export function abrirComprovanteEmNovaAba(url?: string | null): void {
       window.open(limpa, '_blank', 'noopener,noreferrer');
     }
   }
-}
-
-async function converterImagemParaPngBlob(arquivo: File): Promise<Blob> {
-  if (arquivo.type === 'image/png') {
-    return arquivo;
-  }
-
-  return new Promise((resolve, reject) => {
-    const objectUrl = URL.createObjectURL(arquivo);
-    const img = new Image();
-
-    img.onload = () => {
-      try {
-        const canvas = document.createElement('canvas');
-        canvas.width = img.naturalWidth || img.width || 1;
-        canvas.height = img.naturalHeight || img.height || 1;
-        const ctx = canvas.getContext('2d');
-        if (!ctx) {
-          URL.revokeObjectURL(objectUrl);
-          reject(new Error('Contexto de imagem indisponível.'));
-          return;
-        }
-        ctx.drawImage(img, 0, 0);
-        canvas.toBlob(
-          (blob) => {
-            URL.revokeObjectURL(objectUrl);
-            if (blob) {
-              resolve(blob);
-            } else {
-              reject(new Error('Não foi possível converter a imagem para PNG.'));
-            }
-          },
-          'image/png'
-        );
-      } catch (err) {
-        URL.revokeObjectURL(objectUrl);
-        reject(err);
-      }
-    };
-
-    img.onerror = () => {
-      URL.revokeObjectURL(objectUrl);
-      reject(new Error('Falha ao carregar imagem para cópia.'));
-    };
-
-    img.src = objectUrl;
-  });
-}
-
-export interface ResultadoCompartilhamentoComprovante {
-  modo: 'web_share' | 'clipboard_wa' | 'wa_com_link' | 'sem_whatsapp';
-  urlWhatsapp: string | null;
-  avisoUsuario?: string;
-}
-
-/**
- * Encaminha a imagem/PDF real do comprovante para o WhatsApp da loja:
- * - Mobile: usa Web Share API nativa com `files` e mensagem limpa (sem URL longa).
- * - Desktop/fallback: para imagens, copia a imagem como PNG na área de transferência
- *   antes de abrir `wa.me` com mensagem limpa e instrui o usuário a colar com Ctrl+V;
- *   para PDFs ou falha de clipboard, inclui o link direto no texto do WhatsApp.
- */
-export async function compartilharComprovanteNoWhatsapp(params: {
-  arquivo: File;
-  whatsappLoja?: string | null;
-  numeroPedido?: number | string | null;
-  nomeCliente?: string | null;
-  valorTotal?: number | null;
-  comprovanteUrl?: string | null;
-}): Promise<ResultadoCompartilhamentoComprovante> {
-  const { arquivo, whatsappLoja, numeroPedido, nomeCliente, valorTotal, comprovanteUrl } = params;
-  const numeroFmt =
-    numeroPedido != null && String(numeroPedido).trim() !== '' ? `#${numeroPedido}` : '';
-  const nomeClienteFmt = (nomeCliente || '').trim() || 'Cliente do Catálogo';
-  const valorFmt = new Intl.NumberFormat('pt-BR', {
-    style: 'currency',
-    currency: 'BRL'
-  }).format(Number(valorTotal || 0));
-
-  const mensagemLimpa = `Olá! Segue o comprovante de pagamento Pix do Pedido ${numeroFmt} • Cliente: ${nomeClienteFmt} • Valor: ${valorFmt}`.replace(
-    /\s+/g,
-    ' '
-  );
-
-  const telefoneDDI = normalizarTelefoneComDDI(whatsappLoja);
-  const urlWhatsappLimpa = telefoneDDI
-    ? `https://wa.me/${telefoneDDI}?text=${encodeURIComponent(mensagemLimpa)}`
-    : null;
-
-  // 1. Mobile: Web Share API nativa com arquivo real anexado
-  if (
-    typeof navigator !== 'undefined' &&
-    typeof navigator.share === 'function' &&
-    typeof navigator.canShare === 'function'
-  ) {
-    try {
-      if (navigator.canShare({ files: [arquivo] })) {
-        await navigator.share({
-          files: [arquivo],
-          title: 'Comprovante Pix',
-          text: mensagemLimpa
-        });
-        return {
-          modo: 'web_share',
-          urlWhatsapp: urlWhatsappLimpa
-        };
-      }
-    } catch (err: any) {
-      if (err?.name === 'AbortError') {
-        return {
-          modo: 'web_share',
-          urlWhatsapp: urlWhatsappLimpa
-        };
-      }
-      // Segue para fallback Desktop se Web Share falhar por plataforma
-    }
-  }
-
-  if (!telefoneDDI) {
-    return {
-      modo: 'sem_whatsapp',
-      urlWhatsapp: null
-    };
-  }
-
-  // 2. Desktop / fallback: copia imagem PNG para o Clipboard e abre wa.me com mensagem limpa
-  const ehImagem =
-    arquivo.type.startsWith('image/') ||
-    /\.(jpe?g|png|webp)$/i.test(arquivo.name || '');
-
-  if (
-    ehImagem &&
-    typeof navigator !== 'undefined' &&
-    navigator.clipboard &&
-    typeof navigator.clipboard.write === 'function' &&
-    typeof ClipboardItem !== 'undefined'
-  ) {
-    try {
-      const pngBlob = await converterImagemParaPngBlob(arquivo);
-      await navigator.clipboard.write([new ClipboardItem({ 'image/png': pngBlob })]);
-      if (typeof window !== 'undefined' && urlWhatsappLimpa) {
-        window.open(urlWhatsappLimpa, '_blank', 'noopener,noreferrer');
-      }
-      return {
-        modo: 'clipboard_wa',
-        urlWhatsapp: urlWhatsappLimpa,
-        avisoUsuario: 'Imagem do comprovante copiada! Pressione Ctrl+V no WhatsApp para colar.'
-      };
-    } catch {
-      // Fallback para link no texto se permissão de clipboard for negada
-    }
-  }
-
-  // 3. Fallback para PDF ou navegador sem ClipboardItem
-  const urlComLink = montarLinkWhatsappComprovantePix({
-    whatsappLoja,
-    numeroPedido,
-    nomeCliente,
-    valorTotal,
-    comprovanteUrl
-  });
-  if (typeof window !== 'undefined' && urlComLink) {
-    window.open(urlComLink, '_blank', 'noopener,noreferrer');
-  }
-  return {
-    modo: 'wa_com_link',
-    urlWhatsapp: urlComLink
-  };
 }

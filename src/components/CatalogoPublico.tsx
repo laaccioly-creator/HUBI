@@ -56,6 +56,7 @@ import { calcularDistanciaKm } from '../utils/geoUtils';
 import { gerarPayloadPixEmv } from '../utils/pixUtils';
 import { CadernetaService } from '../services/cadernetaService';
 import { ClienteCatalogoService } from '../services/clienteCatalogoService';
+import { montarLinkWhatsappComprovantePix } from '../services/comprovantePedidoService';
 import { formatarResumoDescricao } from './DescricaoFormatadaProduto';
 import { ChatRubiCatalogo } from './ChatRubiCatalogo';
 import { getCategoriaPeso } from './PosCheckout';
@@ -96,6 +97,7 @@ interface ItemCarrinhoPublico {
 interface PedidoConcluidoInfo {
   numeroPedido: number;
   whatsAppUrl: string;
+  comprovanteWhatsappUrl?: string | null;
   pixInfo?: PixDinamicoResponse | null;
   linkPagamento?: string | null;
   preferenceId?: string | null;
@@ -4518,9 +4520,19 @@ Fico no aguardo da confirmação! ✨`;
               const phoneFinal = lojaPhone.startsWith('55') ? lojaPhone : `55${lojaPhone}`;
               const msgWhatsApp = `🛍️ *PEDIDO ONLINE #${pedFinal.numero_pedido}*\n\nOlá, ${loja.nome_fantasia}! Acabei de confirmar o pagamento/fechamento do meu pedido #${pedFinal.numero_pedido}.\nValor Total: R$ ${Number(pedFinal.valor_total || 0).toFixed(2)}`;
               const urlWhats = lojaPhone ? `https://api.whatsapp.com/send?phone=${phoneFinal}&text=${encodeURIComponent(msgWhatsApp)}` : '';
+              const urlComprovanteWpp = Boolean((pedFinal.comprovante_pagamento_url || '').trim())
+                ? montarLinkWhatsappComprovantePix({
+                    whatsappLoja: loja.whatsapp || (loja as any).telefone,
+                    numeroPedido: pedFinal.numero_pedido,
+                    nomeCliente: clienteSelecionado?.nome || pedFinal.cliente_nome_avulso || 'Cliente',
+                    valorTotal: Number(pedFinal.valor_total || 0),
+                    comprovanteUrl: pedFinal.comprovante_pagamento_url
+                  })
+                : null;
               setPedidoConcluidoModal({
                 numeroPedido: pedFinal.numero_pedido || 0,
                 whatsAppUrl: urlWhats,
+                comprovanteWhatsappUrl: urlComprovanteWpp,
                 formaPagamentoEscolhida: pedFinal.status_pagamento,
                 titulo: `Pagamento do Pedido #${pedFinal.numero_pedido} Confirmado!`,
                 mensagem: 'Sua escolha de pagamento foi registrada com sucesso.'
@@ -4648,6 +4660,18 @@ Fico no aguardo da confirmação! ✨`;
               >
                 Voltar ao Catálogo
               </button>
+
+              {pedidoConcluidoModal.comprovanteWhatsappUrl && (
+                <a
+                  href={pedidoConcluidoModal.comprovanteWhatsappUrl}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="w-full py-2 rounded-xl bg-transparent hover:bg-slate-800/60 text-slate-400 hover:text-emerald-300 font-medium text-[11px] flex items-center justify-center gap-1.5 border border-slate-800/80 transition cursor-pointer"
+                >
+                  <Share2 className="w-3.5 h-3.5 text-emerald-400" />
+                  <span>Reabrir WhatsApp com Comprovante</span>
+                </a>
+              )}
             </div>
           </div>
         </div>

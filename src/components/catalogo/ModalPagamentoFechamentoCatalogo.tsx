@@ -46,8 +46,9 @@ import { ModalDefinirEnvio } from '../pedidos/ModalDefinirEnvio';
 import { ShippingOrchestrator } from '../../services/shippingOrchestrator';
 import { paymentGatewayService } from '../../services/paymentGatewayService';
 import {
-  compartilharComprovanteNoWhatsapp,
-  enviarComprovantePedidoCatalogo
+  abrirWhatsappComprovanteDireto,
+  enviarComprovantePedidoCatalogo,
+  montarLinkWhatsappComprovantePix
 } from '../../services/comprovantePedidoService';
 import { gerarPayloadPixEmv } from '../../utils/pixUtils';
 
@@ -1122,16 +1123,15 @@ export const ModalPagamentoFechamentoCatalogo: React.FC<ModalPagamentoFechamento
               dadosClienteFresco?.nome ||
               pedSeguro.cliente_nome_avulso ||
               'Cliente';
-            const resShare = await compartilharComprovanteNoWhatsapp({
-              arquivo: arquivoSelecionado,
+            const urlWhatsappComprovante = montarLinkWhatsappComprovantePix({
               whatsappLoja: loja?.whatsapp || loja?.telefone,
               numeroPedido: pedUpd?.numero_pedido ?? pedSeguro.numero_pedido,
               nomeCliente: nomeCliWpp,
               valorTotal: Number(pedUpd?.valor_total ?? pedSeguro.valor_total ?? valorTotal ?? 0),
               comprovanteUrl: resComprovante.url
             });
-            if (resShare.avisoUsuario) {
-              mostrarToast?.(resShare.avisoUsuario, 'sucesso');
+            if (urlWhatsappComprovante) {
+              abrirWhatsappComprovanteDireto(urlWhatsappComprovante);
             }
           } catch (errComp: any) {
             mostrarToast?.(

@@ -4,12 +4,12 @@ import { Pedido, Loja } from '../types';
 import { ClienteCatalogoService } from '../services/clienteCatalogoService';
 import { ReciboPedidoModal } from './pedidos/ReciboPedidoModal';
 import { ModalPagamentoFechamentoCatalogo } from './catalogo/ModalPagamentoFechamentoCatalogo';
-import { useFeedbackModal } from '../contexts/FeedbackContext';
 import { supabase } from '../lib/supabase';
 import { formatarDataHoraLocal } from '../utils/dateTime';
 import {
-  compartilharComprovanteNoWhatsapp,
+  abrirWhatsappComprovanteDireto,
   enviarComprovantePedidoCatalogo,
+  montarLinkWhatsappComprovantePix,
   obterEstadoAcaoPagamentoCatalogo
 } from '../services/comprovantePedidoService';
 
@@ -116,7 +116,6 @@ export const ModalPedidosCliente: React.FC<ModalPedidosClienteProps> = ({
   onExplorarCatalogo,
   onPagarPedido
 }) => {
-  const { mostrarToast } = useFeedbackModal();
   const [pedidos, setPedidos] = useState<Pedido[]>([]);
   const [pedidoReciboModal, setPedidoReciboModal] = useState<Pedido | null>(null);
   const [pedidoPagamentoModal, setPedidoPagamentoModal] = useState<Pedido | null>(null);
@@ -126,7 +125,6 @@ export const ModalPedidosCliente: React.FC<ModalPedidosClienteProps> = ({
   const [enviandoComprovante, setEnviandoComprovante] = useState<boolean>(false);
   const [comprovanteEnviadoSucesso, setComprovanteEnviadoSucesso] = useState<boolean>(false);
   const [linkWhatsappComprovante, setLinkWhatsappComprovante] = useState<string | null>(null);
-  const [avisoWhatsapp, setAvisoWhatsapp] = useState<string | null>(null);
   const [erroComprovante, setErroComprovante] = useState<string | null>(null);
   const [carregando, setCarregando] = useState<boolean>(true);
   const [erro, setErro] = useState<string | null>(null);
@@ -148,7 +146,6 @@ export const ModalPedidosCliente: React.FC<ModalPedidosClienteProps> = ({
     try {
       setEnviandoComprovante(true);
       setErroComprovante(null);
-      setAvisoWhatsapp(null);
 
       const arquivoSelecionado = arquivoComprovante;
       const resultado = await enviarComprovantePedidoCatalogo({
@@ -171,8 +168,7 @@ export const ModalPedidosCliente: React.FC<ModalPedidosClienteProps> = ({
         )
       );
 
-      const resShare = await compartilharComprovanteNoWhatsapp({
-        arquivo: arquivoSelecionado,
+      const urlWpp = montarLinkWhatsappComprovantePix({
         whatsappLoja: loja?.whatsapp || loja?.telefone,
         numeroPedido: pedidoEnvioComprovante.numero_pedido,
         nomeCliente:
@@ -182,10 +178,9 @@ export const ModalPedidosCliente: React.FC<ModalPedidosClienteProps> = ({
         valorTotal: Number(pedidoEnvioComprovante.valor_total || 0),
         comprovanteUrl: resultado.url
       });
-      setLinkWhatsappComprovante(resShare.urlWhatsapp);
-      if (resShare.avisoUsuario) {
-        setAvisoWhatsapp(resShare.avisoUsuario);
-        mostrarToast?.(resShare.avisoUsuario, 'sucesso');
+      setLinkWhatsappComprovante(urlWpp);
+      if (urlWpp) {
+        abrirWhatsappComprovanteDireto(urlWpp);
       }
 
       setComprovanteEnviadoSucesso(true);
@@ -574,7 +569,7 @@ export const ModalPedidosCliente: React.FC<ModalPedidosClienteProps> = ({
                 <div className="space-y-1">
                   <h5 className="font-bold text-sm text-emerald-600 dark:text-emerald-400">Comprovante Anexado com Sucesso!</h5>
                   <p className="text-xs text-slate-500 dark:text-slate-400">
-                    {avisoWhatsapp || 'O comprovante foi salvo no pedido e enviado para conferência da loja.'}
+                    O comprovante foi salvo no pedido e enviado para conferência da loja.
                   </p>
                 </div>
                 <div className="space-y-2 pt-1">
@@ -586,7 +581,7 @@ export const ModalPedidosCliente: React.FC<ModalPedidosClienteProps> = ({
                       className="w-full py-2.5 px-3 rounded-xl bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-700 border border-slate-300 dark:border-slate-700 text-slate-900 dark:text-slate-100 text-xs font-semibold flex items-center justify-center gap-1.5 transition"
                     >
                       <Share2 className="w-3.5 h-3.5 text-emerald-600 dark:text-emerald-400" />
-                      <span>Abrir WhatsApp da Loja</span>
+                      <span>Reabrir WhatsApp da Loja</span>
                     </a>
                   )}
                   <button
@@ -596,7 +591,6 @@ export const ModalPedidosCliente: React.FC<ModalPedidosClienteProps> = ({
                       setArquivoComprovante(null);
                       setComprovanteEnviadoSucesso(false);
                       setLinkWhatsappComprovante(null);
-                      setAvisoWhatsapp(null);
                       setErroComprovante(null);
                     }}
                     className="w-full py-2.5 px-3 rounded-xl bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-700 border border-slate-300 dark:border-slate-700 text-xs font-semibold text-slate-900 dark:text-slate-200 transition cursor-pointer"
