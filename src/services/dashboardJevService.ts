@@ -187,6 +187,7 @@ export interface PayloadDashboardExecutivo {
     saudeEstoque: DecomposicaoSaudeEstoque;
   };
   parecerJev: ParecerJevExecutivo;
+  usaCaderneta?: boolean;
   timestamp: number;
   desdobramentoLojas?: DesdobramentoLojaItem[];
 }
@@ -239,7 +240,7 @@ function gerarChaveCache(params: ParametrosConsultaDashboard): string {
   const offset = params.periodoOffset || 0;
   const custom = `${params.dataInicioCustom || ''}_${params.dataFimCustom || ''}`;
   const sufixoMulti = params.lojaId === 'todas' && params.lojasIdsConglomerado ? `_${params.lojasIdsConglomerado.sort().join('-')}` : '';
-  return `hubi_cockpit_v6_${params.lojaId}${sufixoMulti}_${params.tipoPeriodo}_${offset}_${custom}`;
+  return `hubi_cockpit_v7_${params.lojaId}${sufixoMulti}_${params.tipoPeriodo}_${offset}_${custom}`;
 }
 
 function recuperarCache(chave: string): PayloadDashboardExecutivo | null {
@@ -536,6 +537,7 @@ export const dashboardJevService = {
     let todasMovimentacoesCaixa: any[] = [];
     let todosProdutos: Produto[] = [];
     let usarTaxaPdv = false;
+    let usaCaderneta = false;
     let historicoPrimeiraVendaRes: any = null;
     let lojaConfigExtras: any = null;
     let desdobramentoLojas: DesdobramentoLojaItem[] = [];
@@ -577,7 +579,7 @@ export const dashboardJevService = {
               .eq('ativo', true),
             supabase
               .from('lojas')
-              .select('id, nome_fantasia, configuracoes_extras')
+              .select('id, nome_fantasia, caderneta_ativa, configuracoes_extras')
               .eq('id', id)
               .maybeSingle(),
             dashboardService.obterMetasLoja(id).catch(() => ({
@@ -595,6 +597,7 @@ export const dashboardJevService = {
             movimentacoes: (mRes.data || []) as any[],
             produtos: (prRes.data || []) as Produto[],
             usarTaxaPdv: Boolean((lRes?.data as any)?.configuracoes_extras?.taxas_venda?.usar_taxa_pdv),
+            cadernetaAtiva: Boolean((lRes?.data as any)?.caderneta_ativa),
             metas: mLoja
           };
         } catch (lojaErr) {
@@ -607,6 +610,7 @@ export const dashboardJevService = {
             movimentacoes: [],
             produtos: [],
             usarTaxaPdv: false,
+            cadernetaAtiva: false,
             metas: {
               id: 'padrao',
               loja_id: id,
@@ -620,6 +624,8 @@ export const dashboardJevService = {
       const resultadosPorLoja = resultadosSettled
         .filter((r): r is PromiseFulfilledResult<any> => r.status === 'fulfilled' && !!r.value)
         .map(r => r.value);
+
+      usaCaderneta = resultadosPorLoja.length > 0 && resultadosPorLoja.every(r => Boolean(r.cadernetaAtiva));
 
       resultadosPorLoja.forEach(r => {
         todosPedidos.push(...r.pedidos);
@@ -699,10 +705,10 @@ export const dashboardJevService = {
           .limit(1)
           .maybeSingle(),
 
-        // Configurações extras da loja (para flags como taxas_venda.usar_taxa_pdv)
+        // Configurações extras e modalidade de crediário da loja
         supabase
           .from('lojas')
-          .select('configuracoes_extras')
+          .select('caderneta_ativa, configuracoes_extras')
           .eq('id', lojaId)
           .maybeSingle()
       ]);
@@ -724,6 +730,7 @@ export const dashboardJevService = {
       historicoPrimeiraVendaRes = histRes;
       lojaConfigExtras = (lojaRes?.data as any)?.configuracoes_extras;
       usarTaxaPdv = Boolean(lojaConfigExtras?.taxas_venda?.usar_taxa_pdv);
+      usaCaderneta = Boolean((lojaRes?.data as any)?.caderneta_ativa);
       todosPedidos = (pedidosRes.data || []) as any[];
       todasTransacoes = (transacoesRes.data || []) as any[];
       todasMovimentacoesCaixa = (movimentacoesCaixaRes.data || []) as any[];
@@ -1284,6 +1291,7 @@ export const dashboardJevService = {
       lucro_liquido: lucroLiquidoReal,
       margem_liquida_pct: margemLiquidaPercentual,
       inadimplencia_pct: taxaInadimplencia,
+      caderneta_ativa: usaCaderneta,
       saude_estoque_fase: ehFase2Maturidade ? 'fase2_curva_abc' : 'fase1_estoque_minimo',
       itens_estoque_risco: produtosEmRisco.length,
       indice_ruptura_pct: indiceRuptura
@@ -1381,6 +1389,7 @@ export const dashboardJevService = {
         }
       },
       parecerJev,
+      usaCaderneta,
       timestamp: Date.now(),
       desdobramentoLojas
     };
@@ -1397,6 +1406,7 @@ export const dashboardJevService = {
     const inadimplencia = Number(estado.inadimplencia_pct || 0);
     const itensRisco = Number(estado.itens_estoque_risco || 0);
     const indiceRuptura = Number(estado.indice_ruptura_pct || 0);
+    const usaCaderneta = Boolean(estado.caderneta_ativa);
 
     // Heurística local de fallback imediato (0 ms)
     const obterFallback = (): ParecerJevExecutivo => {
@@ -1415,8 +1425,12 @@ export const dashboardJevService = {
           diag = 'Alerta de desabastecimento: volume crítico de itens em risco de ruptura.';
           prioridade = 'Emitir pedidos urgentes aos fornecedores para os produtos de maior saída.';
         } else {
-          diag = 'Alerta de crédito: índice de inadimplência fiado acima do teto de segurança.';
-          prioridade = 'Suspender novas vendas a prazo para clientes com títulos em atraso.';
+          diag = usaCaderneta
+            ? 'Alerta de crédito: índice de inadimplência na caderneta acima do teto de segurança.'
+            : 'Alerta de crédito: índice de inadimplência acima do teto de segurança.';
+          prioridade = usaCaderneta
+            ? 'Suspender novos lançamentos na caderneta para clientes com acertos em atraso.'
+            : 'Suspender novas vendas a prazo para clientes com títulos em atraso.';
         }
       } else if (faturamento >= metaFat && lucro > 0) {
         status = 'excelente';
@@ -1453,7 +1467,9 @@ export const dashboardJevService = {
           'Qual a prioridade executiva mais urgente para o gestor neste momento?',
           {
             repor_estoque_a: 'Repor urgentemente itens da Curva A ou estoque zerado.',
-            cobrar_inadimplentes: 'Recuperar valores fiados em atraso.',
+            cobrar_inadimplentes: usaCaderneta
+              ? 'Recuperar acertos da caderneta em atraso.'
+              : 'Recuperar valores a prazo em atraso.',
             reduzir_despesas: 'Reduzir custos e despesas para recompor o lucro líquido.',
             alavancar_ticket: 'Treinar equipe para vendas casadas e aumento de ticket médio.',
             manter_ritmo: 'Operação ótima, manter rotina e ritmo comercial.'
@@ -1482,7 +1498,9 @@ export const dashboardJevService = {
 
       const prioridadeMap: Record<string, string> = {
         repor_estoque_a: 'Repor urgentemente produtos Classe A em risco de desabastecimento.',
-        cobrar_inadimplentes: 'Acionar régua de cobrança para títulos fiados em atraso.',
+        cobrar_inadimplentes: usaCaderneta
+          ? 'Acionar régua de cobrança para acertos de caderneta em atraso.'
+          : 'Acionar régua de cobrança para títulos em atraso.',
         reduzir_despesas: 'Revisar despesas operacionais e custos com taxas de pagamento.',
         alavancar_ticket: 'Estimular combos e vendas adicionais para elevar o ticket médio.',
         manter_ritmo: 'Manter rotina operacional e foco na excelência do atendimento.'

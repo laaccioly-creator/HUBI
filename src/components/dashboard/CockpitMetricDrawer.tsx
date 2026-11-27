@@ -10,13 +10,11 @@ import {
   Layers,
   AlertTriangle,
   CheckCircle2,
-  PackagePlus,
   ArrowUpRight,
   Receipt,
   CreditCard,
   QrCode,
   Banknote,
-  Send,
   Boxes,
   HelpCircle,
   ShieldCheck,
@@ -30,6 +28,62 @@ import {
 import { useTheme } from '../../contexts/ThemeContext';
 import { formatarDataLocal, formatarDataHoraLocal, obterDataLocalYYYYMMDD } from '../../utils/dateTime';
 import { formatarMoeda } from '../../utils/formatters';
+
+const WhatsAppIcon: React.FC<{ className?: string }> = ({ className = 'w-4 h-4' }) => (
+  <svg
+    viewBox="0 0 24 24"
+    fill="currentColor"
+    aria-hidden="true"
+    className={className}
+  >
+    <path d="M20.52 3.48A11.86 11.86 0 0 0 12.06 0C5.49 0 .14 5.34.14 11.91c0 2.1.55 4.15 1.59 5.96L0 24l6.29-1.65a11.86 11.86 0 0 0 5.77 1.47h.01c6.57 0 11.92-5.34 11.92-11.91 0-3.18-1.24-6.17-3.47-8.43Zm-8.46 18.32h-.01a9.87 9.87 0 0 1-5.04-1.38l-.36-.21-3.73.98 1-3.64-.24-.37a9.84 9.84 0 0 1-1.52-5.27c0-5.45 4.44-9.89 9.9-9.89 2.64 0 5.13 1.03 6.99 2.9a9.83 9.83 0 0 1 2.9 7c0 5.45-4.44 9.88-9.89 9.88Zm5.42-7.41c-.3-.15-1.76-.87-2.03-.97-.27-.1-.47-.15-.67.15-.2.3-.77.97-.94 1.16-.17.2-.35.22-.64.08-.3-.15-1.25-.46-2.39-1.47-.88-.79-1.48-1.76-1.65-2.06-.17-.3-.02-.46.13-.61.13-.13.3-.35.45-.52.15-.17.2-.3.3-.5.1-.2.05-.37-.02-.52-.08-.15-.67-1.62-.92-2.22-.24-.58-.49-.5-.67-.51h-.57c-.2 0-.52.07-.79.37-.27.3-1.04 1.02-1.04 2.48 0 1.46 1.07 2.88 1.22 3.08.15.2 2.1 3.2 5.08 4.49.71.31 1.26.49 1.69.63.71.22 1.36.19 1.87.12.57-.09 1.76-.72 2.01-1.41.25-.7.25-1.29.17-1.41-.07-.12-.27-.2-.57-.35Z" />
+  </svg>
+);
+
+function separarTurnoEHorario(label: string): { turno: string; horario: string } {
+  const match = label.match(/^(.+?)\s*\((\d{2}h)\s*-\s*(\d{2}h)\)$/);
+  if (match) {
+    return {
+      turno: match[1].trim(),
+      horario: `${match[2]} às ${match[3]}`
+    };
+  }
+  return { turno: label, horario: '' };
+}
+
+function separarTituloEDetalheDespesa(
+  descricao: string,
+  categoria: string
+): { titulo: string; detalheSecundario: string } {
+  const descLimpa = String(descricao || '').trim();
+  const catLimpa = String(categoria || '').trim();
+  const match = descLimpa.match(/^(.+?)\s*(?:-|—|:)\s+(.+)$/);
+
+  let titulo = descLimpa;
+  let detalhe = '';
+
+  if (match && match[1].trim().length >= 3 && match[2].trim().length >= 2) {
+    titulo = match[1].trim();
+    detalhe = match[2].trim();
+  }
+
+  if (detalhe) {
+    return { titulo, detalheSecundario: detalhe };
+  }
+
+  const tituloNorm = titulo.toLowerCase();
+  const catNorm = catLimpa.toLowerCase();
+  const catRedundante =
+    !catLimpa ||
+    tituloNorm.includes(catNorm) ||
+    catNorm.includes(tituloNorm) ||
+    (tituloNorm.includes('compra') && tituloNorm.includes('estoque') && catNorm.includes('estoque'));
+
+  return {
+    titulo,
+    detalheSecundario: catRedundante ? '' : catLimpa
+  };
+}
 
 export type TipoMetricaCockpitDrawer =
   | 'faturamento'
@@ -163,7 +217,7 @@ export const CockpitMetricDrawer: React.FC<CockpitMetricDrawerProps> = ({
       cor: 'emerald'
     },
     inadimplencia: {
-      titulo: 'Auditoria de Inadimplência Fiado',
+      titulo: payload.usaCaderneta ? 'Auditoria de Inadimplência' : 'Auditoria de Inadimplência Fiado',
       subtitulo: 'Títulos em atraso, vencimentos e cobrança preventiva',
       icone: AlertTriangle,
       cor: 'amber'
@@ -210,8 +264,15 @@ export const CockpitMetricDrawer: React.FC<CockpitMetricDrawerProps> = ({
                   <IconeCabecalho className="w-5 h-5" />
                 </div>
                 <div>
-                  <h2 className="text-base sm:text-lg font-bold flex items-center gap-2 text-black dark:text-white">
-                    <span>{configAtual.titulo}</span>
+                  <h2 className="text-base sm:text-lg font-bold flex items-center flex-wrap gap-2 text-black dark:text-white">
+                    {tipoMetrica === 'inadimplencia' ? (
+                      <>
+                        <span className="md:hidden">Auditoria de Inadimplência</span>
+                        <span className="hidden md:inline">{configAtual.titulo}</span>
+                      </>
+                    ) : (
+                      <span>{configAtual.titulo}</span>
+                    )}
                     {nomeLojaContexto && (
                       <span className="text-[11px] font-bold px-2 py-0.5 rounded-full bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border border-emerald-500/30">
                         {nomeLojaContexto}
@@ -446,15 +507,51 @@ export const CockpitMetricDrawer: React.FC<CockpitMetricDrawerProps> = ({
                       const pct = decomposicoes.pedidos.totalPedidos > 0
                         ? Math.round((faixa.qtd / decomposicoes.pedidos.totalPedidos) * 100)
                         : 0;
+                      const { turno, horario } = separarTurnoEHorario(faixa.label);
                       return (
                         <div key={faixa.label} className={`p-3 rounded-xl bg-white dark:bg-[#000000] ${cardBorderClass} space-y-2 shadow-xs`}>
-                          <div className="flex items-center justify-between text-xs">
+                          {/* Desktop (preservado) */}
+                          <div className="hidden md:flex items-center justify-between text-xs">
                             <span className="text-black dark:text-slate-200 font-bold">{faixa.label}</span>
                             <div className="flex items-center gap-3">
                               <span className="text-black dark:text-slate-400 text-[11px] font-medium">Ticket Médio: <strong className="text-black dark:text-slate-200 font-mono">{formMoeda(faixa.ticketMedio)}</strong></span>
                               <span className="text-emerald-600 dark:text-emerald-400 font-mono font-bold">{faixa.qtd} pedidos ({pct}%)</span>
                             </div>
                           </div>
+
+                          {/* Mobile: 3 Colunas Fixas perfeitamente alinhadas */}
+                          <div className="grid md:hidden grid-cols-[1.1fr_1.1fr_0.8fr] items-center gap-2 text-xs">
+                            {/* Coluna 1: Turno + Horário */}
+                            <div className="min-w-0">
+                              <span className="block font-bold text-slate-900 dark:text-white leading-tight">{turno}</span>
+                              {horario && (
+                                <span className="block text-[11px] text-slate-600 dark:text-slate-400 font-medium leading-tight mt-0.5 whitespace-nowrap">
+                                  {horario}
+                                </span>
+                              )}
+                            </div>
+
+                            {/* Coluna 2: Ticket Médio */}
+                            <div className="min-w-0">
+                              <span className="block text-[11px] text-slate-600 dark:text-slate-400 font-medium leading-tight">
+                                Ticket Médio
+                              </span>
+                              <span className="block font-mono font-bold text-slate-900 dark:text-slate-100 leading-tight mt-0.5 whitespace-nowrap">
+                                {formMoeda(faixa.ticketMedio)}
+                              </span>
+                            </div>
+
+                            {/* Coluna 3: Volume + Percentual */}
+                            <div className="text-right min-w-0">
+                              <span className="block font-mono font-bold text-emerald-600 dark:text-emerald-400 leading-tight whitespace-nowrap">
+                                {faixa.qtd} {faixa.qtd === 1 ? 'pedido' : 'pedidos'}
+                              </span>
+                              <span className="block text-[11px] font-mono font-semibold text-emerald-700/90 dark:text-emerald-400/90 leading-tight mt-0.5">
+                                ({pct}%)
+                              </span>
+                            </div>
+                          </div>
+
                           <div className="w-full h-1.5 bg-slate-100 dark:bg-slate-900 rounded-full overflow-hidden">
                             <div
                               className="h-full bg-emerald-500 rounded-full transition-all duration-500"
@@ -693,11 +790,33 @@ export const CockpitMetricDrawer: React.FC<CockpitMetricDrawerProps> = ({
                       <p className="text-xs text-black dark:text-slate-400 py-2 text-center">Nenhuma despesa ou saída registrada no período.</p>
                     ) : (
                       Object.entries(decomposicoes.despesas.porCategoria).map(([cat, d]) => (
-                        <div key={cat} className="space-y-1">
-                          <div className="flex justify-between text-xs font-medium">
+                        <div key={cat} className="space-y-1.5">
+                          {/* Desktop (preservado) */}
+                          <div className="hidden md:flex justify-between text-xs font-medium">
                             <span className="text-black dark:text-slate-300">{cat} ({d.quantidade} lançamentos)</span>
                             <span className="text-black dark:text-white font-mono font-bold">{formMoeda(d.total)} ({d.percentual}%)</span>
                           </div>
+
+                          {/* Mobile: 2 áreas fixas sem quebra de contagem */}
+                          <div className="flex md:hidden justify-between items-start gap-3 text-xs">
+                            <div className="flex-1 min-w-0">
+                              <span className="block font-semibold text-slate-900 dark:text-slate-200 line-clamp-2 leading-snug">
+                                {cat}
+                              </span>
+                              <span className="block text-[11px] text-slate-600 dark:text-slate-400 font-medium mt-0.5">
+                                {d.quantidade} {d.quantidade === 1 ? 'lançamento' : 'lançamentos'}
+                              </span>
+                            </div>
+                            <div className="shrink-0 text-right">
+                              <span className="block text-slate-900 dark:text-white font-mono font-bold whitespace-nowrap leading-snug">
+                                {formMoeda(d.total)}
+                              </span>
+                              <span className="block text-[11px] text-slate-600 dark:text-slate-400 font-mono font-semibold mt-0.5">
+                                ({d.percentual}%)
+                              </span>
+                            </div>
+                          </div>
+
                           <div className="w-full h-1.5 bg-slate-100 dark:bg-slate-900 rounded-full overflow-hidden">
                             <div
                               className="h-full bg-emerald-500 rounded-full transition-all duration-500"
@@ -720,30 +839,55 @@ export const CockpitMetricDrawer: React.FC<CockpitMetricDrawerProps> = ({
                     {decomposicoes.despesas.itensRecentes.length === 0 ? (
                       <p className="text-xs text-black dark:text-slate-400 py-4 text-center">Nenhum lançamento no período.</p>
                     ) : (
-                      decomposicoes.despesas.itensRecentes.map((item) => (
-                        <div
-                          key={item.id}
-                          className={`p-3 rounded-xl bg-white dark:bg-[#000000] ${cardBorderClass} flex items-center justify-between text-xs hover:border-slate-400 dark:hover:border-slate-300 transition shadow-xs`}
-                        >
-                          <div className="space-y-0.5 min-w-0 pr-2">
-                            <div className="flex items-center gap-2">
-                              <span className="font-semibold text-black dark:text-white truncate">{item.descricao}</span>
-                              <span className="px-1.5 py-0.5 rounded text-[10px] font-bold uppercase tracking-wider bg-slate-100 dark:bg-slate-900 text-black dark:text-slate-300 border border-slate-200 dark:border-slate-800 shrink-0">
-                                {item.origem === 'caixa' ? 'Frente de Caixa' : 'Financeiro'}
-                              </span>
+                      decomposicoes.despesas.itensRecentes.map((item) => {
+                        const { titulo, detalheSecundario } = separarTituloEDetalheDespesa(item.descricao, item.categoria);
+                        const dataDespesaFmt = formatarDataLocal(item.data);
+                        return (
+                          <div
+                            key={item.id}
+                            className={`p-3 rounded-xl bg-white dark:bg-[#000000] ${cardBorderClass} hover:border-slate-400 dark:hover:border-slate-300 transition shadow-xs`}
+                          >
+                            {/* Desktop (sem a tag FINANCEIRO) */}
+                            <div className="hidden md:flex items-center justify-between text-xs">
+                              <div className="space-y-0.5 min-w-0 pr-2">
+                                <div className="flex items-center gap-2">
+                                  <span className="font-semibold text-black dark:text-white truncate">{item.descricao}</span>
+                                  {item.origem === 'caixa' && (
+                                    <span className="px-1.5 py-0.5 rounded text-[10px] font-bold uppercase tracking-wider bg-slate-100 dark:bg-slate-900 text-black dark:text-slate-300 border border-slate-200 dark:border-slate-800 shrink-0">
+                                      Frente de Caixa
+                                    </span>
+                                  )}
+                                </div>
+                                <div className="text-[11px] text-black dark:text-slate-400 font-medium flex items-center gap-2">
+                                  <span>{dataDespesaFmt}</span>
+                                  <span>• {item.categoria}</span>
+                                </div>
+                              </div>
+                              <div className="text-right shrink-0">
+                                <span className="font-mono font-bold text-rose-600 dark:text-rose-400 text-sm">
+                                  - {formMoeda(item.valor)}
+                                </span>
+                              </div>
                             </div>
-                            <div className="text-[11px] text-black dark:text-slate-400 font-medium flex items-center gap-2">
-                              <span>{formatarDataLocal(item.data)}</span>
-                              <span>• {item.categoria}</span>
+
+                            {/* Mobile (largura total sem tag FINANCEIRO) */}
+                            <div className="flex md:hidden flex-col gap-1 text-xs">
+                              <div className="flex justify-between items-start gap-2">
+                                <span className="font-semibold text-slate-900 dark:text-white leading-snug flex-1 min-w-0">
+                                  {titulo}
+                                </span>
+                                <span className="font-mono font-bold text-rose-600 dark:text-rose-400 text-sm whitespace-nowrap shrink-0">
+                                  - {formMoeda(item.valor)}
+                                </span>
+                              </div>
+                              <div className="text-[11px] text-slate-700 dark:text-slate-400 font-medium line-clamp-2 leading-snug">
+                                {dataDespesaFmt}
+                                {detalheSecundario ? ` • ${detalheSecundario}` : ''}
+                              </div>
                             </div>
                           </div>
-                          <div className="text-right shrink-0">
-                            <span className="font-mono font-bold text-rose-600 dark:text-rose-400 text-sm">
-                              - {formMoeda(item.valor)}
-                            </span>
-                          </div>
-                        </div>
-                      ))
+                        );
+                      })
                     )}
                   </div>
                 </div>
@@ -785,7 +929,7 @@ export const CockpitMetricDrawer: React.FC<CockpitMetricDrawerProps> = ({
                     </div>
                     <h4 className="text-sm font-bold text-black dark:text-white">Nenhum título em aberto ou vencido no período</h4>
                     <p className="text-xs text-black dark:text-slate-400 font-medium max-w-md mx-auto">
-                      Excelente! A sua carteira de clientes fiado está 100% conciliada e em conformidade de crédito.
+                      Excelente! A sua {payload.usaCaderneta ? 'carteira da caderneta' : 'carteira de clientes'} está 100% conciliada e em conformidade de crédito.
                     </p>
                   </div>
                 ) : (
@@ -798,42 +942,92 @@ export const CockpitMetricDrawer: React.FC<CockpitMetricDrawerProps> = ({
                       {decomposicoes.inadimplencia.itensAtrasados.map((it) => (
                         <div
                           key={it.pedidoId}
-                          className={`p-3.5 rounded-xl bg-white dark:bg-[#000000] ${cardBorderClass} hover:border-slate-400 dark:hover:border-slate-300 transition flex items-center justify-between gap-3 shadow-xs`}
+                          className={`p-3.5 rounded-xl bg-white dark:bg-[#000000] ${cardBorderClass} hover:border-slate-400 dark:hover:border-slate-300 transition shadow-xs`}
                         >
-                          <div className="space-y-0.5 min-w-0">
-                            <div className="flex items-center gap-2">
-                              <span className="font-bold text-black dark:text-white text-xs truncate">{it.clienteNome}</span>
-                              <span className="text-[10px] font-mono text-black dark:text-slate-400 font-bold">#{it.numeroPedido}</span>
-                            </div>
-                            <div className="text-[11px] text-black dark:text-slate-400 font-medium flex items-center gap-2">
-                              <span>Contato: <strong className="text-black dark:text-slate-300">{it.clienteContatoSeguro}</strong></span>
-                              <span>•</span>
-                              <span className="text-rose-600 dark:text-rose-400 font-bold">{it.diasAtraso} dias de atraso</span>
-                            </div>
-                          </div>
-
-                          <div className="flex items-center gap-3 shrink-0">
-                            <div className="text-right">
-                              <div className="font-mono font-bold text-rose-600 dark:text-rose-400 text-sm">{formMoeda(it.valorDevido)}</div>
-                              <div className="text-[10px] text-black dark:text-slate-400 font-medium">
-                                Venc: {formatarDataLocal(it.dataVencimento)}
+                          {/* Desktop (botão WhatsApp verde padrão oficial) */}
+                          <div className="hidden md:flex items-center justify-between gap-3">
+                            <div className="space-y-0.5 min-w-0">
+                              <div className="flex items-center gap-2">
+                                <span className="font-bold text-black dark:text-white text-xs truncate">{it.clienteNome}</span>
+                                <span className="text-[10px] font-mono text-black dark:text-slate-400 font-bold">#{it.numeroPedido}</span>
+                              </div>
+                              <div className="text-[11px] text-black dark:text-slate-400 font-medium flex items-center gap-2">
+                                <span>Contato: <strong className="text-black dark:text-slate-300">{it.clienteContatoSeguro}</strong></span>
+                                <span>•</span>
+                                <span className="text-rose-600 dark:text-rose-400 font-bold">{it.diasAtraso} dias de atraso</span>
                               </div>
                             </div>
 
-                            {it.clienteTelefoneBruto && (
-                              <button
-                                type="button"
-                                onClick={() => abrirWhatsAppCobranca(it)}
-                                className={`p-2 rounded-xl transition cursor-pointer ${
-                                  isDark
-                                    ? 'bg-emerald-500/10 hover:bg-emerald-500/20 border border-emerald-500/20 text-emerald-400'
-                                    : 'bg-slate-100 hover:bg-slate-200 border border-slate-300 text-black'
-                                }`}
-                                title="Enviar lembrete amigável no WhatsApp"
-                              >
-                                <Send className="w-3.5 h-3.5" />
-                              </button>
-                            )}
+                            <div className="flex items-center gap-3 shrink-0">
+                              <div className="text-right">
+                                <div className="font-mono font-bold text-rose-600 dark:text-rose-400 text-sm">{formMoeda(it.valorDevido)}</div>
+                                <div className="text-[10px] text-black dark:text-slate-400 font-medium">
+                                  Venc: {formatarDataLocal(it.dataVencimento)}
+                                </div>
+                              </div>
+
+                              {it.clienteTelefoneBruto && (
+                                <button
+                                  type="button"
+                                  onClick={() => abrirWhatsAppCobranca(it)}
+                                  className="p-2 rounded-xl bg-[#25D366] hover:bg-[#1ebe5d] text-white border border-[#1ebe5d] transition cursor-pointer shadow-xs"
+                                  title="Enviar lembrete amigável no WhatsApp"
+                                >
+                                  <WhatsAppIcon className="w-4 h-4" />
+                                </button>
+                              )}
+                            </div>
+                          </div>
+
+                          {/* Mobile: 2 linhas estruturadas + botão oficial WhatsApp */}
+                          <div className="flex md:hidden flex-col gap-2">
+                            {/* Linha Superior: Nome #pedido | dias de atraso | Valor */}
+                            <div className="flex items-center justify-between gap-2">
+                              <div className="min-w-0 flex-1 flex items-center gap-1.5">
+                                <span className="font-bold text-slate-900 dark:text-white text-xs truncate">
+                                  {it.clienteNome}
+                                </span>
+                                <span className="text-[11px] font-mono text-slate-600 dark:text-slate-400 font-bold shrink-0">
+                                  #{it.numeroPedido}
+                                </span>
+                              </div>
+
+                              <span className="text-[11px] text-rose-600 dark:text-rose-400 font-bold whitespace-nowrap shrink-0">
+                                {it.diasAtraso} {it.diasAtraso === 1 ? 'dia' : 'dias'} de atraso
+                              </span>
+
+                              <span className="font-mono font-bold text-rose-600 dark:text-rose-400 text-sm whitespace-nowrap shrink-0">
+                                {formMoeda(it.valorDevido)}
+                              </span>
+                            </div>
+
+                            {/* Linha Inferior: Contato | Vencimento + Botão WhatsApp */}
+                            <div className="flex items-start justify-between gap-2 pt-1.5 border-t border-slate-100 dark:border-slate-800">
+                              <div className="min-w-0 text-[11px] text-slate-700 dark:text-slate-400 font-medium leading-snug">
+                                <span>Contato: </span>
+                                <strong className="text-slate-900 dark:text-slate-200 break-words">
+                                  {it.clienteContatoSeguro}
+                                </strong>
+                              </div>
+
+                              <div className="shrink-0 flex flex-col items-end gap-1.5">
+                                <span className="text-[11px] text-slate-600 dark:text-slate-400 font-medium whitespace-nowrap">
+                                  Venc: {formatarDataLocal(it.dataVencimento)}
+                                </span>
+
+                                {it.clienteTelefoneBruto && (
+                                  <button
+                                    type="button"
+                                    onClick={() => abrirWhatsAppCobranca(it)}
+                                    className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-[#25D366] hover:bg-[#1ebe5d] text-white font-bold text-xs shadow-xs transition cursor-pointer"
+                                    title="Enviar lembrete amigável no WhatsApp"
+                                  >
+                                    <WhatsAppIcon className="w-3.5 h-3.5" />
+                                    <span>WhatsApp</span>
+                                  </button>
+                                )}
+                              </div>
+                            </div>
                           </div>
                         </div>
                       ))}
@@ -848,34 +1042,6 @@ export const CockpitMetricDrawer: React.FC<CockpitMetricDrawerProps> = ({
             {/* ------------------------------------------------------------- */}
             {tipoMetrica === 'saude_estoque' && (
               <div className="space-y-6">
-                {/* Banner Contextual da Fase (Cold Start vs Maturidade Curva ABC) */}
-                <div className={`p-4 rounded-xl bg-white dark:bg-[#000000] ${cardBorderClass} shadow-xs flex items-start gap-3`}>
-                  <div className="p-2 rounded-lg bg-emerald-50 dark:bg-emerald-500/10 text-emerald-700 dark:text-emerald-400 border border-emerald-200/60 dark:border-emerald-500/20 shrink-0">
-                    <Boxes className="w-5 h-5" />
-                  </div>
-                  <div className="space-y-1">
-                    <div className="flex items-center gap-2">
-                      <h4 className="text-xs font-bold text-black dark:text-white uppercase tracking-wider">
-                        {decomposicoes.saudeEstoque.totalItensMonitorados === 0
-                          ? 'Catálogo de Serviços / Sem Mercadorias Físicas'
-                          : decomposicoes.saudeEstoque.fase === 'fase2'
-                          ? 'Fase 2: Maturidade Operacional (Curva ABC)'
-                          : 'Fase 1: Cold Start / Implantação'}
-                      </h4>
-                      <span className="text-[10px] px-2 py-0.5 rounded-full bg-emerald-50 dark:bg-emerald-500/10 text-emerald-700 dark:text-emerald-400 border border-emerald-200 dark:border-emerald-500/20 font-bold">
-                        {decomposicoes.saudeEstoque.subtituloTag}
-                      </span>
-                    </div>
-                    <p className="text-xs text-black dark:text-slate-400 leading-relaxed">
-                      {decomposicoes.saudeEstoque.totalItensMonitorados === 0
-                        ? 'Esta unidade opera exclusivamente com serviços ou itens sem controle de estoque físico, portanto não possui risco de desabastecimento.'
-                        : decomposicoes.saudeEstoque.fase === 'fase2'
-                        ? 'Com mais de 30 dias de operação, o velocímetro protege exclusivamente os produtos da Classe A (responsáveis por 80% da sua receita), evitando perda de faturamento por desabastecimento.'
-                        : 'Histórico inicial de vendas (< 30 dias). O indicador monitora todos os produtos cadastrados com estoque zerado ou abaixo do estoque mínimo de alerta.'}
-                    </p>
-                  </div>
-                </div>
-
                 {/* Métricas do Estoque */}
                 <div className="grid grid-cols-3 gap-2.5">
                   <div className={`p-3 rounded-xl text-center flex flex-col items-center justify-center bg-white dark:bg-[#000000] ${cardBorderClass} shadow-xs`}>
@@ -958,17 +1124,6 @@ export const CockpitMetricDrawer: React.FC<CockpitMetricDrawerProps> = ({
                         ? 'Produtos Classe A em Risco de Ruptura'
                         : 'Produtos Abaixo do Estoque Mínimo ou Zerados'} ({decomposicoes.saudeEstoque.produtosEmRisco.length})
                     </h3>
-
-                    {onAbrirEntradaEstoque && (
-                      <button
-                        type="button"
-                        onClick={() => onAbrirEntradaEstoque()}
-                        className={`px-2.5 py-1 rounded-xl ${secondaryButtonClass} text-xs flex items-center gap-1.5 transition cursor-pointer shadow-xs`}
-                      >
-                        <PackagePlus className="w-3.5 h-3.5" />
-                        <span>+ Entrada de Estoque</span>
-                      </button>
-                    )}
                   </div>
 
                   {decomposicoes.saudeEstoque.produtosEmRisco.length === 0 ? (
@@ -988,58 +1143,111 @@ export const CockpitMetricDrawer: React.FC<CockpitMetricDrawerProps> = ({
                       {decomposicoes.saudeEstoque.produtosEmRisco.map((prod) => (
                         <div
                           key={prod.id}
-                          className={`p-3.5 rounded-xl bg-white dark:bg-[#000000] ${cardBorderClass} hover:border-slate-400 dark:hover:border-slate-300 transition flex items-center justify-between gap-3 shadow-xs`}
+                          className={`p-3.5 rounded-xl bg-white dark:bg-[#000000] ${cardBorderClass} hover:border-slate-400 dark:hover:border-slate-300 transition shadow-xs`}
                         >
-                          <div className="flex items-center gap-3 min-w-0">
-                            {prod.fotoUrl ? (
-                              <img
-                                src={prod.fotoUrl}
-                                alt={prod.nome}
-                                className="w-10 h-10 rounded-lg object-cover bg-slate-100 dark:bg-slate-900 shrink-0 border border-slate-200 dark:border-slate-800"
-                              />
-                            ) : (
-                              <div className="w-10 h-10 rounded-lg bg-slate-100 dark:bg-slate-800 flex items-center justify-center p-0.5 text-slate-400 dark:text-slate-500 shrink-0 border border-slate-200 dark:border-slate-700 select-none">
-                                <span className="text-[9px] font-medium text-center leading-tight select-none">Sem foto</span>
-                              </div>
-                            )}
+                          {/* Desktop (sem badge Classe A/B/C) */}
+                          <div className="hidden md:flex items-center justify-between gap-3">
+                            <div className="flex items-center gap-3 min-w-0">
+                              {prod.fotoUrl ? (
+                                <img
+                                  src={prod.fotoUrl}
+                                  alt={prod.nome}
+                                  className="w-10 h-10 rounded-lg object-cover bg-slate-100 dark:bg-slate-900 shrink-0 border border-slate-200 dark:border-slate-800"
+                                />
+                              ) : (
+                                <div className="w-10 h-10 rounded-lg bg-slate-100 dark:bg-slate-800 flex items-center justify-center p-0.5 text-slate-400 dark:text-slate-500 shrink-0 border border-slate-200 dark:border-slate-700 select-none">
+                                  <span className="text-[9px] font-medium text-center leading-tight select-none">Sem foto</span>
+                                </div>
+                              )}
 
-                            <div className="space-y-0.5 min-w-0">
-                              <div className="flex items-center gap-2">
-                                <span className="font-bold text-black dark:text-white text-xs truncate">{prod.nome}</span>
-                                {prod.classeAbc && (
-                                   <span className="text-[10px] px-1.5 py-0.5 rounded bg-emerald-50 dark:bg-emerald-500/10 text-emerald-700 dark:text-emerald-400 font-mono font-bold border border-emerald-200 dark:border-emerald-500/20">
-                                    Classe {prod.classeAbc}
-                                  </span>
-                                )}
+                              <div className="space-y-0.5 min-w-0">
+                                <div className="flex items-center gap-2">
+                                  <span className="font-bold text-black dark:text-white text-xs truncate">{prod.nome}</span>
+                                </div>
+                                <div className="text-[11px] text-black dark:text-slate-400 font-medium flex items-center gap-2">
+                                  <span>Estoque Atual: <strong className={prod.estoqueAtual <= 0 ? 'text-rose-600 dark:text-rose-400 font-mono' : 'text-amber-600 dark:text-amber-400 font-mono'}>{prod.estoqueAtual} un</strong></span>
+                                  <span>• Mínimo: {prod.estoqueMinimo} un</span>
+                                </div>
                               </div>
-                              <div className="text-[11px] text-black dark:text-slate-400 font-medium flex items-center gap-2">
-                                <span>Estoque Atual: <strong className={prod.estoqueAtual <= 0 ? 'text-rose-600 dark:text-rose-400 font-mono' : 'text-amber-600 dark:text-amber-400 font-mono'}>{prod.estoqueAtual} un</strong></span>
-                                <span>• Mínimo: {prod.estoqueMinimo} un</span>
-                              </div>
+                            </div>
+
+                            <div className="flex items-center gap-2 shrink-0">
+                              <span
+                                className={`px-2 py-0.5 rounded text-[10px] font-black uppercase tracking-wider ${
+                                  prod.status === 'zerado'
+                                    ? 'bg-rose-50 dark:bg-rose-500/10 text-rose-600 dark:text-rose-400 border border-rose-200 dark:border-rose-500/30'
+                                    : 'bg-amber-50 dark:bg-amber-500/10 text-amber-600 dark:text-amber-400 border border-amber-200 dark:border-amber-500/30'
+                                }`}
+                              >
+                                {prod.status === 'zerado' ? 'Zerado' : 'Baixo'}
+                              </span>
+
+                              {onAbrirEntradaEstoque && (
+                                <button
+                                  type="button"
+                                  onClick={() => onAbrirEntradaEstoque(prod)}
+                                  className={`px-2.5 py-1 rounded-xl ${secondaryButtonClass} text-xs flex items-center gap-1 transition cursor-pointer shadow-xs`}
+                                  title="Repor Estoque deste produto"
+                                >
+                                  <span>+ Repor</span>
+                                </button>
+                              )}
                             </div>
                           </div>
 
-                          <div className="flex items-center gap-2 shrink-0">
-                            <span
-                              className={`px-2 py-0.5 rounded text-[10px] font-black uppercase tracking-wider ${
-                                prod.status === 'zerado'
-                                  ? 'bg-rose-50 dark:bg-rose-500/10 text-rose-600 dark:text-rose-400 border border-rose-200 dark:border-rose-500/30'
-                                  : 'bg-amber-50 dark:bg-amber-500/10 text-amber-600 dark:text-amber-400 border border-amber-200 dark:border-amber-500/30'
-                              }`}
-                            >
-                              {prod.status === 'zerado' ? 'Zerado' : 'Crítico'}
-                            </span>
+                          {/* Mobile: Parte superior foto + nome completo (até 2 linhas); Parte inferior estoque + status + repor */}
+                          <div className="flex md:hidden flex-col">
+                            <div className="flex items-start gap-3">
+                              {prod.fotoUrl ? (
+                                <img
+                                  src={prod.fotoUrl}
+                                  alt={prod.nome}
+                                  className="w-11 h-11 rounded-lg object-cover bg-slate-100 dark:bg-slate-900 shrink-0 border border-slate-200 dark:border-slate-800"
+                                />
+                              ) : (
+                                <div className="w-11 h-11 rounded-lg bg-slate-100 dark:bg-slate-800 flex items-center justify-center p-0.5 text-slate-400 dark:text-slate-500 shrink-0 border border-slate-200 dark:border-slate-700 select-none">
+                                  <span className="text-[9px] font-medium text-center leading-tight select-none">Sem foto</span>
+                                </div>
+                              )}
+                              <span className="font-bold text-slate-900 dark:text-white text-xs leading-snug line-clamp-2 flex-1 min-w-0">
+                                {prod.nome}
+                              </span>
+                            </div>
 
-                            {onAbrirEntradaEstoque && (
-                              <button
-                                type="button"
-                                onClick={() => onAbrirEntradaEstoque(prod)}
-                                className={`px-2.5 py-1 rounded-xl ${secondaryButtonClass} text-xs flex items-center gap-1 transition cursor-pointer shadow-xs`}
-                                title="Repor Estoque deste produto"
-                              >
-                                <span>+ Repor</span>
-                              </button>
-                            )}
+                            <div className="flex items-center justify-between gap-2 mt-2.5 pt-2 border-t border-slate-100 dark:border-slate-800">
+                              <div className="text-[11px] text-slate-700 dark:text-slate-400 font-medium min-w-0">
+                                <span>Estoque Atual: </span>
+                                <strong className={prod.estoqueAtual <= 0 ? 'text-rose-600 dark:text-rose-400 font-mono font-bold' : 'text-amber-600 dark:text-amber-400 font-mono font-bold'}>
+                                  {prod.estoqueAtual} un
+                                </strong>
+                                {prod.estoqueMinimo > 0 && (
+                                  <span className="text-slate-500 dark:text-slate-400"> • Mín: {prod.estoqueMinimo} un</span>
+                                )}
+                              </div>
+
+                              <div className="flex items-center gap-1.5 shrink-0">
+                                <span
+                                  className={`px-2 py-0.5 rounded text-[10px] font-black uppercase tracking-wider ${
+                                    prod.estoqueAtual <= 0
+                                      ? 'bg-rose-50 dark:bg-rose-500/10 text-rose-600 dark:text-rose-400 border border-rose-200 dark:border-rose-500/30'
+                                      : 'bg-amber-50 dark:bg-amber-500/10 text-amber-600 dark:text-amber-400 border border-amber-200 dark:border-amber-500/30'
+                                  }`}
+                                >
+                                  {prod.estoqueAtual <= 0 ? 'ZERADO' : 'BAIXO'}
+                                </span>
+
+                                {onAbrirEntradaEstoque && (
+                                  <button
+                                    type="button"
+                                    onClick={() => onAbrirEntradaEstoque(prod)}
+                                    className={`px-2.5 py-1 rounded-xl ${secondaryButtonClass} text-xs flex items-center gap-1 transition cursor-pointer shadow-xs`}
+                                    title="Repor Estoque deste produto"
+                                  >
+                                    <span>+ Repor</span>
+                                  </button>
+                                )}
+                              </div>
+                            </div>
                           </div>
                         </div>
                       ))}
