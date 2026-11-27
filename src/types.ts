@@ -294,7 +294,9 @@ export type EventoGatilhoWhatsapp =
   | 'recarga_carteira_pix'
   | 'expiracao_trial_7d'
   | 'agendamento_criado'
-  | 'lembrete_agendamento';
+  | 'lembrete_agendamento'
+  | 'lembrete_vencimento_caderneta'
+  | 'lembrete_vencimento_fiado';
 
 export type StatusPagamentoWhatsappWallet = 'pendente' | 'concluido' | 'cancelado';
 
@@ -427,6 +429,8 @@ export interface Loja {
   wpp_auto_comprovante_fiado?: boolean;
   wpp_auto_agendamento_criado?: boolean;
   wpp_auto_lembrete_agendamento?: boolean;
+  wpp_auto_vencimento_caderneta?: boolean;
+  wpp_auto_vencimento_fiado?: boolean;
   antecedencia_lembrete_horas?: number;
   limite_remarcacoes_cliente?: number;
   antecedencia_minima_remarcacao_horas?: number;

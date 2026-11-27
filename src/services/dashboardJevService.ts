@@ -8,6 +8,12 @@ import {
 } from './dashboardService';
 import { MetricasCockpit, LojaMetas, Produto } from '../types';
 import { obterDataOperacao } from '../utils/dataOperacao';
+import {
+  obterDataRecebimentoPedidoDate,
+  obterDataRecebimentoPedidoISO,
+  obterValorRecebidoPedido,
+  pedidoTemRecebimentoReal
+} from '../utils/regimeCaixa';
 
 export type { DesdobramentoLojaItem };
 
@@ -19,6 +25,7 @@ export interface VendaSumarizada {
   id: string;
   numero_pedido: number;
   data: string;
+  dataPedido?: string;
   valor: number;
   canal: string;
   formaPagamento: string;
@@ -232,7 +239,7 @@ function gerarChaveCache(params: ParametrosConsultaDashboard): string {
   const offset = params.periodoOffset || 0;
   const custom = `${params.dataInicioCustom || ''}_${params.dataFimCustom || ''}`;
   const sufixoMulti = params.lojaId === 'todas' && params.lojasIdsConglomerado ? `_${params.lojasIdsConglomerado.sort().join('-')}` : '';
-  return `hubi_cockpit_v5_${params.lojaId}${sufixoMulti}_${params.tipoPeriodo}_${offset}_${custom}`;
+  return `hubi_cockpit_v6_${params.lojaId}${sufixoMulti}_${params.tipoPeriodo}_${offset}_${custom}`;
 }
 
 function recuperarCache(chave: string): PayloadDashboardExecutivo | null {
@@ -382,25 +389,10 @@ export const dashboardJevService = {
     dInicio: Date,
     dFim: Date
   ): MetricasCockpit {
-    const pedidosDoPeriodo = pedidosLoja.filter(p => {
-      let dataRef: Date;
-      const pag = p.pagamentos && p.pagamentos.length > 0 ? p.pagamentos[0] : null;
-      if (pag && pag.eh_pagamento_fiado && pag.data_pagamento) {
-        dataRef = new Date(pag.data_pagamento);
-      } else if (p.data_venda) {
-        dataRef = new Date(p.data_venda);
-      } else if (pag && pag.data_pagamento) {
-        dataRef = new Date(pag.data_pagamento);
-      } else {
-        dataRef = new Date(p.criado_em || '');
-      }
-      return dataRef >= dInicio && dataRef <= dFim;
-    });
-
-    const pedidosFaturados = pedidosDoPeriodo.filter(p => {
-      if (p.status === 'cancelado') return false;
-      const stPag = p.status_pagamento || (Number(p.saldo_devedor) <= 0 && Number(p.valor_pago) > 0 ? 'pago' : Number(p.valor_pago) > 0 ? 'parcialmente_pago' : 'aguardando_pagamento');
-      return p.status === 'concluido' || stPag === 'pago' || stPag === 'parcialmente_pago';
+    const pedidosFaturados = pedidosLoja.filter(p => {
+      if (!pedidoTemRecebimentoReal(p)) return false;
+      const dtRec = obterDataRecebimentoPedidoDate(p);
+      return !Number.isNaN(dtRec.getTime()) && dtRec >= dInicio && dtRec <= dFim;
     });
 
     let faturamento = 0;
@@ -408,7 +400,7 @@ export const dashboardJevService = {
     let taxasGateways = 0;
 
     pedidosFaturados.forEach(p => {
-      const val = Number(p.valor_total || p.valor_pago || 0);
+      const val = obterValorRecebidoPedido(p);
       faturamento += val;
 
       (p.itens || []).forEach((it: any) => {
@@ -416,7 +408,11 @@ export const dashboardJevService = {
       });
 
       if (usarTaxaPdvLoja && p.pagamentos) {
-        p.pagamentos.forEach((pg: any) => {
+        const pagsReais = (p.pagamentos || []).filter(
+          (pg: any) => !pg.eh_pagamento_fiado && !pg.eh_pagamento_caderneta
+        );
+        const listaPags = pagsReais.length > 0 ? pagsReais : p.pagamentos;
+        listaPags.forEach((pg: any) => {
           taxasGateways += Number(pg.valor_taxa || 0);
         });
       }
@@ -737,29 +733,19 @@ export const dashboardJevService = {
     const metasProporcionais = dashboardService.calcularMetasProporcionais(metasLoja, intervalo.diasIntervalo);
 
     // ------------------------------------------------------------------------
-    // A. FILTRAGEM DE PEDIDOS DO PERÍODO
+    // A. FILTRAGEM DE PEDIDOS DO PERÍODO (REGIME DE CAIXA REAL)
     // ------------------------------------------------------------------------
-    const pedidosDoPeriodo = todosPedidos.filter(p => {
-      let dataRef: Date;
-      const pag = p.pagamentos && p.pagamentos.length > 0 ? p.pagamentos[0] : null;
-      if (pag && pag.eh_pagamento_fiado && pag.data_pagamento) {
-        dataRef = new Date(pag.data_pagamento);
-      } else if (p.data_venda) {
-        dataRef = new Date(p.data_venda);
-      } else if (pag && pag.data_pagamento) {
-        dataRef = new Date(pag.data_pagamento);
-      } else {
-        dataRef = new Date(p.criado_em || '');
-      }
-
-      return dataRef >= dInicio && dataRef <= dFim;
+    const pedidosFaturados = todosPedidos.filter(p => {
+      if (!pedidoTemRecebimentoReal(p)) return false;
+      const dtRec = obterDataRecebimentoPedidoDate(p);
+      return !Number.isNaN(dtRec.getTime()) && dtRec >= dInicio && dtRec <= dFim;
     });
 
-    // Pedidos faturados (concluídos ou com pagamento confirmado, não cancelados)
-    const pedidosFaturados = pedidosDoPeriodo.filter(p => {
-      if (p.status === 'cancelado') return false;
-      const stPag = p.status_pagamento || (Number(p.saldo_devedor) <= 0 && Number(p.valor_pago) > 0 ? 'pago' : Number(p.valor_pago) > 0 ? 'parcialmente_pago' : 'aguardando_pagamento');
-      return p.status === 'concluido' || stPag === 'pago' || stPag === 'parcialmente_pago';
+    const pedidosDoPeriodo = todosPedidos.filter(p => {
+      const dtRef = pedidoTemRecebimentoReal(p)
+        ? obterDataRecebimentoPedidoDate(p)
+        : new Date(p.data_venda || p.criado_em || '');
+      return !Number.isNaN(dtRef.getTime()) && dtRef >= dInicio && dtRef <= dFim;
     });
 
     // ------------------------------------------------------------------------
@@ -772,7 +758,7 @@ export const dashboardJevService = {
     let taxasGateways = 0;
 
     pedidosFaturados.forEach(p => {
-      const valorPedido = Number(p.valor_total || p.valor_pago || 0);
+      const valorPedido = obterValorRecebidoPedido(p);
       faturamentoBruto += valorPedido;
 
       // Canal (origem)
@@ -789,10 +775,15 @@ export const dashboardJevService = {
       porCanal[canalFormatado].total += valorPedido;
       porCanal[canalFormatado].quantidade += 1;
 
-      // Formas de Pagamento & Taxas
+      // Formas de Pagamento & Taxas (considerando apenas pagamentos reais quando existirem)
       let formaPrincipal = 'Dinheiro';
-      if (p.pagamentos && p.pagamentos.length > 0) {
-        p.pagamentos.forEach((pg: any) => {
+      const pagsReais = (p.pagamentos || []).filter(
+        (pg: any) => !pg.eh_pagamento_fiado && !pg.eh_pagamento_caderneta
+      );
+      const listaPags = pagsReais.length > 0 ? pagsReais : (p.pagamentos || []);
+
+      if (listaPags.length > 0) {
+        listaPags.forEach((pg: any) => {
           const valorPg = Number(pg.valor || 0);
           const taxaPg = Number(pg.valor_taxa || 0);
           if (usarTaxaPdv) {
@@ -806,9 +797,9 @@ export const dashboardJevService = {
           porFormaPagamento[nomePg].total += valorPg;
           porFormaPagamento[nomePg].quantidade += 1;
         });
-        formaPrincipal = p.pagamentos.length === 1
-          ? (p.pagamentos[0].forma_pagamento?.nome || p.pagamentos[0].forma_nome || p.pagamentos[0].forma_tipo || 'Outro')
-          : `${p.pagamentos.length} formas`;
+        formaPrincipal = listaPags.length === 1
+          ? (listaPags[0].forma_pagamento?.nome || listaPags[0].forma_nome || listaPags[0].forma_tipo || 'Outro')
+          : `${listaPags.length} formas`;
       } else {
         const nomePg = 'Dinheiro';
         if (!porFormaPagamento[nomePg]) {
@@ -819,12 +810,13 @@ export const dashboardJevService = {
         formaPrincipal = 'Dinheiro';
       }
 
-      // Adiciona na lista resumida
+      // Adiciona na lista resumida usando a data efetiva do recebimento
       const nomeCliente = p.cliente?.nome || p.cliente?.nome_completo || p.cliente_nome_avulso || 'Cliente Avulso';
       vendasSumarizadas.push({
         id: p.id,
         numero_pedido: p.numero_pedido || 0,
-        data: p.data_venda || p.criado_em,
+        data: obterDataRecebimentoPedidoISO(p),
+        dataPedido: p.data_venda || p.criado_em,
         valor: valorPedido,
         canal: canalFormatado,
         formaPagamento: formaPrincipal,
@@ -832,6 +824,8 @@ export const dashboardJevService = {
         clienteNome: nomeCliente
       });
     });
+
+    vendasSumarizadas.sort((a, b) => new Date(b.data).getTime() - new Date(a.data).getTime());
 
     // Calcula percentuais de canal e pagamento
     if (faturamentoBruto > 0) {
@@ -860,16 +854,18 @@ export const dashboardJevService = {
       const st = String(p.status || '').toLowerCase();
       if (st === 'cancelado') {
         pedidosCancelados++;
-      } else if (st === 'pendente' || st === 'aguardando_aprovacao') {
-        pedidosPendentes++;
-      } else {
+      } else if (pedidoTemRecebimentoReal(p)) {
         pedidosConcluidos++;
+      } else {
+        pedidosPendentes++;
       }
+    });
 
-      // Faixa horária de compras faturadas
-      const d = new Date(p.data_venda || p.criado_em);
-      const hora = d.getHours();
-      const val = Number(p.valor_pago || p.valor_total || 0);
+    pedidosFaturados.forEach(p => {
+      // Faixa horária de compras efetivamente recebidas (horário do pagamento)
+      const d = obterDataRecebimentoPedidoDate(p);
+      const hora = Number.isNaN(d.getTime()) ? 12 : d.getHours();
+      const val = obterValorRecebidoPedido(p);
 
       if (hora >= 0 && hora < 6) {
         faixaMadrugada.qtd++;
@@ -1033,7 +1029,7 @@ export const dashboardJevService = {
     };
 
     pedidosFaturados.forEach(p => {
-      const val = Number(p.valor_pago || p.valor_total || 0);
+      const val = obterValorRecebidoPedido(p);
       if (val < menorVenda) menorVenda = val;
       if (val > maiorVenda) maiorVenda = val;
 

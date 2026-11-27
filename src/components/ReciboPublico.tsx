@@ -24,6 +24,7 @@ import {
 import { Pedido, Loja, ItemPedido } from '../types';
 import {
   formatarDataRecibo,
+  formatarDataHoraCurtaRecibo,
   obterDadosPagamentoRecibo,
   obterInfoEntregaRecibo
 } from '../services/printService';
@@ -142,7 +143,22 @@ export const ReciboPublico: React.FC = () => {
           console.warn('[ReciboPublico] Tentando busca direta resiliente do pedido...', pedErr);
           let simpleQuery = supabase.from('pedidos').select(SELECT_PEDIDO_PUBLICO);
           simpleQuery = aplicarFiltroIdentificador(simpleQuery);
-          const { data: simplePed, error: simpleErr } = await simpleQuery.maybeSingle();
+          let { data: simplePed, error: simpleErr } = await simpleQuery.maybeSingle();
+
+          if (
+            simpleErr &&
+            (simpleErr.code === '42703' ||
+              simpleErr.code === 'PGRST204' ||
+              String(simpleErr.message || '').toLowerCase().includes('data_pagamento'))
+          ) {
+            let legacyQuery = supabase
+              .from('pedidos')
+              .select(SELECT_PEDIDO_PUBLICO.replace(', data_pagamento', ''));
+            legacyQuery = aplicarFiltroIdentificador(legacyQuery);
+            const legacyRes = await legacyQuery.maybeSingle();
+            simplePed = legacyRes.data as typeof simplePed;
+            simpleErr = legacyRes.error;
+          }
 
           if (simplePed && !simpleErr) {
             pedData = simplePed as any;
@@ -380,6 +396,9 @@ export const ReciboPublico: React.FC = () => {
             <p className="text-slate-500 text-[10px]">
               {[loja?.endereco_logradouro, loja?.endereco_numero, loja?.endereco_bairro, loja?.endereco_cidade].filter(Boolean).join(', ')}
               {loja?.whatsapp ? ` • +55 ${loja.whatsapp}` : (loja?.telefone ? ` • +55 ${loja.telefone}` : '')}
+            </p>
+            <p className="text-[11px] font-semibold text-slate-800 pt-1">
+              Data do Pedido: <strong className="text-slate-900">{formatarDataHoraCurtaRecibo(pedido.data_venda || pedido.criado_em)}</strong>
             </p>
           </div>
 
@@ -687,6 +706,12 @@ export const ReciboPublico: React.FC = () => {
                   : 'AGUARDANDO PAGAMENTO'}
               </span>
             </div>
+            {pagInfo.foiPago && pagInfo.dataPagamento && (
+              <div className="flex justify-between items-center text-[11px] pt-1.5 pb-1 border-b border-dashed border-emerald-200">
+                <span className="font-semibold text-slate-700">Data do Pagamento:</span>
+                <span className="font-bold text-slate-900">{formatarDataHoraCurtaRecibo(pagInfo.dataPagamento)}</span>
+              </div>
+            )}
             {infoEntrega && !pagInfo.foiPago && (
               <div className="p-2.5 mt-2 rounded-xl bg-amber-500/10 border border-amber-500/30 text-amber-900 text-[11px] leading-relaxed">
                 <div className="font-bold">
@@ -788,8 +813,8 @@ export const ReciboPublico: React.FC = () => {
           <div className="border-t border-slate-300 my-2" />
 
           {/* Data por Extenso */}
-          <div className="text-center text-[11px] text-slate-500">
-            {formatarDataRecibo(pedido.data_venda || pedido.criado_em)}
+          <div className="text-center text-[11px] text-slate-600">
+            Pedido registrado em {formatarDataRecibo(pedido.data_venda || pedido.criado_em)}
           </div>
 
           <div className="text-center text-[9px] text-slate-500 pt-1 border-t border-slate-200">

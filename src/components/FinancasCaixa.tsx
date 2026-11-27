@@ -211,8 +211,33 @@ export const FinancasCaixa: React.FC = () => {
 
   // Abertura de Sessão de Caixa
   const [modalAberturaCaixa, setModalAberturaCaixa] = useState<boolean>(false);
-  const [fundoTroco, setFundoTroco] = useState<string>('0.00');
+  const [fundoTroco, setFundoTroco] = useState<string>('');
   const [abrindoCaixa, setAbrindoCaixa] = useState<boolean>(false);
+
+  const abrirModalAberturaCaixa = () => {
+    setFundoTroco('');
+    setModalAberturaCaixa(true);
+  };
+
+  const parseFundoTrocoInicial = (raw: string): number => {
+    const limpo = raw.trim().replace(/\s+/g, '');
+    if (!limpo) return 0;
+
+    let normalizado = limpo;
+    if (limpo.includes(',')) {
+      normalizado = limpo.replace(/\./g, '').replace(',', '.');
+    } else {
+      const partes = limpo.split('.');
+      if (partes.length > 2) {
+        const decimal = partes.pop();
+        normalizado = `${partes.join('')}.${decimal}`;
+      }
+    }
+
+    const parsed = parseFloat(normalizado);
+    if (!Number.isFinite(parsed) || parsed < 0) return 0;
+    return Math.round(parsed * 100) / 100;
+  };
 
   // Movimentações: Suprimento, Sangria e Despesa Rápida
   const [modalSuprimento, setModalSuprimento] = useState<boolean>(false);
@@ -685,12 +710,13 @@ export const FinancasCaixa: React.FC = () => {
     }
     try {
       setAbrindoCaixa(true);
-      const valFundo = Number(fundoTroco) || 0;
+      const valFundo = parseFundoTrocoInicial(fundoTroco);
       const nova = await caixaService.abrirSessao(loja.id, usuario.id, valFundo, terminalId);
       const res = await caixaService.obterResumoSessao(nova.id);
       setSessaoAtiva(nova);
       setResumoSessao(res);
       setModalAberturaCaixa(false);
+      setFundoTroco('');
       mostrarSucesso(`Sessão de caixa aberta com sucesso no terminal ${nova.terminal_id}! Fundo de troco: R$ ${valFundo.toFixed(2)}`);
       await carregarFinanceiro();
     } catch (err: any) {
@@ -1695,7 +1721,7 @@ export const FinancasCaixa: React.FC = () => {
           setFiltroMovimentacoes={setFiltroMovimentacoes}
           filtrosHistorico={filtrosHistorico}
           setFiltrosHistorico={setFiltrosHistorico}
-          onAbrirCaixa={() => setModalAberturaCaixa(true)}
+          onAbrirCaixa={abrirModalAberturaCaixa}
           onSuprimento={() => setModalSuprimento(true)}
           onSangria={() => setModalSangria(true)}
           onDespesaGaveta={() => setModalDespesaRapida(true)}
@@ -1797,7 +1823,7 @@ export const FinancasCaixa: React.FC = () => {
               ) : (
                 <button
                   type="button"
-                  onClick={() => setModalAberturaCaixa(true)}
+                  onClick={abrirModalAberturaCaixa}
                   className={`px-4 py-2 rounded-xl text-sm flex items-center gap-1.5 transition cursor-pointer shadow-xs ${classeBotaoNeutroClaro}`}
                 >
                   <Unlock className="w-4 h-4" />
@@ -2567,7 +2593,7 @@ export const FinancasCaixa: React.FC = () => {
                       </div>
                       <button
                         type="button"
-                        onClick={() => setModalAberturaCaixa(true)}
+                        onClick={abrirModalAberturaCaixa}
                         className={`px-6 py-3 text-sm rounded-2xl shadow-xs transition cursor-pointer inline-flex items-center gap-2 ${classeBotaoCtaClaro}`}
                       >
                         <Unlock className="w-4 h-4" />
@@ -3261,20 +3287,20 @@ export const FinancasCaixa: React.FC = () => {
                     Fundo de Troco Inicial em Dinheiro (R$):
                   </label>
                   <input
-                    type="number"
-                    step="0.01"
-                    required
-                    placeholder="Ex: 0.00"
+                    type="text"
+                    inputMode="decimal"
+                    autoFocus
+                    placeholder="0,00"
                     value={fundoTroco}
-                    onChange={(e) => setFundoTroco(e.target.value)}
+                    onChange={(e) => setFundoTroco(e.target.value.replace(/[^0-9.,]/g, ''))}
                     className={`w-full rounded-xl px-4 py-3 text-2xl font-black text-center focus:outline-none transition border-2 ${
                       isDark
-                        ? 'bg-[#000000] border-emerald-500 text-emerald-400'
-                        : 'bg-emerald-50/50 border-emerald-500 text-emerald-700'
+                        ? 'bg-[#000000] border-emerald-500 text-emerald-400 placeholder:text-emerald-400/40'
+                        : 'bg-emerald-50/50 border-emerald-500 text-emerald-700 placeholder:text-emerald-700/45'
                     }`}
                   />
                   <span className={`text-[10px] block text-center mt-1 font-medium ${isDark ? 'text-slate-300' : 'text-slate-900'}`}>
-                    Valor físico inicial em cédulas e moedas na gaveta
+                    Valor físico inicial em cédulas e moedas na gaveta (deixe em branco para abrir com R$ 0,00)
                   </span>
                 </div>
 

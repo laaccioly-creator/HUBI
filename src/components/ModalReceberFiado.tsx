@@ -17,6 +17,7 @@ import { useFeedbackModal } from '../contexts/FeedbackContext';
 import { Cliente, Pedido, FormaPagamento, TipoPagamento, StatusPagamento } from '../types';
 import { caixaService } from '../services/caixaService';
 import { SyncService } from '../services/syncService';
+import { dashboardJevService } from '../services/dashboardJevService';
 import { obterDataOperacaoISO } from '../utils/dataOperacao';
 import { whatsappWalletService } from '../services/whatsappWalletService';
 import { useRegisterOverlay } from '../hooks/useRegisterOverlay';
@@ -397,6 +398,10 @@ export const ModalReceberFiado: React.FC<ModalReceberFiadoProps> = ({
           }
         }
       }
+
+      try {
+        dashboardJevService.invalidarCache(loja?.id);
+      } catch {}
 
       onClose();
       if (onRecebimentoConcluido) {

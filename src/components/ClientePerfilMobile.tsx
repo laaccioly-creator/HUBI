@@ -33,7 +33,7 @@ import { usePermissions } from '../hooks/usePermissions';
 import { useRegisterOverlay } from '../hooks/useRegisterOverlay';
 import { Cliente, CicloCaderneta, Pedido, MovimentacaoSaldoCliente, TabelaPreco } from '../types';
 import { extrairEnderecoEstruturado } from './ModalNovoCliente';
-import { obterDataOperacaoISO, obterDataOperacaoYMD } from '../utils/dataOperacao';
+import { obterDataOperacao, obterDataOperacaoISO, obterDataOperacaoYMD } from '../utils/dataOperacao';
 import { caixaService } from '../services/caixaService';
 import { useFeedbackModal } from '../contexts/FeedbackContext';
 import { ModalHistoricoFiadoCliente } from './ModalHistoricoFiadoCliente';
@@ -43,10 +43,17 @@ import { normalizarTelefoneComDDI } from '../utils/formatters';
 import { formatarDataLocal, formatarHoraLocal, obterDataLocalYYYYMMDD } from '../utils/dateTime';
 import { CadernetaService } from '../services/cadernetaService';
 import {
+  cadernetaVenceNaData,
   DIAS_SEMANA_CADERNETA,
   obterConfigCicloCliente,
   sugerirSegundoDiaQuinzenal
 } from '../utils/cadernetaCiclo';
+import {
+  montarMensagemLembreteCaderneta,
+  montarMensagemLembreteFiado,
+  RegistroLembreteVencimentoHoje,
+  whatsappWalletService
+} from '../services/whatsappWalletService';
 
 interface ClientePerfilMobileProps {
   cliente: Cliente;
@@ -248,6 +255,7 @@ export const ClientePerfilMobile: React.FC<ClientePerfilMobileProps> = ({
   // Estados da aba CONTA / CRÉDITOS (TELA13)
   const [saldoCredito, setSaldoCredito] = useState<number>(Number(cliente.saldo_credito || 0));
   const [saldoDevedorFiado, setSaldoDevedorFiado] = useState<number>(Number(cliente.saldo_devedor_fiado || 0));
+  const [lembreteHoje, setLembreteHoje] = useState<RegistroLembreteVencimentoHoje | null>(null);
   const [modalQuitarFiado, setModalQuitarFiado] = useState<boolean>(false);
   const [valorQuitarStr, setValorQuitarStr] = useState<string>('');
   const [formaQuitar, setFormaQuitar] = useState<string>('dinheiro');
@@ -415,7 +423,89 @@ export const ClientePerfilMobile: React.FC<ClientePerfilMobileProps> = ({
 
   useEffect(() => {
     carregarPedidos();
+    if (cliente.id && loja?.id) {
+      const hojeYmd = obterDataOperacaoYMD();
+      void whatsappWalletService
+        .obterLembretesVencimentoEnviadosHoje(loja.id, hojeYmd)
+        .then((mapa) => {
+          setLembreteHoje(mapa[cliente.id] || null);
+        });
+    }
   }, [cliente.id, loja?.id]);
+
+  const fiadoVencendoHojeInfo = useMemo(() => {
+    const hojeYmd = obterDataOperacaoYMD();
+    let valor = 0;
+    const numerosPedidos: number[] = [];
+    for (const p of pedidosCliente) {
+      if (p.status === 'cancelado' || p.fiado_quitado) continue;
+      const stPag = String(p.status_pagamento || '').toLowerCase();
+      const saldo = Number(p.saldo_devedor ?? 0);
+      const vencYmd = p.data_vencimento_fiado ? String(p.data_vencimento_fiado).slice(0, 10) : '';
+      if ((stPag === 'fiado' || saldo > 0) && saldo > 0 && vencYmd === hojeYmd) {
+        valor += saldo;
+        if (p.numero_pedido) numerosPedidos.push(Number(p.numero_pedido));
+      }
+    }
+    return { venceHoje: valor > 0, valor, numerosPedidos };
+  }, [pedidosCliente]);
+
+  const handleEnviarLembreteManualCliente = async (
+    tipoCredito: 'caderneta' | 'fiado',
+    valorCobrado: number,
+    numerosPedidos: number[] = []
+  ) => {
+    if (!loja?.id || !cliente.id) return;
+    const fone = cliente.whatsapp || cliente.telefone || whatsapp || '';
+    if (!fone) {
+      mostrarAviso('Este cliente não possui WhatsApp ou telefone cadastrado.');
+      return;
+    }
+
+    const dataOp = obterDataOperacao();
+    const hojeYmd = obterDataOperacaoYMD();
+    const dataHojeBR = formatarDataLocal(dataOp, {
+      day: '2-digit',
+      month: '2-digit',
+      year: 'numeric',
+    });
+
+    const mensagem =
+      tipoCredito === 'caderneta'
+        ? montarMensagemLembreteCaderneta({
+            nomeCliente: cliente.nome,
+            dataHojeBR,
+            nomeLoja: loja.nome_fantasia,
+            valor: valorCobrado,
+          })
+        : montarMensagemLembreteFiado({
+            nomeCliente: cliente.nome,
+            dataHojeBR,
+            numerosPedidos,
+            nomeLoja: loja.nome_fantasia,
+            valor: valorCobrado,
+          });
+
+    const link = whatsappWalletService.construirLinkManualWhatsApp(fone, mensagem);
+    window.open(link, '_blank', 'noopener,noreferrer');
+
+    await whatsappWalletService.registrarLembreteManualEnviado({
+      lojaId: loja.id,
+      clienteId: cliente.id,
+      tipoCredito,
+      dataVencimentoYmd: hojeYmd,
+      valorCobrado,
+    });
+
+    setLembreteHoje({
+      clienteId: cliente.id,
+      tipoCredito,
+      dataVencimento: hojeYmd,
+      valorCobrado,
+      modoEnvio: 'manual_link',
+      enviadoEm: new Date().toISOString(),
+    });
+  };
 
   // Carregar extrato de créditos
   const carregarExtratoCreditos = async () => {
@@ -1484,6 +1574,24 @@ export const ClientePerfilMobile: React.FC<ClientePerfilMobileProps> = ({
                     <BookOpen className="w-4 h-4" />
                     <span>{saldoDevedorCaderneta > 0 ? 'Ver Extrato / Receber Pagamento' : 'Abrir Extrato da Caderneta'}</span>
                   </button>
+
+                  {saldoDevedorCaderneta > 0 && cadernetaVenceNaData(cliente, loja, obterDataOperacao()) && (
+                    lembreteHoje && lembreteHoje.tipoCredito === 'caderneta' ? (
+                      <div className="inline-flex items-center justify-center gap-1.5 px-3 py-1.5 rounded-full bg-emerald-100 border border-emerald-300 text-emerald-900 text-xs font-bold">
+                        <Check className="w-3.5 h-3.5" />
+                        <span>Lembrete enviado hoje</span>
+                      </div>
+                    ) : (
+                      <button
+                        type="button"
+                        onClick={() => handleEnviarLembreteManualCliente('caderneta', saldoDevedorCaderneta)}
+                        className="w-full py-2.5 rounded-2xl bg-slate-100 hover:bg-slate-200 text-slate-800 border border-slate-300 font-bold text-xs flex items-center justify-center gap-1.5 transition cursor-pointer"
+                      >
+                        <MessageCircle className="w-4 h-4 text-emerald-600" />
+                        <span>Enviar lembrete hoje (WhatsApp)</span>
+                      </button>
+                    )
+                  )}
                 </div>
               )}
 
@@ -1522,6 +1630,29 @@ export const ClientePerfilMobile: React.FC<ClientePerfilMobileProps> = ({
 
                   {saldoDevedorFiado > 0 && (
                     <div className="space-y-2">
+                      {fiadoVencendoHojeInfo.venceHoje && (
+                        lembreteHoje && lembreteHoje.tipoCredito === 'fiado' ? (
+                          <div className="inline-flex items-center justify-center gap-1.5 px-3 py-1.5 rounded-full bg-emerald-100 border border-emerald-300 text-emerald-900 text-xs font-bold">
+                            <Check className="w-3.5 h-3.5" />
+                            <span>Lembrete enviado hoje</span>
+                          </div>
+                        ) : (
+                          <button
+                            type="button"
+                            onClick={() =>
+                              handleEnviarLembreteManualCliente(
+                                'fiado',
+                                fiadoVencendoHojeInfo.valor,
+                                fiadoVencendoHojeInfo.numerosPedidos
+                              )
+                            }
+                            className="w-full py-2.5 rounded-2xl bg-slate-100 hover:bg-slate-200 text-slate-800 border border-slate-300 font-bold text-xs flex items-center justify-center gap-1.5 transition cursor-pointer"
+                          >
+                            <MessageCircle className="w-4 h-4 text-emerald-600" />
+                            <span>Enviar lembrete hoje (WhatsApp)</span>
+                          </button>
+                        )
+                      )}
                       <button
                         type="button"
                         onClick={() => {

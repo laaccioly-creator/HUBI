@@ -28,7 +28,7 @@ import {
   ItemInadimplente
 } from '../../services/dashboardJevService';
 import { useTheme } from '../../contexts/ThemeContext';
-import { formatarDataLocal, formatarDataHoraLocal } from '../../utils/dateTime';
+import { formatarDataLocal, formatarDataHoraLocal, obterDataLocalYYYYMMDD } from '../../utils/dateTime';
 import { formatarMoeda } from '../../utils/formatters';
 
 export type TipoMetricaCockpitDrawer =
@@ -359,8 +359,13 @@ export const CockpitMetricDrawer: React.FC<CockpitMetricDrawerProps> = ({
                             <span className="font-mono font-bold text-black dark:text-white">#{v.numero_pedido}</span>
                             <span className="text-black dark:text-slate-400 font-medium">• {v.clienteNome}</span>
                           </div>
-                          <div className="text-[11px] text-black dark:text-slate-400 font-medium flex items-center gap-2">
-                            <span>{formatarDataHoraLocal(v.data, { dateStyle: 'short', timeStyle: 'short' })}</span>
+                          <div className="text-[11px] text-black dark:text-slate-400 font-medium flex flex-wrap items-center gap-x-2 gap-y-0.5">
+                            <span>Pago em {formatarDataHoraLocal(v.data, { dateStyle: 'short', timeStyle: 'short' })}</span>
+                            {v.dataPedido && obterDataLocalYYYYMMDD(v.dataPedido) !== obterDataLocalYYYYMMDD(v.data) && (
+                              <span className="text-slate-600 dark:text-slate-400">
+                                • Pedido de {formatarDataLocal(v.dataPedido, { day: '2-digit', month: '2-digit' })}
+                              </span>
+                            )}
                             <span>• {v.canal}</span>
                             <span>• {v.formaPagamento}</span>
                           </div>

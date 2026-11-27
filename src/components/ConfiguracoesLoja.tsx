@@ -1271,6 +1271,23 @@ export const ConfiguracoesLoja: React.FC<ConfiguracoesLojaProps> = ({ subTelaIni
           console.warn('Erro ao carregar shipping config:', err);
         }
 
+        // Leitura relacional de formas_pagamento para garantir estado exato de Fiado vs Caderneta vs Nenhum
+        let fiadoInicialFinal = cadernetaInicial ? false : Boolean(pagManuais.permitir_fiado ?? false);
+        try {
+          const { data: fpsCrediario } = await supabase
+            .from('formas_pagamento')
+            .select('id, tipo, ativo')
+            .eq('loja_id', loja.id)
+            .eq('tipo', 'fiado');
+
+          if (Array.isArray(fpsCrediario) && fpsCrediario.length > 0) {
+            fiadoInicialFinal = cadernetaInicial ? false : fpsCrediario.some((fp) => Boolean(fp.ativo));
+          }
+        } catch (errFpRead) {
+          console.warn('Aviso ao ler formas_pagamento (fiado):', errFpRead);
+        }
+        setPermitirFiado(fiadoInicialFinal);
+
         // Parceiros
         setFacebookPixelId(parceiros.facebook_pixel_id || '');
         setTiktokPixelId(parceiros.tiktok_pixel_id || '');
@@ -1338,8 +1355,8 @@ export const ConfiguracoesLoja: React.FC<ConfiguracoesLojaProps> = ({ subTelaIni
           creditoDescricao: pagManuais.credito_orientacoes || '',
           outrosAtivo: pagManuais.outros_ativo ?? false,
           outrosDescricao: pagManuais.outros_orientacoes || '',
-          permitirFiado: Boolean(loja.caderneta_ativa ?? pagManuais.caderneta_ativa) ? false : (pagManuais.permitir_fiado ?? true),
-          cadernetaAtiva: Boolean(loja.caderneta_ativa ?? pagManuais.caderneta_ativa),
+          permitirFiado: fiadoInicialFinal,
+          cadernetaAtiva: cadernetaInicial,
           cicloPadraoCaderneta: cicloCadernetaIni.ciclo,
           diaVencimentoPadraoCaderneta: cicloCadernetaIni.diaVencimento1,
           diaSemanaPadraoCaderneta: cicloCadernetaIni.diaSemana,
@@ -1743,6 +1760,35 @@ export const ConfiguracoesLoja: React.FC<ConfiguracoesLojaProps> = ({ subTelaIni
               .eq('loja_id', loja.id)
               .eq('tipo', tipoFp)
           )
+        );
+
+        if (fiadoEfetivo) {
+          const { data: fpFiadoExistente } = await supabase
+            .from('formas_pagamento')
+            .select('id')
+            .eq('loja_id', loja.id)
+            .eq('tipo', 'fiado')
+            .limit(1);
+
+          if (!fpFiadoExistente || fpFiadoExistente.length === 0) {
+            await supabase.from('formas_pagamento').insert({
+              loja_id: loja.id,
+              nome: 'Fiado / Venda a Prazo',
+              tipo: 'fiado',
+              ativo: true,
+              exibir_catalogo: false
+            });
+          }
+        }
+
+        window.dispatchEvent(
+          new CustomEvent('hubi:pagamentos-atualizados', {
+            detail: {
+              lojaId: loja.id,
+              cadernetaAtiva: Boolean(cadernetaAtiva),
+              fiadoAtivo: fiadoEfetivo
+            }
+          })
         );
       } catch (errFpSync) {
         console.warn('Aviso ao sincronizar formas_pagamento:', errFpSync);
@@ -3512,6 +3558,7 @@ export const ConfiguracoesLoja: React.FC<ConfiguracoesLojaProps> = ({ subTelaIni
                         const checked = e.target.checked;
                         setPermitirFiado(checked);
                         if (checked) setCadernetaAtiva(false);
+                        marcarInteracaoFisica();
                       }}
                       className="rounded text-emerald-600 focus:ring-emerald-500"
                     />
@@ -3529,6 +3576,7 @@ export const ConfiguracoesLoja: React.FC<ConfiguracoesLojaProps> = ({ subTelaIni
                           const checked = e.target.checked;
                           setCadernetaAtiva(checked);
                           if (checked) setPermitirFiado(false);
+                          marcarInteracaoFisica();
                         }}
                         className="rounded text-amber-600 focus:ring-amber-500"
                       />
@@ -6138,6 +6186,7 @@ export const ConfiguracoesLoja: React.FC<ConfiguracoesLojaProps> = ({ subTelaIni
                       const checked = e.target.checked;
                       setPermitirFiado(checked);
                       if (checked) setCadernetaAtiva(false);
+                      marcarInteracaoFisica();
                     }}
                     className="sr-only peer"
                   />
@@ -6163,6 +6212,7 @@ export const ConfiguracoesLoja: React.FC<ConfiguracoesLojaProps> = ({ subTelaIni
                         const checked = e.target.checked;
                         setCadernetaAtiva(checked);
                         if (checked) setPermitirFiado(false);
+                        marcarInteracaoFisica();
                       }}
                       className="sr-only peer"
                     />

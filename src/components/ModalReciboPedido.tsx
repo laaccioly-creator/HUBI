@@ -15,6 +15,7 @@ import { Pedido, Loja, ItemPedido, Cliente } from '../types';
 import { supabase } from '../lib/supabase';
 import {
   formatarDataRecibo,
+  formatarDataHoraCurtaRecibo,
   obterDadosPagamentoRecibo,
   obterInfoEntregaRecibo,
   PrintService
@@ -356,9 +357,11 @@ export const ModalReciboPedido: React.FC<ModalReciboPedidoProps> = ({
               </div>
 
               {/* Número e Data */}
-              <div className="flex justify-between items-center text-[11px] text-slate-600 border-b border-slate-200 border-dashed pb-2">
+              <div className="flex flex-wrap justify-between items-center gap-x-2 gap-y-0.5 text-[11px] text-slate-700 border-b border-slate-200 border-dashed pb-2">
                 <span className="font-bold text-slate-900">RECIBO #{pedAtual.numero_pedido}</span>
-                <span>{formatarData(pedAtual.data_venda || pedAtual.criado_em || '')}</span>
+                <span className="font-medium text-slate-800">
+                  Data do Pedido: <strong className="text-slate-900">{formatarDataHoraCurtaRecibo(pedAtual.data_venda || pedAtual.criado_em || '')}</strong>
+                </span>
               </div>
 
               {/* Vendedor / Canal (Antes do Cliente) */}
@@ -561,6 +564,12 @@ export const ModalReciboPedido: React.FC<ModalReciboPedidoProps> = ({
                     {pedAtual.status_pagamento === 'aguardando_pesagem' ? 'AGUARDANDO PESAGEM / SEPARAÇÃO' : pagInfo.foiPago ? '✓ PAGO' : 'AGUARDANDO PAGAMENTO'}
                   </span>
                 </div>
+                {pagInfo.foiPago && pagInfo.dataPagamento && (
+                  <div className="flex justify-between items-center text-[11px] pb-1.5 border-b border-dashed border-slate-200">
+                    <span className="font-semibold text-slate-700">Data do Pagamento:</span>
+                    <span className="font-bold text-slate-900">{formatarDataHoraCurtaRecibo(pagInfo.dataPagamento)}</span>
+                  </div>
+                )}
                 {pedAtual.status_pagamento === 'aguardando_pesagem' && (
                   <div className="p-2.5 rounded-xl bg-slate-50 border border-slate-200 text-slate-800 text-[11px] leading-relaxed">
                     ⚠️ AVISO: Valor estimado sujeito a pequena variação após a pesagem real dos produtos na loja. Aguarde a confirmação e a mensagem da loja para efetuar o pagamento.

@@ -49,6 +49,8 @@ interface LojaPermissaoGatilhos {
   wpp_auto_pedido_entregue?: boolean | null;
   wpp_auto_recibo_venda?: boolean | null;
   wpp_auto_comprovante_fiado?: boolean | null;
+  wpp_auto_vencimento_caderneta?: boolean | null;
+  wpp_auto_vencimento_fiado?: boolean | null;
 }
 
 function verificarPermissaoGatilhoWhatsapp(
@@ -82,6 +84,10 @@ function verificarPermissaoGatilhoWhatsapp(
     case 'cobranca_fiado':
     case 'cobranca_caderneta':
       return loja.wpp_auto_comprovante_fiado ?? true;
+    case 'lembrete_vencimento_caderneta':
+      return loja.wpp_auto_vencimento_caderneta ?? true;
+    case 'lembrete_vencimento_fiado':
+      return loja.wpp_auto_vencimento_fiado ?? true;
     default:
       return true;
   }
@@ -135,7 +141,7 @@ serve(async (req: Request) => {
       supabaseAdmin
         .from("lojas")
         .select(
-          "id, nome_fantasia, whatsapp_auto_ativo, whatsapp_saldo, whatsapp_bonus_expira_em, meta_phone_number_id, meta_access_token, wpp_auto_pedido_confirmado, wpp_auto_pesagem_concluida, wpp_auto_status_separacao, wpp_auto_pronto_retirada, wpp_auto_despacho_rastreio, wpp_auto_pedido_entregue, wpp_auto_recibo_venda, wpp_auto_comprovante_fiado"
+          "id, nome_fantasia, whatsapp_auto_ativo, whatsapp_saldo, whatsapp_bonus_expira_em, meta_phone_number_id, meta_access_token, wpp_auto_pedido_confirmado, wpp_auto_pesagem_concluida, wpp_auto_status_separacao, wpp_auto_pronto_retirada, wpp_auto_despacho_rastreio, wpp_auto_pedido_entregue, wpp_auto_recibo_venda, wpp_auto_comprovante_fiado, wpp_auto_vencimento_caderneta, wpp_auto_vencimento_fiado"
         )
         .eq("id", loja_id)
         .maybeSingle(),

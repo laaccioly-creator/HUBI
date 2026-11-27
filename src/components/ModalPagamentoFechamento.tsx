@@ -25,6 +25,7 @@ import { SyncService } from '../services/syncService';
 import { audioService } from '../services/audioService';
 import { caixaService } from '../services/caixaService';
 import { CadernetaService } from '../services/cadernetaService';
+import { dashboardJevService } from '../services/dashboardJevService';
 import { obterDataOperacaoISO } from '../utils/dataOperacao';
 import { formatarMoeda, formatarValorBRL } from '../utils/formatters';
 import { ModalDefinirEnvio } from './pedidos/ModalDefinirEnvio';
@@ -1054,6 +1055,10 @@ export const ModalPagamentoFechamento: React.FC<ModalPagamentoFechamentoProps> =
           console.warn('Aviso ao registrar histórico de pagamento:', errHist);
         });
       }
+
+      try {
+        dashboardJevService.invalidarCache(lojaIdEfetivo);
+      } catch {}
 
       audioService.playNewOrderSound();
       const objAtualizado = (pedUpd as unknown as Pedido) || { ...pedido, ...payloadUpdate };

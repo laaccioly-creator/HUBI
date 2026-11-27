@@ -172,9 +172,60 @@ export function verificarPermissaoGatilhoWhatsapp(
     case 'cobranca_fiado':
     case 'cobranca_caderneta':
       return loja.wpp_auto_comprovante_fiado ?? true;
+    case 'lembrete_vencimento_caderneta':
+      return loja.wpp_auto_vencimento_caderneta ?? true;
+    case 'lembrete_vencimento_fiado':
+      return loja.wpp_auto_vencimento_fiado ?? true;
     default:
       return true;
   }
+}
+
+export interface RegistroLembreteVencimentoHoje {
+  clienteId: string;
+  tipoCredito: 'caderneta' | 'fiado';
+  dataVencimento: string;
+  valorCobrado: number;
+  modoEnvio: string;
+  enviadoEm: string;
+}
+
+export function montarMensagemLembreteCaderneta(params: {
+  nomeCliente?: string | null;
+  dataHojeBR: string;
+  nomeLoja?: string | null;
+  valor: number;
+}): string {
+  const primeiroNome = String(params.nomeCliente || 'Cliente').trim().split(' ')[0] || 'Cliente';
+  const lojaNome = String(params.nomeLoja || 'Nossa Loja').trim();
+  const valorFormatado = Number(params.valor || 0).toLocaleString('pt-BR', {
+    style: 'currency',
+    currency: 'BRL',
+  });
+  return `Olá, ${primeiroNome}! Tudo bem? Passando para lembrar que hoje (${params.dataHojeBR}) é o dia do acerto da sua Caderneta na *${lojaNome}*. Saldo atual: *${valorFormatado}*. Qualquer dúvida ou para solicitar a chave Pix, estamos à disposição!`;
+}
+
+export function montarMensagemLembreteFiado(params: {
+  nomeCliente?: string | null;
+  dataHojeBR: string;
+  numerosPedidos?: number[];
+  nomeLoja?: string | null;
+  valor: number;
+}): string {
+  const primeiroNome = String(params.nomeCliente || 'Cliente').trim().split(' ')[0] || 'Cliente';
+  const lojaNome = String(params.nomeLoja || 'Nossa Loja').trim();
+  const valorFormatado = Number(params.valor || 0).toLocaleString('pt-BR', {
+    style: 'currency',
+    currency: 'BRL',
+  });
+  const nums = (params.numerosPedidos || []).filter((n) => Number.isFinite(n) && n > 0);
+  const rotuloPedidos =
+    nums.length > 1
+      ? `Pedidos ${nums.map((n) => `#${n}`).join(', ')}`
+      : nums.length === 1
+      ? `Pedido #${nums[0]}`
+      : 'Compra a prazo';
+  return `Olá, ${primeiroNome}! Tudo bem? Lembramos que hoje (${params.dataHojeBR}) vence sua compra a prazo (${rotuloPedidos}) na *${lojaNome}* no valor de *${valorFormatado}*. Caso precise da chave Pix ou comprovante, responda por aqui!`;
 }
 
 function mapearTransacaoDb(row: LinhaLojaWhatsappTransacaoDb): LojaWhatsappTransacao {
@@ -336,16 +387,33 @@ export const whatsappWalletService = {
 
     // Fallback de avaliação local (mesma árvore de decisão de 4 passos)
     try {
-      const [resLoja, configPlataforma] = await Promise.all([
+      const [resLojaInicial, configPlataforma] = await Promise.all([
         supabase
           .from('lojas')
-          .select('id, whatsapp_auto_ativo, whatsapp_saldo, whatsapp_bonus_expira_em, wpp_auto_pedido_confirmado, wpp_auto_pesagem_concluida, wpp_auto_status_separacao, wpp_auto_pronto_retirada, wpp_auto_despacho_rastreio, wpp_auto_pedido_entregue, wpp_auto_recibo_venda, wpp_auto_comprovante_fiado')
+          .select(
+            'id, whatsapp_auto_ativo, whatsapp_saldo, whatsapp_bonus_expira_em, wpp_auto_pedido_confirmado, wpp_auto_pesagem_concluida, wpp_auto_status_separacao, wpp_auto_pronto_retirada, wpp_auto_despacho_rastreio, wpp_auto_pedido_entregue, wpp_auto_recibo_venda, wpp_auto_comprovante_fiado, wpp_auto_vencimento_caderneta, wpp_auto_vencimento_fiado'
+          )
           .eq('id', params.lojaId)
           .maybeSingle(),
         configuracoesPlataformaService.obterParametros(),
       ]);
 
-      const lojaRow = resLoja.data;
+      let lojaRow = resLojaInicial.data;
+      if (
+        resLojaInicial.error &&
+        (resLojaInicial.error.code === '42703' ||
+          resLojaInicial.error.code === 'PGRST204' ||
+          String(resLojaInicial.error.message || '').includes('wpp_auto_vencimento_'))
+      ) {
+        const resLojaLegada = await supabase
+          .from('lojas')
+          .select(
+            'id, whatsapp_auto_ativo, whatsapp_saldo, whatsapp_bonus_expira_em, wpp_auto_pedido_confirmado, wpp_auto_pesagem_concluida, wpp_auto_status_separacao, wpp_auto_pronto_retirada, wpp_auto_despacho_rastreio, wpp_auto_pedido_entregue, wpp_auto_recibo_venda, wpp_auto_comprovante_fiado'
+          )
+          .eq('id', params.lojaId)
+          .maybeSingle();
+        lojaRow = resLojaLegada.data as typeof lojaRow;
+      }
       if (!lojaRow) {
         return {
           sucesso: true,
@@ -880,5 +948,122 @@ export const whatsappWalletService = {
     }).catch((err) => {
       console.warn('[WhatsAppWalletService] Falha assíncrona ao notificar expedição:', err);
     });
+  },
+
+  /**
+   * Gatilho de contingência matinal no painel administrativo:
+   * A partir das 08:00 (horário de Brasília), executa no máximo 1x por dia por loja (via sessionStorage)
+   * garantindo o envio mesmo se o pg_cron estiver desabilitado.
+   */
+  async verificarEDispararLembretesVencimentoMatinais(lojaId: string): Promise<void> {
+    if (!lojaId || typeof window === 'undefined') return;
+
+    try {
+      const agora = new Date();
+      const fmtData = new Intl.DateTimeFormat('en-CA', {
+        timeZone: 'America/Sao_Paulo',
+        year: 'numeric',
+        month: '2-digit',
+        day: '2-digit',
+        hour: '2-digit',
+        hour12: false,
+      });
+      const parts = fmtData.formatToParts(agora);
+      const getP = (t: string) => parts.find((p) => p.type === t)?.value || '';
+      const hojeYmd = `${getP('year')}-${getP('month')}-${getP('day')}`;
+      const horaBrt = Number(getP('hour'));
+
+      if (!Number.isFinite(horaBrt) || horaBrt < 8) {
+        return;
+      }
+
+      const chaveSession = `hubi_wpp_lembretes_venc_${lojaId}_${hojeYmd}`;
+      if (sessionStorage.getItem(chaveSession) === '1') {
+        return;
+      }
+
+      sessionStorage.setItem(chaveSession, '1');
+      await supabase.functions.invoke('whatsapp-lembretes-vencimento', {
+        body: { loja_id: lojaId },
+      });
+    } catch {
+      // Silencioso para não impactar a navegação do painel
+    }
+  },
+
+  /**
+   * Consulta na tabela relacional `crediario_lembretes_enviados` os clientes já notificados na data informada.
+   */
+  async obterLembretesVencimentoEnviadosHoje(
+    lojaId: string,
+    dataYmd: string
+  ): Promise<Record<string, RegistroLembreteVencimentoHoje>> {
+    if (!lojaId || !dataYmd) return {};
+
+    try {
+      const { data, error } = await supabase
+        .from('crediario_lembretes_enviados')
+        .select('cliente_id, tipo_credito, data_vencimento, valor_cobrado, modo_envio, enviado_em')
+        .eq('loja_id', lojaId)
+        .eq('data_vencimento', dataYmd);
+
+      if (error || !data) return {};
+
+      const mapa: Record<string, RegistroLembreteVencimentoHoje> = {};
+      for (const row of data as Array<{
+        cliente_id: string;
+        tipo_credito: 'caderneta' | 'fiado';
+        data_vencimento: string;
+        valor_cobrado: number | string;
+        modo_envio: string;
+        enviado_em: string;
+      }>) {
+        if (!row?.cliente_id) continue;
+        mapa[row.cliente_id] = {
+          clienteId: row.cliente_id,
+          tipoCredito: row.tipo_credito,
+          dataVencimento: row.data_vencimento,
+          valorCobrado: Number(row.valor_cobrado || 0),
+          modoEnvio: row.modo_envio,
+          enviadoEm: row.enviado_em,
+        };
+      }
+      return mapa;
+    } catch {
+      return {};
+    }
+  },
+
+  /**
+   * Registra envio manual gratuito na tabela relacional `crediario_lembretes_enviados`.
+   */
+  async registrarLembreteManualEnviado(params: {
+    lojaId: string;
+    clienteId: string;
+    pedidoId?: string | null;
+    tipoCredito: 'caderneta' | 'fiado';
+    dataVencimentoYmd: string;
+    valorCobrado: number;
+  }): Promise<boolean> {
+    if (!params.lojaId || !params.clienteId || !params.dataVencimentoYmd) return false;
+
+    try {
+      const { error } = await supabase.from('crediario_lembretes_enviados').insert({
+        loja_id: params.lojaId,
+        cliente_id: params.clienteId,
+        pedido_id: params.pedidoId || null,
+        tipo_credito: params.tipoCredito,
+        data_vencimento: params.dataVencimentoYmd,
+        valor_cobrado: Number(params.valorCobrado || 0),
+        modo_envio: 'manual_link',
+      });
+
+      if (error && error.code !== '23505') {
+        return false;
+      }
+      return true;
+    } catch {
+      return false;
+    }
   },
 };

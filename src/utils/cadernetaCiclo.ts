@@ -191,6 +191,17 @@ export function calcularProximoVencimentoPorCiclo(
   return formatarDataYMDLocal(new Date(anoProx, mesProx, diaEfetivoProx));
 }
 
+export function cadernetaVenceNaData(
+  cliente?: Partial<Cliente> | null,
+  loja?: Partial<Loja> | null,
+  dataBase: Date = new Date()
+): boolean {
+  const ref = Number.isNaN(dataBase.getTime()) ? new Date() : dataBase;
+  const hojeYmd = formatarDataYMDLocal(ref);
+  const config = obterConfigCicloCliente(cliente, loja);
+  return calcularProximoVencimentoPorCiclo(config, ref, true) === hojeYmd;
+}
+
 export function formatarResumoCicloCaderneta(config: ConfigCicloCaderneta): string {
   if (config.ciclo === 'semanal') {
     const info = DIAS_SEMANA_CADERNETA.find(

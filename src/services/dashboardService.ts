@@ -8,7 +8,11 @@ import {
   obterFimDiaISO,
   obterOffsetISOLocal
 } from '../utils/dateTime';
-import { obterDataRecebimentoPedidoDate, pedidoFoiPagoRealmente } from '../utils/regimeCaixa';
+import {
+  obterDataRecebimentoPedidoDate,
+  obterValorRecebidoPedido,
+  pedidoTemRecebimentoReal
+} from '../utils/regimeCaixa';
 
 export type TipoPeriodoDashboard =
   | 'hoje'
@@ -568,7 +572,7 @@ async function obterMetricasCockpitFallback(
   const dFim = new Date(fimIso);
 
   // 1. Busca pedidos da loja com itens e pagamentos (Regime de Caixa Real)
-  const { data: pedidosData, error: pedidosErr } = await supabase
+  let { data: pedidosData, error: pedidosErr } = await supabase
     .from('pedidos')
     .select(`
       id,
@@ -587,15 +591,42 @@ async function obterMetricasCockpitFallback(
     .eq('loja_id', lojaId)
     .neq('status', 'cancelado');
 
+  if (
+    pedidosErr &&
+    (pedidosErr.code === '42703' ||
+      pedidosErr.code === 'PGRST204' ||
+      String(pedidosErr.message || '').toLowerCase().includes('data_pagamento'))
+  ) {
+    const retryRes = await supabase
+      .from('pedidos')
+      .select(`
+        id,
+        valor_total,
+        valor_pago,
+        saldo_devedor,
+        status,
+        status_pagamento,
+        eh_venda_caderneta,
+        data_venda,
+        criado_em,
+        itens:itens_pedido(quantidade, preco_custo_unitario),
+        pagamentos:pagamentos_pedido(valor, valor_taxa, data_pagamento, eh_pagamento_fiado, eh_pagamento_caderneta)
+      `)
+      .eq('loja_id', lojaId)
+      .neq('status', 'cancelado');
+    pedidosData = retryRes.data as any;
+    pedidosErr = retryRes.error;
+  }
+
   if (pedidosErr) {
     console.error('[dashboardService] Erro no fallback de pedidos:', pedidosErr.message);
   }
 
   const pedidos = (pedidosData || []) as any[];
 
-  // Filtra pedidos efetivamente recebidos (status_pagamento = 'pago') pela data do pagamento
+  // Filtra pedidos efetivamente recebidos pela data real do pagamento (sem exigir status concluido)
   const pedidosFiltrados = pedidos.filter(p => {
-    if (!pedidoFoiPagoRealmente(p)) return false;
+    if (!pedidoTemRecebimentoReal(p)) return false;
 
     const dataReferencia = obterDataRecebimentoPedidoDate(p);
     if (Number.isNaN(dataReferencia.getTime())) return false;
@@ -604,7 +635,7 @@ async function obterMetricasCockpitFallback(
   });
 
   const faturamento = pedidosFiltrados.reduce((acc, p) => {
-    return acc + Number(p.valor_pago || p.valor_total || 0);
+    return acc + obterValorRecebidoPedido(p);
   }, 0);
 
   const qtdPedidos = pedidosFiltrados.length;

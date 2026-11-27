@@ -33,16 +33,26 @@ import { ModalNovoCliente } from './ModalNovoCliente';
 import { ClientePerfilMobile } from './ClientePerfilMobile';
 import { MobileHeader } from './layout/MobileHeader';
 import { useRegisterOverlay } from '../hooks/useRegisterOverlay';
-import { obterDataOperacaoISO, obterDataOperacaoYMD } from '../utils/dataOperacao';
+import { obterDataOperacao, obterDataOperacaoISO, obterDataOperacaoYMD } from '../utils/dataOperacao';
 import { ModalHistoricoFiadoCliente } from './ModalHistoricoFiadoCliente';
 import { useFeedbackModal } from '../contexts/FeedbackContext';
 import { obterInfoVencimentoFiado } from '../utils/statusPedidoUtils';
 import { formatarMoeda, formatarTelefone, normalizarTelefoneComDDI } from '../utils/formatters';
-import { obterDataLocalYYYYMMDD } from '../utils/dateTime';
+import { formatarDataLocal, obterDataLocalYYYYMMDD } from '../utils/dateTime';
 import { ModalExtratoCadernetaCliente } from './ModalExtratoCadernetaCliente';
 import { ModalImportarClientes } from './ModalImportarClientes';
 import { CadernetaService } from '../services/cadernetaService';
-import { formatarResumoCicloCaderneta, obterConfigCicloCliente } from '../utils/cadernetaCiclo';
+import {
+  cadernetaVenceNaData,
+  formatarResumoCicloCaderneta,
+  obterConfigCicloCliente
+} from '../utils/cadernetaCiclo';
+import {
+  montarMensagemLembreteCaderneta,
+  montarMensagemLembreteFiado,
+  RegistroLembreteVencimentoHoje,
+  whatsappWalletService
+} from '../services/whatsappWalletService';
 
 export const ClientesFiado: React.FC = () => {
   const { loja } = useAuth();
@@ -67,6 +77,12 @@ export const ClientesFiado: React.FC = () => {
   const [vencidosClienteIds, setVencidosClienteIds] = useState<Set<string>>(new Set());
   const [vencidosPorCliente, setVencidosPorCliente] = useState<Record<string, number>>({});
   const [aVencerPorCliente, setAVencerPorCliente] = useState<Record<string, number>>({});
+  const [fiadoVenceHojePorCliente, setFiadoVenceHojePorCliente] = useState<
+    Record<string, { valor: number; numerosPedidos: number[] }>
+  >({});
+  const [lembretesEnviadosHoje, setLembretesEnviadosHoje] = useState<
+    Record<string, RegistroLembreteVencimentoHoje>
+  >({});
 
   const [clienteQuitar, setClienteQuitar] = useState<Cliente | null>(null);
   const [valorAbatimento, setValorAbatimento] = useState<string>('');
@@ -84,30 +100,38 @@ export const ClientesFiado: React.FC = () => {
   const carregarFiadosVencidos = async () => {
     if (!loja?.id) return;
     try {
-      const { data: peds } = await supabase
-        .from('pedidos')
-        .select(`
-          id,
-          cliente_id,
-          data_venda,
-          criado_em,
-          data_vencimento_fiado,
-          saldo_devedor,
-          fiado_quitado,
-          valor_total,
-          valor_pago,
-          pagamentos:pagamentos_pedido(
-            eh_pagamento_fiado,
-            forma_pagamento:formas_pagamento(*)
-          )
-        `)
-        .eq('loja_id', loja.id)
-        .neq('status', 'cancelado');
+      const hojeYmd = obterDataOperacaoYMD();
+      const [{ data: peds }, mapaLembretes] = await Promise.all([
+        supabase
+          .from('pedidos')
+          .select(`
+            id,
+            numero_pedido,
+            cliente_id,
+            data_venda,
+            criado_em,
+            data_vencimento_fiado,
+            saldo_devedor,
+            fiado_quitado,
+            valor_total,
+            valor_pago,
+            pagamentos:pagamentos_pedido(
+              eh_pagamento_fiado,
+              forma_pagamento:formas_pagamento(*)
+            )
+          `)
+          .eq('loja_id', loja.id)
+          .neq('status', 'cancelado'),
+        whatsappWalletService.obterLembretesVencimentoEnviadosHoje(loja.id, hojeYmd)
+      ]);
+
+      setLembretesEnviadosHoje(mapaLembretes);
 
       if (peds) {
         const vSet = new Set<string>();
         const vMap: Record<string, number> = {};
         const avMap: Record<string, number> = {};
+        const hojeMap: Record<string, { valor: number; numerosPedidos: number[] }> = {};
 
         peds.forEach((p: any) => {
           if (!p.cliente_id) return;
@@ -117,6 +141,18 @@ export const ClientesFiado: React.FC = () => {
           if (fiadoNaoQuitado && (temLinhaFiado || saldo > 0)) {
             const valorEmAberto = saldo > 0 ? saldo : Number(p.valor_total || 0);
             const info = obterInfoVencimentoFiado(p);
+            const vencYmd = p.data_vencimento_fiado
+              ? String(p.data_vencimento_fiado).slice(0, 10)
+              : '';
+            if (vencYmd === hojeYmd && valorEmAberto > 0) {
+              if (!hojeMap[p.cliente_id]) {
+                hojeMap[p.cliente_id] = { valor: 0, numerosPedidos: [] };
+              }
+              hojeMap[p.cliente_id].valor += valorEmAberto;
+              if (p.numero_pedido) {
+                hojeMap[p.cliente_id].numerosPedidos.push(Number(p.numero_pedido));
+              }
+            }
             if (info.estaVencido) {
               vSet.add(p.cliente_id);
               vMap[p.cliente_id] = (vMap[p.cliente_id] || 0) + valorEmAberto;
@@ -129,10 +165,75 @@ export const ClientesFiado: React.FC = () => {
         setVencidosClienteIds(vSet);
         setVencidosPorCliente(vMap);
         setAVencerPorCliente(avMap);
+        setFiadoVenceHojePorCliente(hojeMap);
       }
     } catch (err) {
       console.warn('Erro ao carregar fiados vencidos:', err);
     }
+  };
+
+  const handleEnviarLembreteManualHoje = async (
+    e: React.MouseEvent,
+    cliente: Cliente,
+    tipoCredito: 'caderneta' | 'fiado',
+    valorCobrado: number,
+    numerosPedidos: number[] = []
+  ) => {
+    e.stopPropagation();
+    if (!loja?.id) return;
+
+    const fone = cliente.whatsapp || cliente.telefone || '';
+    if (!fone) {
+      mostrarAviso('Este cliente não possui telefone ou WhatsApp cadastrado.');
+      return;
+    }
+
+    const dataOp = obterDataOperacao();
+    const hojeYmd = obterDataOperacaoYMD();
+    const dataHojeBR = formatarDataLocal(dataOp, {
+      day: '2-digit',
+      month: '2-digit',
+      year: 'numeric',
+    });
+
+    const mensagem =
+      tipoCredito === 'caderneta'
+        ? montarMensagemLembreteCaderneta({
+            nomeCliente: cliente.nome,
+            dataHojeBR,
+            nomeLoja: loja.nome_fantasia,
+            valor: valorCobrado,
+          })
+        : montarMensagemLembreteFiado({
+            nomeCliente: cliente.nome,
+            dataHojeBR,
+            numerosPedidos,
+            nomeLoja: loja.nome_fantasia,
+            valor: valorCobrado,
+          });
+
+    const link = whatsappWalletService.construirLinkManualWhatsApp(fone, mensagem);
+    window.open(link, '_blank', 'noopener,noreferrer');
+
+    await whatsappWalletService.registrarLembreteManualEnviado({
+      lojaId: loja.id,
+      clienteId: cliente.id,
+      tipoCredito,
+      dataVencimentoYmd: hojeYmd,
+      valorCobrado,
+    });
+
+    setLembretesEnviadosHoje((prev) => ({
+      ...prev,
+      [cliente.id]: {
+        clienteId: cliente.id,
+        tipoCredito,
+        dataVencimento: hojeYmd,
+        valorCobrado,
+        modoEnvio: 'manual_link',
+        enviadoEm: new Date().toISOString(),
+      },
+    }));
   };
 
   const carregarClientes = async () => {
@@ -837,6 +938,49 @@ export const ClientesFiado: React.FC = () => {
                             {formatarResumoCicloCaderneta(obterConfigCicloCliente(cliente, loja))}
                           </span>
                         )}
+                        {(() => {
+                          const dataOp = obterDataOperacao();
+                          const venceCadHoje =
+                            cadernetaAtivaLoja &&
+                            emDebitoCaderneta &&
+                            Boolean(cliente.permite_caderneta) &&
+                            cadernetaVenceNaData(cliente, loja, dataOp);
+                          const infoFiadoHoje = !cadernetaAtivaLoja ? fiadoVenceHojePorCliente[cliente.id] : undefined;
+                          const venceHoje = venceCadHoje || Boolean(infoFiadoHoje);
+                          if (!venceHoje) return null;
+
+                          const enviadoHoje = lembretesEnviadosHoje[cliente.id];
+                          if (enviadoHoje) {
+                            return (
+                              <span className="mt-1 inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold bg-emerald-100 text-emerald-800 border border-emerald-300">
+                                <CheckCircle2 className="w-3 h-3" />
+                                <span>Lembrete enviado hoje</span>
+                              </span>
+                            );
+                          }
+                          if (!phoneWhatsapp) return null;
+                          return (
+                            <button
+                              type="button"
+                              onClick={(ev) =>
+                                handleEnviarLembreteManualHoje(
+                                  ev,
+                                  cliente,
+                                  venceCadHoje ? 'caderneta' : 'fiado',
+                                  venceCadHoje
+                                    ? Number(cliente.saldo_devedor_caderneta || 0)
+                                    : Number(infoFiadoHoje?.valor || 0),
+                                  infoFiadoHoje?.numerosPedidos || []
+                                )
+                              }
+                              className="mt-1 inline-flex items-center gap-1 px-2 py-0.5 rounded-lg text-[10px] font-bold bg-slate-100 hover:bg-slate-200 text-slate-800 border border-slate-300 transition cursor-pointer"
+                              title="Vence hoje! Enviar lembrete gratuito via WhatsApp"
+                            >
+                              <MessageCircle className="w-3 h-3 text-emerald-600" />
+                              <span>Enviar lembrete hoje</span>
+                            </button>
+                          );
+                        })()}
                       </div>
                     </div>
 
@@ -1127,6 +1271,49 @@ export const ClientesFiado: React.FC = () => {
                                   {formatarResumoCicloCaderneta(obterConfigCicloCliente(cliente, loja))}
                                 </span>
                               )}
+                              {(() => {
+                                const dataOp = obterDataOperacao();
+                                const venceCadHoje =
+                                  cadernetaAtivaLoja &&
+                                  emDebitoCaderneta &&
+                                  Boolean(cliente.permite_caderneta) &&
+                                  cadernetaVenceNaData(cliente, loja, dataOp);
+                                const infoFiadoHoje = !cadernetaAtivaLoja ? fiadoVenceHojePorCliente[cliente.id] : undefined;
+                                const venceHoje = venceCadHoje || Boolean(infoFiadoHoje);
+                                if (!venceHoje) return null;
+
+                                const enviadoHoje = lembretesEnviadosHoje[cliente.id];
+                                if (enviadoHoje) {
+                                  return (
+                                    <span className="mt-1 inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold bg-emerald-100 text-emerald-800 border border-emerald-300">
+                                      <CheckCircle2 className="w-3 h-3" />
+                                      <span>Lembrete enviado hoje</span>
+                                    </span>
+                                  );
+                                }
+                                if (!phoneWhatsapp) return null;
+                                return (
+                                  <button
+                                    type="button"
+                                    onClick={(ev) =>
+                                      handleEnviarLembreteManualHoje(
+                                        ev,
+                                        cliente,
+                                        venceCadHoje ? 'caderneta' : 'fiado',
+                                        venceCadHoje
+                                          ? Number(cliente.saldo_devedor_caderneta || 0)
+                                          : Number(infoFiadoHoje?.valor || 0),
+                                        infoFiadoHoje?.numerosPedidos || []
+                                      )
+                                    }
+                                    className="mt-1 inline-flex items-center gap-1 px-2 py-0.5 rounded-lg text-[10px] font-bold bg-slate-100 hover:bg-slate-200 text-slate-800 border border-slate-300 transition cursor-pointer"
+                                    title="Vence hoje! Enviar lembrete gratuito via WhatsApp"
+                                  >
+                                    <MessageCircle className="w-3 h-3 text-emerald-600" />
+                                    <span>Enviar lembrete hoje</span>
+                                  </button>
+                                );
+                              })()}
                             </div>
                           </div>
                         </td>

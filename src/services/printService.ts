@@ -15,6 +15,7 @@ import { extrairInfoVisitaPedido } from '../utils/taxaDomicilioUtils';
 import { resolverDadosReciboPedido } from '../utils/reciboServicoHelper';
 import { filtrarAgendamentosVigentesDoPedido } from './agendamentoService';
 import { formatarDataLocal, formatarHoraLocal, formatarDataHoraLocal } from '../utils/dateTime';
+import { obterDataPagamentoExplicitaPedidoISO } from '../utils/regimeCaixa';
 
 const obterDadosReciboComAgendamentosVigentes = (pedido: Pedido, loja?: Loja | null) => {
   const itensPedido = pedido.itens || pedido.itens_pedido || [];
@@ -36,6 +37,19 @@ export const formatarDataRecibo = (dataIso?: string | null): string => {
     const dataExtenso = formatarDataLocal(d, { day: 'numeric', month: 'long', year: 'numeric' });
     const horaMin = formatarHoraLocal(d, { hour: '2-digit', minute: '2-digit' });
     return `${dataExtenso} às ${horaMin}`;
+  } catch {
+    return '';
+  }
+};
+
+export const formatarDataHoraCurtaRecibo = (dataIso?: string | null): string => {
+  if (!dataIso) return '';
+  try {
+    const d = new Date(dataIso);
+    if (isNaN(d.getTime())) return '';
+    const dataStr = formatarDataLocal(d, { day: '2-digit', month: '2-digit', year: 'numeric' });
+    const horaMin = formatarHoraLocal(d, { hour: '2-digit', minute: '2-digit' });
+    return `${dataStr} às ${horaMin}`;
   } catch {
     return '';
   }
@@ -140,6 +154,7 @@ export interface InfoPagamentoRecibo {
   ehAguardandoPesagem?: boolean;
   statusTexto: string;
   mensagemCaderneta?: string;
+  dataPagamento?: string | null;
   totalPago: number;
   pagamentosDetalhados: Array<{
     forma: string;
@@ -274,11 +289,12 @@ export const obterDadosPagamentoRecibo = (pedido: Pedido): InfoPagamentoRecibo =
       forma: tituloModalidade,
       origemGateway: ehCatalogo ? 'Catálogo Online' : 'PDV / Balcão',
       valor: totalPago,
-      dataPagamento: pedido.atualizado_em || pedido.data_venda
+      dataPagamento: pedido.data_pagamento || pedido.atualizado_em || pedido.data_venda
     });
   }
 
   const ehAguardandoPesagem = pedido.status_pagamento === 'aguardando_pesagem';
+  const dataPagamentoResolvida = foiPago ? (obterDataPagamentoExplicitaPedidoISO(pedido) || null) : null;
 
   return {
     foiPago,
@@ -295,6 +311,7 @@ export const obterDadosPagamentoRecibo = (pedido: Pedido): InfoPagamentoRecibo =
             ? '✓ PAGO'
             : 'AGUARDANDO PAGAMENTO',
     mensagemCaderneta,
+    dataPagamento: dataPagamentoResolvida,
     totalPago,
     pagamentosDetalhados: itensPag
   };
@@ -576,6 +593,10 @@ export class PrintService {
       const itens = (pedido.itens || (pedido as any).itens_pedido || []) as ItemPedido[];
       const totalQuantidade = itens.reduce((acc, item) => acc + Number(item.quantidade || 1), 0);
       const dataFormatada = formatarDataRecibo(pedido.data_venda || pedido.criado_em);
+      const dataPedidoCurta = formatarDataHoraCurtaRecibo(pedido.data_venda || pedido.criado_em);
+      const dataPagamentoCurta = pagamentoInfo.foiPago && pagamentoInfo.dataPagamento
+        ? formatarDataHoraCurtaRecibo(pagamentoInfo.dataPagamento)
+        : '';
 
       console.log(`🖨️ [HUBI PrintService] Formatando ${itens.length} itens do pedido #${pedido.numero_pedido}...`);
 
@@ -680,12 +701,12 @@ export class PrintService {
           </div>
 
           <!-- Título RECIBO # e Data/Hora no Topo -->
-          <div style="display: flex; justify-content: space-between; align-items: center; border-bottom: 1px dashed #cbd5e1; padding-bottom: 8px; margin-bottom: 10px; font-size: ${isA4 ? '12px' : '10px'};">
+          <div style="display: flex; flex-wrap: wrap; justify-content: space-between; align-items: center; gap: 4px 8px; border-bottom: 1px dashed #cbd5e1; padding-bottom: 8px; margin-bottom: 10px; font-size: ${isA4 ? '12px' : '10px'};">
             <span style="font-weight: 800; color: #0f172a; font-size: ${isA4 ? '14px' : '11px'};">
               RECIBO #${pedido.numero_pedido}
             </span>
-            <span style="color: #475569; font-weight: 600;">
-              ${dataFormatada}
+            <span style="color: #334155; font-weight: 600;">
+              Data do Pedido: <strong style="color: #0f172a;">${dataPedidoCurta || dataFormatada}</strong>
             </span>
           </div>
 
@@ -959,6 +980,13 @@ export class PrintService {
                 ${pagamentoInfo.ehCaderneta ? 'CADERNETA' : pagamentoInfo.ehAguardandoPesagem ? '⚖️ AGUARDANDO PESAGEM' : pagamentoInfo.foiPago ? '✓ PAGO' : infoEntregaPresencial ? infoEntregaPresencial.badgeTexto.toUpperCase() : '⏳ AGUARDANDO PAGAMENTO'}
               </span>
             </div>
+
+            ${dataPagamentoCurta ? `
+              <div style="display: flex; justify-content: space-between; align-items: center; padding: 2px 0 4px 0; border-bottom: 1px dashed #bbf7d0; font-size: ${isA4 ? '11px' : '9.5px'}; color: #1e293b;">
+                <span style="font-weight: 600; color: #334155;">Data do Pagamento:</span>
+                <span style="font-weight: 700; color: #0f172a;">${dataPagamentoCurta}</span>
+              </div>
+            ` : ''}
 
             ${pagamentoInfo.ehAguardandoPesagem ? `
               <div style="margin-top: 4px; padding: 4px 6px; background-color: #fef3c7; border: 1px solid #fde68a; border-radius: 4px; font-weight: 700; color: #92400e; font-size: ${isA4 ? '11px' : '9px'}; text-align: center;">
@@ -1294,7 +1322,8 @@ export class PrintService {
     if (loja.telefone || loja.whatsapp) text += `Tel/Whats: ${loja.whatsapp || loja.telefone}\n`;
     if (loja.endereco_cidade) text += `${loja.endereco_cidade} - ${loja.endereco_estado || ''}\n`;
     text += divider;
-    text += `RECIBO #${pedido.numero_pedido}   ${formatarDataRecibo(pedido.data_venda || pedido.criado_em)}\n`;
+    text += `RECIBO #${pedido.numero_pedido}\n`;
+    text += `Data do Pedido: ${formatarDataHoraCurtaRecibo(pedido.data_venda || pedido.criado_em)}\n`;
     if (pedido.status === 'cancelado') {
       text += '\x1B\x45\x01'; // Bold ON
       text += `*** PEDIDO CANCELADO ***\n`;
@@ -1421,6 +1450,9 @@ export class PrintService {
         text += '\x1B\x45\x01'; // Bold ON
         text += 'PAGAMENTO: [PAGO]\n';
         text += '\x1B\x45\x00'; // Bold OFF
+        if (pagamentoInfo.dataPagamento) {
+          text += `Data do Pagamento: ${formatarDataHoraCurtaRecibo(pagamentoInfo.dataPagamento)}\n`;
+        }
         for (const pag of pagamentoInfo.pagamentosDetalhados) {
           const gw = pag.origemGateway ? ` (${pag.origemGateway})` : '';
           const parc = pag.parcelas ? ` [${pag.parcelas}x]` : '';
@@ -1452,6 +1484,9 @@ export class PrintService {
         text += '\x1B\x45\x01'; // Bold ON
         text += 'PAGAMENTO: [PAGO]\n';
         text += '\x1B\x45\x00'; // Bold OFF
+        if (pagamentoInfo.dataPagamento) {
+          text += `Data do Pagamento: ${formatarDataHoraCurtaRecibo(pagamentoInfo.dataPagamento)}\n`;
+        }
         for (const pag of pagamentoInfo.pagamentosDetalhados) {
           const gw = pag.origemGateway ? ` (${pag.origemGateway})` : '';
           const parc = pag.parcelas ? ` [${pag.parcelas}x]` : '';
@@ -1519,6 +1554,7 @@ export class PrintService {
         (pagamentoInfo.mensagemCaderneta ? `${pagamentoInfo.mensagemCaderneta}\n` : '');
     } else if (pagamentoInfo.foiPago) {
       pagStr = `\nSTATUS DO PAGAMENTO: PAGO\n` +
+        (pagamentoInfo.dataPagamento ? `Data do Pagamento: ${formatarDataHoraCurtaRecibo(pagamentoInfo.dataPagamento)}\n` : '') +
         pagamentoInfo.pagamentosDetalhados.map(p =>
           `Forma: ${p.forma}${p.parcelas ? ` (${p.parcelas}x)` : ''}${p.origemGateway ? ` (Origem: ${p.origemGateway})` : ''} - Valor Pago: R$ ${p.valor.toFixed(2)}`
         ).join('\n') +
@@ -1530,7 +1566,8 @@ export class PrintService {
     const dadosRecibo = obterDadosReciboComAgendamentosVigentes(pedido, loja);
     const infoVisita = extrairInfoVisitaPedido(pedido, loja);
 
-    return `RECIBO #${pedido.numero_pedido}\n\n` +
+    return `RECIBO #${pedido.numero_pedido}\n` +
+      `Data do Pedido: ${formatarDataHoraCurtaRecibo(pedido.data_venda || pedido.criado_em) || dataFormatada}\n\n` +
       `${nomeLoja.toUpperCase()}\n` +
       (loja?.whatsapp ? `WhatsApp: +55 ${loja.whatsapp}\n` : '') +
       (loja?.endereco_cidade ? `Local: ${loja.endereco_cidade}\n` : '') +
@@ -1625,6 +1662,14 @@ export class PrintService {
       : '';
 
     const dadosRecibo = obterDadosReciboComAgendamentosVigentes(pedido, loja);
+    const pagamentoInfo = obterDadosPagamentoRecibo(pedido);
+    const dataPedidoFormatada = formatarDataHoraCurtaRecibo(pedido.data_venda || pedido.criado_em);
+    const dataPagamentoFormatada = pagamentoInfo.foiPago && pagamentoInfo.dataPagamento
+      ? formatarDataHoraCurtaRecibo(pagamentoInfo.dataPagamento)
+      : '';
+    const blocoDatasWhatsApp =
+      (dataPedidoFormatada ? `\n📅 Data do Pedido: ${dataPedidoFormatada}` : '') +
+      (dataPagamentoFormatada ? `\n✅ Data do Pagamento: ${dataPagamentoFormatada}` : '');
     const blocoServicoWhatsApp = dadosRecibo.isPedidoHibrido
       ? `\n📍 ${dadosRecibo.rotuloLocalCabecalho}: ${dadosRecibo.badgeLocalValor}` +
         `\n${dadosRecibo.rotuloEndereco}: ${dadosRecibo.enderecoFormatado}` +
@@ -1669,7 +1714,7 @@ export class PrintService {
           `\n`
         : '';
 
-    return `🧾 RECIBO #${pedido.numero_pedido} - ${nomeLoja}${avisoPesagem}${blocoServicoWhatsApp}${blocoAgendamentoWhatsApp}
+    return `🧾 RECIBO #${pedido.numero_pedido} - ${nomeLoja}${blocoDatasWhatsApp}${avisoPesagem}${blocoServicoWhatsApp}${blocoAgendamentoWhatsApp}
 
 Acesse seu Recibo Oficial:
 ${urlReciboOficial}

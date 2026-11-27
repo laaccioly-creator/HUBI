@@ -13,6 +13,7 @@ import { obterDataOperacaoISO } from '../utils/dataOperacao';
 import { ResultadoTaxaVisita } from '../utils/taxaDomicilioUtils';
 import { formatarEnderecoCliente } from '../utils/reciboServicoHelper';
 import { agendamentoService } from './agendamentoService';
+import { dashboardJevService } from './dashboardJevService';
 
 export interface ItemVendaInput {
   produto: {
@@ -715,6 +716,10 @@ export class VendaService {
 
     // Aguardar conclusão concorrente apenas das tarefas centrais (Entrega, Fiado/Caderneta, Caixa)
     await Promise.allSettled(promessasPosVenda);
+
+    try {
+      dashboardJevService.invalidarCache(lojaId);
+    } catch {}
 
     const pedidoCompleto: Pedido & { _avisoAgendamento?: string } = {
       ...pedidoGravado,

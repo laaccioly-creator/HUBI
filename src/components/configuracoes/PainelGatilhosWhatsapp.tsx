@@ -37,7 +37,9 @@ type ChaveFlagWhatsapp =
   | 'wpp_auto_comprovante_fiado'
   | 'wpp_auto_recibo_venda'
   | 'wpp_auto_agendamento_criado'
-  | 'wpp_auto_lembrete_agendamento';
+  | 'wpp_auto_lembrete_agendamento'
+  | 'wpp_auto_vencimento_caderneta'
+  | 'wpp_auto_vencimento_fiado';
 
 interface ItemGatilhoConfig {
   chave: ChaveFlagWhatsapp;
@@ -68,7 +70,12 @@ export const PainelGatilhosWhatsapp: React.FC<PainelGatilhosWhatsappProps> = ({
     wpp_auto_recibo_venda: loja.wpp_auto_recibo_venda ?? false,
     wpp_auto_agendamento_criado: loja.wpp_auto_agendamento_criado ?? true,
     wpp_auto_lembrete_agendamento: loja.wpp_auto_lembrete_agendamento ?? true,
+    wpp_auto_vencimento_caderneta: loja.wpp_auto_vencimento_caderneta ?? true,
+    wpp_auto_vencimento_fiado: loja.wpp_auto_vencimento_fiado ?? true,
   });
+
+  const [cadernetaAtivaLoja, setCadernetaAtivaLoja] = useState<boolean>(Boolean(loja.caderneta_ativa));
+  const [fiadoAtivoLoja, setFiadoAtivoLoja] = useState<boolean>(false);
 
   const [antecedenciaLembreteHoras, setAntecedenciaLembreteHoras] = useState<number>(
     loja.antecedencia_lembrete_horas ?? 24
@@ -93,7 +100,10 @@ export const PainelGatilhosWhatsapp: React.FC<PainelGatilhosWhatsappProps> = ({
       wpp_auto_recibo_venda: loja.wpp_auto_recibo_venda ?? false,
       wpp_auto_agendamento_criado: loja.wpp_auto_agendamento_criado ?? true,
       wpp_auto_lembrete_agendamento: loja.wpp_auto_lembrete_agendamento ?? true,
+      wpp_auto_vencimento_caderneta: loja.wpp_auto_vencimento_caderneta ?? true,
+      wpp_auto_vencimento_fiado: loja.wpp_auto_vencimento_fiado ?? true,
     });
+    setCadernetaAtivaLoja(Boolean(loja.caderneta_ativa));
     setAntecedenciaLembreteHoras(loja.antecedencia_lembrete_horas ?? 24);
     setLimiteRemarcacoesCliente(loja.limite_remarcacoes_cliente ?? 2);
   }, [
@@ -107,9 +117,53 @@ export const PainelGatilhosWhatsapp: React.FC<PainelGatilhosWhatsappProps> = ({
     loja.wpp_auto_recibo_venda,
     loja.wpp_auto_agendamento_criado,
     loja.wpp_auto_lembrete_agendamento,
+    loja.wpp_auto_vencimento_caderneta,
+    loja.wpp_auto_vencimento_fiado,
+    loja.caderneta_ativa,
     loja.antecedencia_lembrete_horas,
     loja.limite_remarcacoes_cliente,
   ]);
+
+  // Lê o modo de crediário diretamente das colunas relacionais (lojas.caderneta_ativa + formas_pagamento)
+  useEffect(() => {
+    if (!loja?.id) return;
+    let ativo = true;
+
+    const carregarModalidadeCrediario = async () => {
+      const cadAtiva = Boolean(loja.caderneta_ativa);
+      if (ativo) setCadernetaAtivaLoja(cadAtiva);
+      if (cadAtiva) {
+        if (ativo) setFiadoAtivoLoja(false);
+        return;
+      }
+
+      const { data } = await supabase
+        .from('formas_pagamento')
+        .select('ativo')
+        .eq('loja_id', loja.id)
+        .eq('tipo', 'fiado');
+
+      if (!ativo) return;
+      const temFiadoAtivo = Array.isArray(data) && data.some((fp) => Boolean(fp.ativo));
+      setFiadoAtivoLoja(temFiadoAtivo);
+    };
+
+    void carregarModalidadeCrediario();
+
+    const handlePagamentosAtualizados = (ev: Event) => {
+      const detail = (ev as CustomEvent<{ lojaId?: string; cadernetaAtiva?: boolean; fiadoAtivo?: boolean }>).detail;
+      if (!detail || (detail.lojaId && detail.lojaId !== loja.id)) return;
+      const novaCad = Boolean(detail.cadernetaAtiva);
+      setCadernetaAtivaLoja(novaCad);
+      setFiadoAtivoLoja(novaCad ? false : Boolean(detail.fiadoAtivo));
+    };
+
+    window.addEventListener('hubi:pagamentos-atualizados', handlePagamentosAtualizados);
+    return () => {
+      ativo = false;
+      window.removeEventListener('hubi:pagamentos-atualizados', handlePagamentosAtualizados);
+    };
+  }, [loja?.id, loja?.caderneta_ativa]);
 
   const handleSalvarParametroAgenda = async (campo: 'antecedencia_lembrete_horas' | 'limite_remarcacoes_cliente', valor: number) => {
     if (!loja?.id || salvandoParametro) return;
@@ -343,15 +397,51 @@ export const PainelGatilhosWhatsapp: React.FC<PainelGatilhosWhatsappProps> = ({
   ];
 
   const blocoC: ItemGatilhoConfig[] = [
-    {
-      chave: 'wpp_auto_comprovante_fiado',
-      titulo: 'Comprovante de Pagamento (Fiado e Caderneta)',
-      descricao: 'Envia recibo de quitação/amortização e saldo atualizado.',
-      badge: 'recomendado',
-      badgeTexto: 'Recomendado',
-      icone: BookOpen,
-      defaultVal: true,
-    },
+    ...(cadernetaAtivaLoja
+      ? [
+          {
+            chave: 'wpp_auto_vencimento_caderneta' as ChaveFlagWhatsapp,
+            titulo: 'Lembrete de Vencimento — Caderneta',
+            descricao:
+              'Dispara lembrete automático às 08:00 no dia do acerto da caderneta com saldo atualizado.',
+            badge: 'recomendado' as const,
+            badgeTexto: 'Recomendado',
+            icone: BellRing,
+            defaultVal: true,
+          },
+          {
+            chave: 'wpp_auto_comprovante_fiado' as ChaveFlagWhatsapp,
+            titulo: 'Comprovante de Pagamento (Caderneta)',
+            descricao: 'Envia recibo de quitação/amortização e saldo atualizado da caderneta.',
+            badge: 'recomendado' as const,
+            badgeTexto: 'Recomendado',
+            icone: BookOpen,
+            defaultVal: true,
+          },
+        ]
+      : fiadoAtivoLoja
+      ? [
+          {
+            chave: 'wpp_auto_vencimento_fiado' as ChaveFlagWhatsapp,
+            titulo: 'Lembrete de Vencimento — Fiado',
+            descricao:
+              'Dispara lembrete automático às 08:00 no dia do vencimento das compras a prazo.',
+            badge: 'recomendado' as const,
+            badgeTexto: 'Recomendado',
+            icone: BellRing,
+            defaultVal: true,
+          },
+          {
+            chave: 'wpp_auto_comprovante_fiado' as ChaveFlagWhatsapp,
+            titulo: 'Comprovante de Pagamento (Fiado)',
+            descricao: 'Envia recibo de quitação/amortização e saldo atualizado do fiado.',
+            badge: 'recomendado' as const,
+            badgeTexto: 'Recomendado',
+            icone: BookOpen,
+            defaultVal: true,
+          },
+        ]
+      : []),
     {
       chave: 'wpp_auto_recibo_venda',
       titulo: 'Recibo Digital Automático no PDV',

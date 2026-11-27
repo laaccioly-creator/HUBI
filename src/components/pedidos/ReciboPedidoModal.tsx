@@ -2,7 +2,12 @@ import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { X, Store, Printer, Share2, Download, CheckCircle2, MessageCircle, Receipt, Calendar, Clock, User } from 'lucide-react';
 import { Pedido } from '../../types';
 import { supabase } from '../../lib/supabase';
-import { obterDadosPagamentoRecibo, formatarDataRecibo, PrintService } from '../../services/printService';
+import {
+  obterDadosPagamentoRecibo,
+  formatarDataRecibo,
+  formatarDataHoraCurtaRecibo,
+  PrintService
+} from '../../services/printService';
 import { ReceiptPdfService } from '../../services/receiptPdfService';
 import { obterInfoVencimentoFiado, extrairInfoPagamentoEntrega } from '../../utils/statusPedidoUtils';
 import { extrairObservacaoLimpa, formatarMoeda } from '../../utils/formatters';
@@ -419,9 +424,11 @@ export const ReciboPedidoModal: React.FC<ReciboPedidoModalProps> = ({
             </div>
 
             {/* Número e Data */}
-            <div className="flex justify-between items-center text-[11px] text-slate-800 border-b border-slate-200 border-dashed pb-2">
+            <div className="flex flex-wrap justify-between items-center gap-x-2 gap-y-0.5 text-[11px] text-slate-800 border-b border-slate-200 border-dashed pb-2">
               <span className="font-bold text-slate-900">RECIBO #{pedido.numero_pedido}</span>
-              <span>{formatarData(pedido.data_venda || pedido.criado_em || '')}</span>
+              <span className="font-medium text-slate-800">
+                Data do Pedido: <strong className="text-slate-900">{formatarDataHoraCurtaRecibo(pedido.data_venda || pedido.criado_em || '')}</strong>
+              </span>
             </div>
 
             {/* Carimbo Visual de Destaque PEDIDO CANCELADO */}
@@ -731,6 +738,12 @@ export const ReciboPedidoModal: React.FC<ReciboPedidoModalProps> = ({
                     : 'AGUARDANDO PAGAMENTO'}
                 </span>
               </div>
+              {pagInfo.foiPago && pagInfo.dataPagamento && (
+                <div className="flex justify-between items-center text-[11px] pb-1.5 border-b border-dashed border-slate-200">
+                  <span className="font-semibold text-slate-700">Data do Pagamento:</span>
+                  <span className="font-bold text-slate-900">{formatarDataHoraCurtaRecibo(pagInfo.dataPagamento)}</span>
+                </div>
+              )}
               {infoEntrega && !pagInfo.foiPago && (
                 <div className="p-2.5 rounded-xl bg-amber-50 border border-amber-200 text-amber-900 text-[11px] leading-relaxed">
                   <div className="font-bold">

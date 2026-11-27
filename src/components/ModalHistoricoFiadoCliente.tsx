@@ -23,6 +23,7 @@ import { useTheme } from '../contexts/ThemeContext';
 import { Cliente, Pedido, FormaPagamento, TipoPagamento, StatusPagamento } from '../types';
 import { caixaService } from '../services/caixaService';
 import { SyncService } from '../services/syncService';
+import { dashboardJevService } from '../services/dashboardJevService';
 import { obterDataOperacaoISO } from '../utils/dataOperacao';
 import { obterInfoVencimentoFiado } from '../utils/statusPedidoUtils';
 import { useRegisterOverlay } from '../hooks/useRegisterOverlay';
@@ -507,6 +508,10 @@ export const ModalHistoricoFiadoCliente: React.FC<ModalHistoricoFiadoClienteProp
         const phoneNorm = normalizarTelefoneComDDI(phone);
         window.open(`https://api.whatsapp.com/send?phone=${phoneNorm}&text=${encodeURIComponent(msg)}`, '_blank');
       }
+
+      try {
+        dashboardJevService.invalidarCache(loja?.id);
+      } catch {}
 
       setModalReceberAberto(false);
       setPedidoSelecionadoReceber(null);

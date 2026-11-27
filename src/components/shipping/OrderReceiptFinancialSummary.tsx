@@ -2,6 +2,7 @@ import React from 'react';
 import { Store, Truck, MapPin, Barcode } from 'lucide-react';
 import { PedidoEntrega } from '../../types/shipping';
 import { formatarMoeda } from '../../utils/formatters';
+import { formatarDataHoraCurtaRecibo } from '../../services/printService';
 
 interface OrderReceiptFinancialSummaryProps {
   subtotalProdutos: number;
@@ -11,6 +12,8 @@ interface OrderReceiptFinancialSummaryProps {
   pedidoEntrega?: PedidoEntrega | null;
   enderecoLojaOrigem?: string | null;
   statusPagamento?: string;
+  dataPedido?: string | null;
+  dataPagamento?: string | null;
   isSomenteServico?: boolean;
   modalidadeServico?: 'loja' | 'externo';
   enderecoPrestacaoServico?: string | null;
@@ -26,6 +29,8 @@ export const OrderReceiptFinancialSummary: React.FC<OrderReceiptFinancialSummary
   pedidoEntrega,
   enderecoLojaOrigem,
   statusPagamento,
+  dataPedido,
+  dataPagamento,
   isSomenteServico = false,
   modalidadeServico = 'loja',
   enderecoPrestacaoServico,
@@ -161,6 +166,23 @@ export const OrderReceiptFinancialSummary: React.FC<OrderReceiptFinancialSummary
             {formatarMoeda(valorTotal)}
           </span>
         </div>
+
+        {(dataPedido || (statusPagamento === 'pago' && dataPagamento)) && (
+          <div className="pt-2 border-t border-dashed border-slate-200 space-y-1 text-[11px]">
+            {dataPedido && (
+              <div className="flex justify-between text-slate-700">
+                <span>Data do Pedido:</span>
+                <span className="font-semibold text-slate-900">{formatarDataHoraCurtaRecibo(dataPedido)}</span>
+              </div>
+            )}
+            {statusPagamento === 'pago' && dataPagamento && (
+              <div className="flex justify-between text-slate-700">
+                <span>Data do Pagamento:</span>
+                <span className="font-bold text-emerald-800">{formatarDataHoraCurtaRecibo(dataPagamento)}</span>
+              </div>
+            )}
+          </div>
+        )}
       </div>
 
       {statusPagamento === 'aguardando_pesagem' && (

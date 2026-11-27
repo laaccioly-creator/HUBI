@@ -74,6 +74,7 @@ import {
 } from '../utils/reciboServicoHelper';
 import { PrintService, formatarDataRecibo, obterDadosPagamentoRecibo } from '../services/printService';
 import { whatsappWalletService } from '../services/whatsappWalletService';
+import { dashboardJevService } from '../services/dashboardJevService';
 import { extrairObservacaoLimpa, formatarMoeda, normalizarTelefoneComDDI } from '../utils/formatters';
 import { validarRastreioCorreios, detectarServicoPorCodigo } from '../utils/correiosValidator';
 import { formatarNomeTransportadora } from '../utils/shippingDisplay';
@@ -2717,6 +2718,10 @@ export const PedidosLista: React.FC = () => {
       setGavetaConcluirVendaAberta(false);
       setPedidoSelecionado(null);
       audioService.playNewOrderSound();
+
+      try {
+        dashboardJevService.invalidarCache(lojaIdAtual);
+      } catch {}
 
       // Executar tarefas secundárias em paralelo e sem bloquear a interface
       void Promise.allSettled([

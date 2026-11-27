@@ -61,6 +61,7 @@ import { ErrorBoundary } from '../common/ErrorBoundary';
 import { logger } from '../../services/loggerService';
 import { UsuarioLoja } from '../../types';
 import { ModalRecargaWhatsapp } from '../configuracoes/ModalRecargaWhatsapp';
+import { whatsappWalletService } from '../../services/whatsappWalletService';
 import { formatarMoeda as formatCurrency } from '../../utils/formatters';
 import { ModalQuestionarioOnboarding } from '../onboarding/ModalQuestionarioOnboarding';
 import {
@@ -382,6 +383,15 @@ export const AppLayout: React.FC = () => {
       }
     };
   }, []);
+
+  // Contingência matinal (a partir das 08:00 BRT): aciona lembretes de vencimento (1x/dia por loja)
+  useEffect(() => {
+    if (!loja?.id || !loja?.whatsapp_auto_ativo) return;
+    const timer = window.setTimeout(() => {
+      void whatsappWalletService.verificarEDispararLembretesVencimentoMatinais(loja.id);
+    }, 2500);
+    return () => window.clearTimeout(timer);
+  }, [loja?.id, loja?.whatsapp_auto_ativo]);
 
   const handleVoltarParaQuestionario = () => {
     if (timerRetornoAutomaticoRef.current !== null) {
