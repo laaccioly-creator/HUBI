@@ -787,6 +787,7 @@ export interface Pedido {
   observacoes?: string | null;
   metadados?: Record<string, any> | string | null;
   data_venda: string;
+  data_pagamento?: string | null;
   data_vencimento_fiado?: string | null;
   forma_entrega_id?: string | null;
   forma_entrega?: FormaEntrega | null;

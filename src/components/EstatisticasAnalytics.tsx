@@ -34,6 +34,11 @@ import {
   obterInicioDiaISO,
   obterFimDiaISO
 } from '../utils/dateTime';
+import { obterDataOperacao } from '../utils/dataOperacao';
+import {
+  obterDataRecebimentoPedidoDate,
+  pedidoFoiPagoRealmente
+} from '../utils/regimeCaixa';
 
 type TipoMetrica =
   | 'faturamento'
@@ -151,8 +156,7 @@ export const EstatisticasAnalytics: React.FC = () => {
           `)
           .eq('loja_id', loja.id)
           .neq('status', 'cancelado')
-          .neq('status', 'pendente')
-          .order('data_venda', { ascending: false });
+          .order('atualizado_em', { ascending: false });
 
         if (error) throw error;
         if (data) {
@@ -170,7 +174,7 @@ export const EstatisticasAnalytics: React.FC = () => {
 
   // 2. Calcular intervalo de datas ativo com base no tipoPeriodo e offset
   const { dataInicio, dataFim, labelExibicaoPeriodo } = useMemo(() => {
-    const agora = new Date();
+    const agora = obterDataOperacao();
     const hojeYmd = obterDataLocalYYYYMMDD(agora);
     const [anoHoje, mesHoje, diaHoje] = hojeYmd.split('-').map(Number);
     const fmtYmdUtc = (d: Date) =>
@@ -248,54 +252,50 @@ export const EstatisticasAnalytics: React.FC = () => {
     return { dataInicio: padraoInicio, dataFim: padraoFim, labelExibicaoPeriodo: 'Este mês' };
   }, [tipoPeriodo, periodoOffset, dataInicioCustom, dataFimCustom]);
 
-  // Funções utilitárias para resolver data e valor efetivo de pagamento (Item 8)
+  // Funções utilitárias para Regime de Caixa Real (Data do Pagamento / Recebimento)
   const obterDataPagamentoPedido = (p: Pedido): Date => {
-    const pag = p.pagamentos && p.pagamentos.length > 0 ? p.pagamentos[0] : null;
-    // Se for quitação de fiado posterior, considera a data do recebimento
-    if (pag && pag.eh_pagamento_fiado && pag.data_pagamento) {
-      return new Date(pag.data_pagamento);
-    }
-    // Para vendas normais do PDV/catálogo, a data oficial é a data da venda
-    if (p.data_venda) {
-      return new Date(p.data_venda);
-    }
-    if (pag && pag.data_pagamento) {
-      return new Date(pag.data_pagamento);
-    }
-    return new Date(p.criado_em || '');
+    return obterDataRecebimentoPedidoDate(p);
   };
 
   const obterValorEfetivoPagoPedido = (p: Pedido): number => {
-    const statusPag = p.status_pagamento || (Number(p.saldo_devedor) <= 0 && Number(p.valor_pago) > 0 ? 'pago' : Number(p.valor_pago) > 0 ? 'parcialmente_pago' : 'aguardando_pagamento');
-    
-    if (statusPag === 'pago') {
-      return Number(p.valor_pago || p.valor_total || 0);
-    }
-    if (statusPag === 'parcialmente_pago') {
-      return Number(p.valor_pago || 0);
-    }
-    return 0;
+    if (!pedidoFoiPagoRealmente(p)) return 0;
+    return Number(p.valor_pago || p.valor_total || 0);
   };
 
-  // 3. Filtrar pedidos dentro do intervalo selecionado considerando estritamente pedidos pagos/parciais e data de pagamento
+  // 3. Filtrar pedidos dentro do intervalo selecionado considerando estritamente pedidos pagos (status_pagamento = 'pago') pela data_pagamento
   const pedidosFiltrados = useMemo(() => {
     return todosPedidos.filter(p => {
-      const st = String(p.status || '').toLowerCase();
-      if (st === 'cancelado' || st === 'pendente') return false;
+      if (!pedidoFoiPagoRealmente(p)) return false;
 
-      // Status do pagamento deve ser 'pago' ou 'parcialmente_pago'
-      const statusPag = p.status_pagamento || (Number(p.saldo_devedor) <= 0 && Number(p.valor_pago) > 0 ? 'pago' : Number(p.valor_pago) > 0 ? 'parcialmente_pago' : 'aguardando_pagamento');
-      if (statusPag !== 'pago' && statusPag !== 'parcialmente_pago') return false;
-
-      // Se for parcialmente pago, deve ter valor efetivamente pago > 0
       const valorEfetivo = obterValorEfetivoPagoPedido(p);
       if (valorEfetivo <= 0) return false;
 
-      // Considerar data do pagamento, não a data do pedido
+      // Considerar data do pagamento/recebimento, não a data de abertura do pedido
       const dataPagamento = obterDataPagamentoPedido(p);
+      if (Number.isNaN(dataPagamento.getTime())) return false;
       return dataPagamento >= dataInicio && dataPagamento <= dataFim;
     });
   }, [todosPedidos, dataInicio, dataFim]);
+
+  // Indicador separado de Contas a Receber / Pendentes (sem distorcer o Faturamento Realizado)
+  const resumoPendentesAReceber = useMemo(() => {
+    let qtd = 0;
+    let total = 0;
+    for (const p of todosPedidos) {
+      if (String(p.status || '').toLowerCase() === 'cancelado') continue;
+      if (pedidoFoiPagoRealmente(p)) continue;
+
+      const stPag = String(p.status_pagamento || 'aguardando_pagamento').toLowerCase();
+      if (['aguardando_pagamento', 'aguardando_pesagem', 'fiado', 'caderneta', 'parcialmente_pago'].includes(stPag)) {
+        const valorAberto = Number(p.saldo_devedor ?? (Number(p.valor_total || 0) - Number(p.valor_pago || 0)));
+        if (valorAberto > 0) {
+          qtd += 1;
+          total += valorAberto;
+        }
+      }
+    }
+    return { qtd, total };
+  }, [todosPedidos]);
 
   // 4. Calcular Métricas Gerais do Período (Considerando apenas o valor pago)
   const faturamentoTotal = useMemo(() => {
@@ -1103,7 +1103,7 @@ export const EstatisticasAnalytics: React.FC = () => {
               </span>
             </div>
 
-            <div className="grid grid-cols-2 gap-3 pb-6">
+            <div className="grid grid-cols-2 gap-3 pb-4">
               {cardsIndicadores.map((card) => {
                 const Icone = card.icone;
                 return (
@@ -1136,6 +1136,28 @@ export const EstatisticasAnalytics: React.FC = () => {
                 );
               })}
             </div>
+
+            {resumoPendentesAReceber.qtd > 0 && (
+              <div
+                className={`mb-6 p-3.5 rounded-2xl border-2 flex items-center justify-between gap-3 ${
+                  isDark
+                    ? 'bg-[#000000] border-slate-700 text-white'
+                    : 'bg-white border-slate-300 text-black shadow-xs'
+                }`}
+              >
+                <div>
+                  <span className={`text-[11px] font-bold uppercase tracking-wider block ${isDark ? 'text-slate-300' : 'text-slate-700'}`}>
+                    A Receber / Pendentes
+                  </span>
+                  <span className={`text-xs font-medium ${isDark ? 'text-slate-400' : 'text-slate-600'}`}>
+                    {resumoPendentesAReceber.qtd} pedido{resumoPendentesAReceber.qtd !== 1 ? 's' : ''} fora do caixa realizado
+                  </span>
+                </div>
+                <span className={`text-sm font-black shrink-0 ${isDark ? 'text-amber-400' : 'text-amber-700'}`}>
+                  R$ {resumoPendentesAReceber.total.toFixed(2)}
+                </span>
+              </div>
+            )}
           </div>
         ) : (
           /* Visualização Detalhada da Métrica Selecionada */
@@ -1908,6 +1930,29 @@ export const EstatisticasAnalytics: React.FC = () => {
                 <ChevronRight className={`w-4 h-4 shrink-0 ${isDark ? 'text-slate-300' : 'text-black'}`} />
               </div>
             </div>
+
+            {resumoPendentesAReceber.qtd > 0 && (
+              <div
+                className={`p-3.5 rounded-2xl border-2 ${
+                  isDark
+                    ? 'bg-[#000000] border-slate-700 text-white'
+                    : 'bg-white border-slate-300 text-black shadow-2xs'
+                }`}
+              >
+                <div className="flex items-center justify-between">
+                  <span className={`text-xs font-bold uppercase tracking-wider ${isDark ? 'text-slate-300' : 'text-black'}`}>
+                    A Receber / Pendentes
+                  </span>
+                  <span className="w-2 h-2 rounded-full bg-amber-500" />
+                </div>
+                <div className={`text-base font-black mt-1 ${isDark ? 'text-amber-400' : 'text-amber-700'}`}>
+                  R$ {resumoPendentesAReceber.total.toFixed(2)}
+                </div>
+                <div className={`text-xs font-medium mt-0.5 ${isDark ? 'text-slate-400' : 'text-slate-700'}`}>
+                  {resumoPendentesAReceber.qtd} pedido{resumoPendentesAReceber.qtd !== 1 ? 's' : ''} aguardando quitação (fora do caixa)
+                </div>
+              </div>
+            )}
 
           </div>
         </div>

@@ -268,6 +268,7 @@ export const ModalReceberFiado: React.FC<ModalReceberFiadoProps> = ({
           saldo_devedor: novoSaldoDevedor,
           fiado_quitado: quitado,
           status_pagamento: novoStatusPag,
+          ...(quitado ? { data_pagamento: dataIso } : {}),
           atualizado_em: dataIso
         };
 
@@ -334,7 +335,7 @@ export const ModalReceberFiado: React.FC<ModalReceberFiadoProps> = ({
       try {
         await caixaService.registrarVendaPedido({
           lojaId: loja.id,
-          pedido: pedido || {
+          pedido: pedidoAtualizado || pedido || {
             id: 'rec_fiado_' + Date.now(),
             numero_pedido: 999999,
             valor_total: valorRecebido
@@ -344,7 +345,8 @@ export const ModalReceberFiado: React.FC<ModalReceberFiadoProps> = ({
             forma_tipo: l.forma_tipo,
             valor: Number(l.valor)
           })),
-          usuarioId: usuario?.id || ''
+          usuarioId: usuario?.id || '',
+          dataPagamentoIso: dataIso
         });
       } catch (errCaixa) {
         console.warn('Aviso ao lançar recebimento no caixa:', errCaixa);

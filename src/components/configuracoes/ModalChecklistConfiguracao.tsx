@@ -888,8 +888,8 @@ export const ModalChecklistConfiguracao: React.FC<ModalChecklistConfiguracaoProp
                                   {etapa.titulo}
                                 </h4>
                                 <p
-                                  className={`text-[11px] truncate ${
-                                    isDark ? 'text-slate-400' : 'text-slate-500'
+                                  className={`text-[11px] sm:text-xs truncate ${
+                                    isDark ? 'text-slate-300' : 'text-slate-700'
                                   }`}
                                 >
                                   {etapa.descricao}
@@ -955,8 +955,8 @@ export const ModalChecklistConfiguracao: React.FC<ModalChecklistConfiguracaoProp
                                     {etapa.titulo}
                                   </h4>
                                   <p
-                                    className={`text-[11px] truncate ${
-                                      isDark ? 'text-slate-400' : 'text-slate-500'
+                                    className={`text-[11px] sm:text-xs truncate ${
+                                      isDark ? 'text-slate-300' : 'text-slate-700'
                                     }`}
                                   >
                                     {etapa.descricao}
@@ -1021,8 +1021,8 @@ export const ModalChecklistConfiguracao: React.FC<ModalChecklistConfiguracaoProp
                                   {etapa.titulo}
                                 </h4>
                                 <p
-                                  className={`text-[11px] truncate ${
-                                    isDark ? 'text-slate-400' : 'text-slate-500'
+                                  className={`text-[11px] sm:text-xs truncate ${
+                                    isDark ? 'text-slate-300' : 'text-slate-700'
                                   }`}
                                 >
                                   {etapa.descricao}

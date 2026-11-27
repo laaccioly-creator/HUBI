@@ -64,7 +64,8 @@ import { financeExportService } from '../services/financeExportService';
 import { FinancasMobile } from './FinancasMobile';
 import { useFeedbackModal } from '../contexts/FeedbackContext';
 import { obterDataOperacao, obterDataOperacaoISO, obterDataOperacaoYMD, formatarDataLocalYMD } from '../utils/dataOperacao';
-import { formatarDataLocal, formatarHoraLocal, formatarDataHoraLocal } from '../utils/dateTime';
+import { formatarDataLocal, formatarHoraLocal, formatarDataHoraLocal, obterDataLocalYYYYMMDD } from '../utils/dateTime';
+import { obterDataRecebimentoPedidoISO, pedidoFoiPagoRealmente } from '../utils/regimeCaixa';
 import { formatarMoeda } from '../utils/formatters';
 
 // Componente de Auditoria de Fechamento de Caixa com Jev TypeSafe
@@ -339,8 +340,8 @@ export const FinancasCaixa: React.FC = () => {
           .from('pedidos')
           .select('*, cliente:clientes(*), vendedor:usuarios_loja!pedidos_vendedor_id_fkey(*), pagamentos:pagamentos_pedido(*, forma_pagamento:formas_pagamento(*))')
           .eq('loja_id', loja.id)
-          .order('criado_em', { ascending: false })
-          .limit(100),
+          .order('atualizado_em', { ascending: false })
+          .limit(300),
         supabase
           .from('movimentacoes_caixa')
           .select('*')
@@ -980,6 +981,7 @@ export const FinancasCaixa: React.FC = () => {
       formaPagamento?: string;
       dataVencimento?: string | null;
       dataPagamento?: string | null;
+      dataPedidoOriginal?: string | null;
       raw?: any;
     }> = [];
 
@@ -1034,8 +1036,8 @@ export const FinancasCaixa: React.FC = () => {
           return false;
         }
 
-        // Se não possui registro de movimentação, verificar por data e horário de abertura
-        const dataPedidoIso = p.data_venda || p.criado_em || '';
+        // Se não possui registro de movimentação, verificar pela data efetiva de pagamento e horário de abertura
+        const dataPedidoIso = obterDataRecebimentoPedidoISO(p);
         const dataPedidoYMD = formatarDataLocalYMD(dataPedidoIso);
 
         // Não pode ser de data anterior à abertura da sessão
@@ -1043,7 +1045,7 @@ export const FinancasCaixa: React.FC = () => {
           return false;
         }
 
-        // Não pode ter sido criado antes da hora em que a sessão foi aberta
+        // Não pode ter sido paga antes da hora em que a sessão foi aberta
         if (timestampAberturaSessao && dataPedidoIso) {
           const timePedido = new Date(dataPedidoIso).getTime();
           if (timePedido < timestampAberturaSessao) {
@@ -1055,13 +1057,13 @@ export const FinancasCaixa: React.FC = () => {
       }
 
       if (filtroPeriodoFluxo === 'mes') {
-        const dataPedidoIso = p.data_venda || p.criado_em || '';
+        const dataPedidoIso = obterDataRecebimentoPedidoISO(p);
         const dataPedidoYMD = formatarDataLocalYMD(dataPedidoIso);
         return dataPedidoYMD.slice(0, 7) === dataOperacaoHojeYMD.slice(0, 7);
       }
 
       // Se filtro for 'hoje' ou se não houver sessão ativa
-      const dataPedidoIso = p.data_venda || p.criado_em || '';
+      const dataPedidoIso = obterDataRecebimentoPedidoISO(p);
       const dataPedidoYMD = formatarDataLocalYMD(dataPedidoIso);
       return dataPedidoYMD === dataOperacaoHojeYMD;
     };
@@ -1177,16 +1179,16 @@ export const FinancasCaixa: React.FC = () => {
         }
 
         // Se o caixa estiver fechado, exibe apenas os lançamentos da data operacional de hoje
-        const dataRefYMD = dataVencYMD || dataTransacaoYMD;
+        const dataRefYMD = tipo === 'ENTRADA' ? (dataPagYMD || dataCriadoYMD || dataVencYMD) : (dataVencYMD || dataTransacaoYMD);
         return dataRefYMD === dataOperacaoHojeYMD;
       }
 
       if (filtroPeriodoFluxo === 'mes') {
-        const dataRefYMD = dataVencYMD || dataTransacaoYMD;
+        const dataRefYMD = tipo === 'ENTRADA' ? (dataPagYMD || dataCriadoYMD || dataVencYMD) : (dataVencYMD || dataTransacaoYMD);
         return dataRefYMD.slice(0, 7) === dataOperacaoHojeYMD.slice(0, 7);
       }
 
-      const dataRefYMD = dataVencYMD || dataTransacaoYMD;
+      const dataRefYMD = tipo === 'ENTRADA' ? (dataPagYMD || dataCriadoYMD || dataVencYMD) : (dataVencYMD || dataTransacaoYMD);
       return dataRefYMD === dataOperacaoHojeYMD;
     };
 
@@ -1209,8 +1211,9 @@ export const FinancasCaixa: React.FC = () => {
       // Identificar status de pagamento do pedido
       const statusPag = p.status_pagamento || (Number(p.saldo_devedor) <= 0 && Number(p.valor_pago) > 0 ? 'pago' : Number(p.valor_pago) > 0 ? 'parcialmente_pago' : 'aguardando_pagamento');
 
-      // Pedidos pendentes ou com pagamento aguardando NÃO entram nas entradas do caixa
-      if (p.status === 'pendente' || statusPag === 'aguardando_pagamento') {
+      // Pedidos com pagamento aguardando ou aguardando pesagem NÃO entram nas entradas do caixa;
+      // pedidos já efetivamente pagos (status_pagamento === 'pago') entram mesmo que aguardem despacho/separação
+      if (statusPag === 'aguardando_pagamento' || statusPag === 'aguardando_pesagem' || (p.status === 'pendente' && statusPag !== 'pago')) {
         // Bloqueia no conjunto para evitar que qualquer transação financeira órfã seja somada
         if (p.id) pedidosContabilizados.add(p.id.toLowerCase());
         if (p.numero_pedido != null) pedidosContabilizados.add(String(p.numero_pedido));
@@ -1252,13 +1255,16 @@ export const FinancasCaixa: React.FC = () => {
         }
       }
 
+      const dataRecebIso = obterDataRecebimentoPedidoISO(p) || new Date().toISOString();
       resultado.push({
         id: `ped_${p.id}`,
         tipo: 'ENTRADA',
         categoria: 'Venda Balcão / PDV',
         descricao: `Recebimento Venda #${p.numero_pedido || p.id.slice(0, 6)} - ${nomeCliente}`,
         valor: valEfetivo,
-        data: p.data_venda || p.criado_em || new Date().toISOString(),
+        data: dataRecebIso,
+        dataPagamento: dataRecebIso,
+        dataPedidoOriginal: p.data_venda || p.criado_em || null,
         status: 'pago',
         formaPagamento: fpNome
       });
@@ -1479,13 +1485,11 @@ export const FinancasCaixa: React.FC = () => {
 
     const pedidosProcessados = new Set<string>();
 
-    // 1. Processar todos os pedidos pagos no período (Fonte canônica oficial de todas as vendas da loja: PDV e Catálogo Online)
+    // 1. Processar todos os pedidos pagos no período (Regime de Caixa Real pela data_pagamento)
     (pedidos || []).forEach(p => {
-      if (p.status === 'cancelado' || p.status === 'pendente') return;
-      const statusPag = p.status_pagamento || (Number(p.saldo_devedor) <= 0 && Number(p.valor_pago) > 0 ? 'pago' : '');
-      if (statusPag !== 'pago' && p.status !== 'concluido') return;
+      if (!pedidoFoiPagoRealmente(p)) return;
 
-      const dataP = formatarDataLocalYMD(p.data_venda || p.criado_em);
+      const dataP = formatarDataLocalYMD(obterDataRecebimentoPedidoISO(p));
       if (periodoRelatorioInicio && dataP < periodoRelatorioInicio) return;
       if (periodoRelatorioFim && dataP > periodoRelatorioFim) return;
 
@@ -1644,7 +1648,8 @@ export const FinancasCaixa: React.FC = () => {
   const vendasDaSessao = useMemo(() => {
     if (!sessaoAtiva) return [];
     return pedidos.filter(p => {
-      const dataVenda = p.data_venda || p.criado_em;
+      if (!pedidoFoiPagoRealmente(p)) return false;
+      const dataVenda = obterDataRecebimentoPedidoISO(p);
       if (!dataVenda) return false;
       const tVenda = new Date(dataVenda).getTime();
       const tAbertura = new Date(sessaoAtiva.aberto_em).getTime();
@@ -2144,7 +2149,16 @@ export const FinancasCaixa: React.FC = () => {
                                   </>
                                 )}
                                 <span>•</span>
-                                <span className="font-medium">{formatarDataLocal(tr.data)}</span>
+                                <span className="font-medium">
+                                  {tr.tipo === 'ENTRADA'
+                                    ? `Pago em ${formatarDataHoraLocal(tr.data, { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit' })}${
+                                        tr.dataPedidoOriginal &&
+                                        obterDataLocalYYYYMMDD(tr.dataPedidoOriginal) !== obterDataLocalYYYYMMDD(tr.data)
+                                          ? ` (Pedido de ${formatarDataLocal(tr.dataPedidoOriginal, { day: '2-digit', month: '2-digit' })})`
+                                          : ''
+                                      }`
+                                    : formatarDataLocal(tr.data)}
+                                </span>
                                 {tr.ehRecorrente && (
                                   <span className="text-emerald-600 dark:text-emerald-400 font-bold flex items-center gap-1">
                                     <Repeat className="w-3.5 h-3.5" /> Mensal
@@ -4421,7 +4435,11 @@ export const FinancasCaixa: React.FC = () => {
                         Últimas Transações de Entrada:
                       </span>
                       <div className="max-h-72 overflow-y-auto space-y-2 pr-1">
-                        {listaTransacoesUnificada.filter(t => t.tipo === 'ENTRADA').slice(0, 20).map((t) => (
+                        {listaTransacoesUnificada.filter(t => t.tipo === 'ENTRADA').slice(0, 20).map((t) => {
+                          const dataOrigYmd = t.dataPedidoOriginal ? obterDataLocalYYYYMMDD(t.dataPedidoOriginal) : '';
+                          const dataPagYmd = t.data ? obterDataLocalYYYYMMDD(t.data) : '';
+                          const pedidoDiaAnterior = Boolean(dataOrigYmd && dataPagYmd && dataOrigYmd !== dataPagYmd);
+                          return (
                           <div
                             key={t.id}
                             className={`p-3.5 rounded-xl border flex justify-between items-center gap-3 text-base shadow-2xs ${
@@ -4433,14 +4451,18 @@ export const FinancasCaixa: React.FC = () => {
                                 {t.descricao}
                               </span>
                               <span className={`text-sm leading-relaxed font-medium ${isDark ? 'text-slate-300' : 'text-black'}`}>
-                                {t.categoria} • {formatarDataLocal(t.data)}
+                                {t.categoria} • Pago em {formatarDataHoraLocal(t.data, { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit' })}
+                                {pedidoDiaAnterior && t.dataPedidoOriginal
+                                  ? ` (Pedido de ${formatarDataLocal(t.dataPedidoOriginal, { day: '2-digit', month: '2-digit' })})`
+                                  : ''}
                               </span>
                             </div>
                             <span className="font-black text-emerald-600 dark:text-emerald-400 text-base shrink-0">
                               + R$ {t.valor.toFixed(2)}
                             </span>
                           </div>
-                        ))}
+                          );
+                        })}
                       </div>
                     </div>
                   </div>

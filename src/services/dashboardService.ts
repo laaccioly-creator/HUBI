@@ -8,6 +8,7 @@ import {
   obterFimDiaISO,
   obterOffsetISOLocal
 } from '../utils/dateTime';
+import { obterDataRecebimentoPedidoDate, pedidoFoiPagoRealmente } from '../utils/regimeCaixa';
 
 export type TipoPeriodoDashboard =
   | 'hoje'
@@ -566,7 +567,7 @@ async function obterMetricasCockpitFallback(
   const dInicio = new Date(inicioIso);
   const dFim = new Date(fimIso);
 
-  // 1. Busca pedidos da loja com itens e pagamentos
+  // 1. Busca pedidos da loja com itens e pagamentos (Regime de Caixa Real)
   const { data: pedidosData, error: pedidosErr } = await supabase
     .from('pedidos')
     .select(`
@@ -576,14 +577,15 @@ async function obterMetricasCockpitFallback(
       saldo_devedor,
       status,
       status_pagamento,
+      eh_venda_caderneta,
       data_venda,
+      data_pagamento,
       criado_em,
       itens:itens_pedido(quantidade, preco_custo_unitario),
-      pagamentos:pagamentos_pedido(valor, valor_taxa, data_pagamento, eh_pagamento_fiado)
+      pagamentos:pagamentos_pedido(valor, valor_taxa, data_pagamento, eh_pagamento_fiado, eh_pagamento_caderneta)
     `)
     .eq('loja_id', lojaId)
-    .neq('status', 'cancelado')
-    .neq('status', 'pendente');
+    .neq('status', 'cancelado');
 
   if (pedidosErr) {
     console.error('[dashboardService] Erro no fallback de pedidos:', pedidosErr.message);
@@ -591,33 +593,18 @@ async function obterMetricasCockpitFallback(
 
   const pedidos = (pedidosData || []) as any[];
 
-  // Filtra pedidos pertencentes ao período
+  // Filtra pedidos efetivamente recebidos (status_pagamento = 'pago') pela data do pagamento
   const pedidosFiltrados = pedidos.filter(p => {
-    let dataReferencia: Date;
-    const pag = p.pagamentos && p.pagamentos.length > 0 ? p.pagamentos[0] : null;
-    if (pag && pag.eh_pagamento_fiado && pag.data_pagamento) {
-      dataReferencia = new Date(pag.data_pagamento);
-    } else if (p.data_venda) {
-      dataReferencia = new Date(p.data_venda);
-    } else if (pag && pag.data_pagamento) {
-      dataReferencia = new Date(pag.data_pagamento);
-    } else {
-      dataReferencia = new Date(p.criado_em || '');
-    }
+    if (!pedidoFoiPagoRealmente(p)) return false;
 
-    if (dataReferencia < dInicio || dataReferencia > dFim) {
-      return false;
-    }
+    const dataReferencia = obterDataRecebimentoPedidoDate(p);
+    if (Number.isNaN(dataReferencia.getTime())) return false;
 
-    const stPag = p.status_pagamento || (Number(p.saldo_devedor) <= 0 && Number(p.valor_pago) > 0 ? 'pago' : Number(p.valor_pago) > 0 ? 'parcialmente_pago' : 'aguardando_pagamento');
-    return stPag === 'pago' || stPag === 'parcialmente_pago';
+    return dataReferencia >= dInicio && dataReferencia <= dFim;
   });
 
   const faturamento = pedidosFiltrados.reduce((acc, p) => {
-    const stPag = p.status_pagamento || (Number(p.saldo_devedor) <= 0 && Number(p.valor_pago) > 0 ? 'pago' : Number(p.valor_pago) > 0 ? 'parcialmente_pago' : 'aguardando_pagamento');
-    if (stPag === 'pago') return acc + Number(p.valor_pago || p.valor_total || 0);
-    if (stPag === 'parcialmente_pago') return acc + Number(p.valor_pago || 0);
-    return acc;
+    return acc + Number(p.valor_pago || p.valor_total || 0);
   }, 0);
 
   const qtdPedidos = pedidosFiltrados.length;

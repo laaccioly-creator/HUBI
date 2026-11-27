@@ -283,7 +283,10 @@ export class SyncService {
               valor_pago: venda.valor_pago,
               saldo_devedor: venda.saldo_devedor,
               fiado_quitado: venda.fiado_quitado,
-              data_venda: venda.data_venda
+              data_venda: venda.data_venda,
+              data_pagamento: venda.fiado_quitado && Number(venda.saldo_devedor || 0) <= 0
+                ? (venda.pagamento?.data_pagamento || venda.data_venda)
+                : null
             }])
             .select()
             .single();

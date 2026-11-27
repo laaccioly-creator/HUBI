@@ -677,7 +677,7 @@ export const ModalPagamentoFechamento: React.FC<ModalPagamentoFechamentoProps> =
             parcelas: l.parcelas || 1,
             valor_taxa: 0,
             valor_liquido: Number(l.valor),
-            data_pagamento: dataIso,
+            data_pagamento: (l.forma_tipo === 'fiado' || l.forma_tipo === 'caderneta') ? null : dataIso,
             eh_pagamento_fiado: l.forma_tipo === 'fiado'
           };
         }));
@@ -861,6 +861,12 @@ export const ModalPagamentoFechamento: React.FC<ModalPagamentoFechamentoProps> =
         valor_pago: novoValorPago,
         saldo_devedor: novoSaldoDevedor,
         fiado_quitado: quitado,
+        data_pagamento:
+          novoStatusPagamento === 'pago'
+            ? dataIso
+            : ['aguardando_pagamento', 'aguardando_pesagem'].includes(novoStatusPagamento)
+            ? null
+            : pedido.data_pagamento ?? null,
         atualizado_em: dataIso,
         atualizado_por: usuario?.id || null
       };
@@ -1014,7 +1020,8 @@ export const ModalPagamentoFechamento: React.FC<ModalPagamentoFechamentoProps> =
               forma_tipo: l.forma_tipo,
               valor: l.valor
             })),
-            usuarioId: usuario?.id || ''
+            usuarioId: usuario?.id || '',
+            dataPagamentoIso: dataIso
           });
         } catch (errCaixa) {
           console.warn('Aviso ao registrar recebimento no caixa:', errCaixa);

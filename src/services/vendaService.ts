@@ -268,6 +268,7 @@ export class VendaService {
       observacoes: observacoes || null,
       metadados: Object.keys(metaExistente).length > 0 ? metaExistente : null,
       data_venda: pedidoEmEdicao?.data_venda || dataIsoFinal,
+      data_pagamento: statusPagamento === 'pago' ? dataIsoFinal : null,
       atualizado_por: vendedorIdSanitizado
     };
 
@@ -653,7 +654,8 @@ export class VendaService {
               forma_tipo: l.forma_tipo,
               valor: Number(l.valor)
             })),
-            usuarioId: usuarioId || ''
+            usuarioId: usuarioId || '',
+            dataPagamentoIso: dataIsoFinal
           });
         } catch (errCaixa: any) {
           logger.warn('VendaService', 'sessao_caixa', `Aviso ao registrar movimentação na sessão de caixa: ${errCaixa?.message || errCaixa}`, { loja_id: lojaId });

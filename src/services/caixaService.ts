@@ -20,6 +20,7 @@ import {
   obterInicioDiaISO,
   obterFimDiaISO
 } from '../utils/dateTime';
+import { obterDataRecebimentoPedidoISO } from '../utils/regimeCaixa';
 
 export const caixaService = {
   /**
@@ -294,8 +295,9 @@ export const caixaService = {
     pagamentos?: Array<{ forma_nome?: string; forma_tipo?: string; valor: number }>;
     usuarioId?: string;
     terminalId?: string;
+    dataPagamentoIso?: string;
   }): Promise<MovimentacaoCaixa[]> {
-    const { lojaId, pedido, pagamentos, usuarioId, terminalId } = params;
+    const { lojaId, pedido, pagamentos, usuarioId, terminalId, dataPagamentoIso } = params;
 
     // Localiza a sessão aberta (pelo terminal específico ou qualquer sessão ativa da loja)
     let sessaoAtiva: SessaoCaixa | null = null;
@@ -326,7 +328,7 @@ export const caixaService = {
 
     const usuarioEfetivoId = usuarioId || sessaoAtiva.aberto_por_usuario_id || '00000000-0000-0000-0000-000000000000';
     const numPedidoStr = pedido.numero_pedido ? `#${pedido.numero_pedido}` : pedido.id.slice(0, 8);
-    const dataCriacaoIso = pedido.data_venda || pedido.criado_em || undefined;
+    const dataCriacaoIso = dataPagamentoIso || pedido.data_pagamento || obterDataOperacaoISO();
     const descOrigem = pedido.origem === 'catalogo_online' ? 'Catálogo' : 'Venda';
     const movsCriadas: MovimentacaoCaixa[] = [];
 
@@ -435,13 +437,14 @@ export const caixaService = {
       const tsAbertura = new Date(sessao.aberto_em).getTime();
       const tsFechamento = sessao.fechado_em ? new Date(sessao.fechado_em).getTime() : Infinity;
 
+      const limiteIso = new Date(tsAbertura - 5 * 60 * 1000).toISOString();
       const { data: pedsLoja } = await supabase
         .from('pedidos')
-        .select('id, numero_pedido, origem, data_venda, criado_em, valor_total, valor_pago, pagamentos:pagamentos_pedido(valor, forma_pagamento:formas_pagamento(tipo, nome))')
+        .select('id, numero_pedido, origem, data_venda, data_pagamento, criado_em, valor_total, valor_pago, pagamentos:pagamentos_pedido(valor, data_pagamento, eh_pagamento_fiado, eh_pagamento_caderneta, forma_pagamento:formas_pagamento(tipo, nome))')
         .eq('loja_id', sessao.loja_id)
         .eq('status_pagamento', 'pago')
         .neq('status', 'cancelado')
-        .gte('criado_em', new Date(tsAbertura - 5 * 60 * 1000).toISOString());
+        .or(`data_pagamento.gte.${limiteIso},and(data_pagamento.is.null,criado_em.gte.${limiteIso})`);
 
       if (pedsLoja && pedsLoja.length > 0) {
         const pedidosComMov = new Set(
@@ -450,16 +453,16 @@ export const caixaService = {
 
         const pedsPendentes = pedsLoja.filter(p => {
           if (!p.id || pedidosComMov.has(p.id.toLowerCase())) return false;
-          const dataIso = p.data_venda || p.criado_em;
+          const dataIso = obterDataRecebimentoPedidoISO(p as unknown as Pedido);
           if (!dataIso) return false;
           const tsP = new Date(dataIso).getTime();
-          // Permite pedidos ocorridos desde a abertura da sessão (com tolerância de 5 minutos antes para checkout iniciado antes da abertura formal)
+          // Permite pedidos pagos desde a abertura da sessão (com tolerância de 5 minutos antes para checkout iniciado antes da abertura formal)
           return tsP >= (tsAbertura - 5 * 60 * 1000) && tsP <= tsFechamento;
         });
 
         for (const p of pedsPendentes) {
           const usuarioId = sessao.aberto_por_usuario_id;
-          const dataCriacaoIso = p.data_venda || p.criado_em || obterDataOperacaoISO();
+          const dataCriacaoIso = obterDataRecebimentoPedidoISO(p as unknown as Pedido) || obterDataOperacaoISO();
           const numPedidoStr = p.numero_pedido ? `#${p.numero_pedido}` : p.id.slice(0, 6);
           const descOrigem = p.origem === 'catalogo_online' ? 'Catálogo' : 'Venda';
 

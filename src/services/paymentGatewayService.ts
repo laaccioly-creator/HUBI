@@ -7,6 +7,7 @@ import { Loja, PagamentosDigitaisConfig, PrazosTaxasMaquininha } from '../types'
 import { supabase } from '../lib/supabase';
 import { caixaService } from './caixaService';
 import { obterDataLocalYYYYMMDD } from '../utils/dateTime';
+import { obterDataOperacaoISO } from '../utils/dataOperacao';
 
 export interface PixDinamicoResponse {
   sucesso: boolean;
@@ -373,7 +374,8 @@ class PaymentGatewayService {
                 forma_nome: pg.forma_pagamento?.nome,
                 forma_tipo: pg.forma_pagamento?.tipo,
                 valor: Number(pg.valor || 0)
-              }))
+              })),
+              dataPagamentoIso: (pedData as any).data_pagamento || obterDataOperacaoISO()
             });
           }
         } catch (errCaixa) {

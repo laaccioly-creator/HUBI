@@ -374,6 +374,7 @@ export const ModalHistoricoFiadoCliente: React.FC<ModalHistoricoFiadoClienteProp
           saldo_devedor: novoSaldoDevedor,
           fiado_quitado: quitado,
           status_pagamento: novoStatusPag,
+          ...(quitado ? { data_pagamento: dataIso } : {}),
           atualizado_em: dataIso
         }).eq('id', ped.id).eq('loja_id', loja.id);
 
@@ -410,6 +411,7 @@ export const ModalHistoricoFiadoCliente: React.FC<ModalHistoricoFiadoClienteProp
               saldo_devedor: novoSaldo,
               fiado_quitado: quitado,
               status_pagamento: quitado ? 'pago' : 'parcialmente_pago',
+              ...(quitado ? { data_pagamento: dataIso } : {}),
               atualizado_em: dataIso
             }).eq('id', ped.id).eq('loja_id', loja.id);
 
@@ -471,7 +473,8 @@ export const ModalHistoricoFiadoCliente: React.FC<ModalHistoricoFiadoClienteProp
             forma_tipo: l.forma_tipo,
             valor: Number(l.valor)
           })),
-          usuarioId: usuario?.id || ''
+          usuarioId: usuario?.id || '',
+          dataPagamentoIso: dataIso
         });
       } catch (errCaixa) {
         console.warn('Aviso ao lançar recebimento no caixa:', errCaixa);

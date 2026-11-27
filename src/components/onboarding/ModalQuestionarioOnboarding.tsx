@@ -39,6 +39,8 @@ import { useRegisterOverlay } from '../../hooks/useRegisterOverlay';
 import { supabase } from '../../lib/supabase';
 import { Categoria } from '../../types';
 import { salvarGeminiApiKey } from '../../services/geminiService';
+import { dashboardService } from '../../services/dashboardService';
+import { SEGMENTOS_NEGOCIO } from '../ConfiguracoesLoja';
 import {
   EtapaOnboardingId,
   StatusOnboardingCompleto,
@@ -46,6 +48,8 @@ import {
   avaliarProgressoCompletoOnboarding,
   salvarRespostasOnboarding,
   atualizarConfiguracaoDiretaLoja,
+  salvarPerfilNegocioIALoja,
+  notificarConfiguracaoSalvaParaOnboarding,
   registrarRetornoOnboarding,
 } from '../../services/onboardingSetupService';
 import { ModalComoObterGeminiApiKey } from '../configuracoes/ModalComoObterGeminiApiKey';
@@ -177,11 +181,19 @@ const MODULOS_OPCIONAIS_DEFINICAO: ModuloOpcionalCardDef[] = [
   },
   {
     id: 'whatsapp_auto',
-    titulo: 'Notificações Automáticas no WhatsApp (Meta Cloud API)',
+    titulo: 'Notificações Ativas no WhatsApp (Meta Cloud API)',
     descricaoComercial:
-      'Avise o cliente automaticamente quando o pedido sair para entrega, ficar pronto para retirada ou lembrar do agendamento.',
+      'Avise o cliente automaticamente por disparo ativo quando o pedido sair para entrega, ficar pronto para retirada ou lembrar do agendamento.',
     rotaDestino: '/config?tab=whatsapp-ia',
     icone: MessageCircle,
+  },
+  {
+    id: 'whatsapp_ia_receptiva',
+    titulo: 'Robô Atendente / Vendedora IA no WhatsApp (Meta Cloud API)',
+    descricaoComercial:
+      'Atendimento receptivo 24h com IA respondendo dúvidas, consultando estoque e fechando pedidos direto pelo WhatsApp oficial da loja.',
+    rotaDestino: '/config?tab=whatsapp-ia',
+    icone: Bot,
   },
   {
     id: 'mercado_livre',
@@ -226,7 +238,7 @@ export const ModalQuestionarioOnboarding: React.FC<ModalQuestionarioOnboardingPr
 }) => {
   const navigate = useNavigate();
   const { isDark } = useTheme();
-  const { loja, carregando: carregandoAuth, recarregarDadosLoja } = useAuth();
+  const { loja, usuario, carregando: carregandoAuth, recarregarDadosLoja } = useAuth();
   const lojaRef = useRef(loja);
   lojaRef.current = loja;
 
@@ -237,6 +249,13 @@ export const ModalQuestionarioOnboarding: React.FC<ModalQuestionarioOnboardingPr
   const [erroMensagem, setErroMensagem] = useState<string | null>(null);
   const [avisoSucesso, setAvisoSucesso] = useState<string | null>(null);
   const [destaqueTemporarioId, setDestaqueTemporarioId] = useState<EtapaOnboardingId | null>(null);
+
+  // Estados inline para Identidade do Negócio (IAs) e Metas Rápidas (Cockpit F1)
+  const [segmentoInline, setSegmentoInline] = useState<string>('geral');
+  const [especialidadeInline, setEspecialidadeInline] = useState<string>('');
+  const [metaFaturamentoInline, setMetaFaturamentoInline] = useState<string>('');
+  const [metaPedidosInline, setMetaPedidosInline] = useState<string>('');
+  const [metaLucroInline, setMetaLucroInline] = useState<string>('');
 
   // Sub-modais educativos / operacionais integrados
   const [modalGeminiAberto, setModalGeminiAberto] = useState<boolean>(false);
@@ -283,6 +302,23 @@ export const ModalQuestionarioOnboarding: React.FC<ModalQuestionarioOnboardingPr
       });
       if (reqId === requisicaoIdRef.current) {
         setStatusCompleto(resultado);
+        setSegmentoInline(resultado.lojaSnapshot.segmento_negocio || 'geral');
+        setEspecialidadeInline(resultado.lojaSnapshot.especialidade_negocio || '');
+        setMetaFaturamentoInline(
+          resultado.lojaSnapshot.meta_faturamento > 0
+            ? String(resultado.lojaSnapshot.meta_faturamento)
+            : ''
+        );
+        setMetaPedidosInline(
+          resultado.lojaSnapshot.meta_pedidos > 0
+            ? String(resultado.lojaSnapshot.meta_pedidos)
+            : ''
+        );
+        setMetaLucroInline(
+          resultado.lojaSnapshot.meta_lucro_liquido > 0
+            ? String(resultado.lojaSnapshot.meta_lucro_liquido)
+            : ''
+        );
       }
     } catch (err) {
       if (reqId === requisicaoIdRef.current) {
@@ -526,6 +562,71 @@ export const ModalQuestionarioOnboarding: React.FC<ModalQuestionarioOnboardingPr
     }
   };
 
+  const handleSalvarPerfilIAInline = async () => {
+    if (!loja?.id) return;
+    try {
+      setErroMensagem(null);
+      setSalvandoChaveInline('perfil_negocio_ia');
+      await salvarPerfilNegocioIALoja(loja.id, {
+        segmento: segmentoInline || 'geral',
+        descricao_especialidade: especialidadeInline,
+      });
+      await recarregarDadosLoja();
+      await carregarProgresso();
+      exibirSucessoTemporario(
+        'Identidade do negócio salva! Todas as IAs do sistema Rubi agora operam calibradas para o seu nicho.'
+      );
+    } catch (err) {
+      setErroMensagem(
+        err instanceof Error ? err.message : 'Não foi possível salvar a identidade do negócio.'
+      );
+    } finally {
+      setSalvandoChaveInline(null);
+    }
+  };
+
+  const handleSalvarMetasRapidasInline = async () => {
+    if (!loja?.id) return;
+    const faturamento = Number(String(metaFaturamentoInline).replace(',', '.')) || 0;
+    const pedidos = Math.max(0, Math.round(Number(String(metaPedidosInline).replace(',', '.')) || 0));
+    const lucro = Math.max(0, Number(String(metaLucroInline).replace(',', '.')) || 0);
+
+    if (faturamento <= 0) {
+      setErroMensagem(
+        'Informe uma Meta de Faturamento Mensal maior que zero para ativar os velocímetros do Cockpit F1.'
+      );
+      return;
+    }
+
+    try {
+      setErroMensagem(null);
+      setSalvandoChaveInline('metas_rapidas');
+      const ticketCalculado = pedidos > 0 ? Math.round((faturamento / pedidos) * 100) / 100 : 0;
+      await dashboardService.salvarMetasLoja(
+        loja.id,
+        {
+          meta_faturamento: faturamento,
+          meta_pedidos: pedidos,
+          meta_lucro_liquido: lucro,
+          meta_ticket_medio: ticketCalculado,
+        },
+        usuario?.id
+      );
+      await salvarRespostasOnboarding(loja.id, { metas_conferidas: true });
+      notificarConfiguracaoSalvaParaOnboarding('metas_loja');
+      await carregarProgresso();
+      exibirSucessoTemporario(
+        'Metas salvas! Os velocímetros do Dashboard / Cockpit F1 já refletem suas metas.'
+      );
+    } catch (err) {
+      setErroMensagem(
+        err instanceof Error ? err.message : 'Não foi possível salvar as metas da loja.'
+      );
+    } finally {
+      setSalvandoChaveInline(null);
+    }
+  };
+
   const handleConcluirQuestionario = async () => {
     if (!loja?.id) {
       onClose();
@@ -588,13 +689,14 @@ export const ModalQuestionarioOnboarding: React.FC<ModalQuestionarioOnboardingPr
     }`;
   };
 
-  const totalAtivas = statusCompleto?.totalAtivas ?? 9;
+  const totalAtivas = statusCompleto?.totalAtivas ?? 10;
   const totalConcluidas = statusCompleto?.totalConcluidas ?? 0;
   const percentual = statusCompleto?.percentual ?? 0;
   const tudoPronto = Boolean(statusCompleto?.tudoPronto);
 
   const etapaGemini = obterEtapaPorId('ia_gemini');
   const etapaSerper = obterEtapaPorId('busca_fotos_serper');
+  const etapaPerfilIa = obterEtapaPorId('perfil_negocio_ia');
   const etapaDados = obterEtapaPorId('dados_loja_cep');
   const etapaTiposVenda = obterEtapaPorId('tipos_venda');
   const etapaPagamentos = obterEtapaPorId('formas_pagamento');
@@ -608,15 +710,19 @@ export const ModalQuestionarioOnboarding: React.FC<ModalQuestionarioOnboardingPr
 
   const classeBotaoAcaoNeutra = isDark
     ? 'bg-slate-700 hover:bg-slate-600 text-white border border-slate-600 shadow-xs'
-    : 'bg-slate-200 hover:bg-slate-300 text-black border border-slate-300 shadow-xs';
+    : 'bg-slate-100 hover:bg-slate-200 text-slate-800 border border-slate-300 shadow-xs';
+
+  const classeBotaoPrincipalAcao = isDark
+    ? 'bg-emerald-600 hover:bg-emerald-500 text-white border border-emerald-500 font-black shadow-xs'
+    : 'bg-emerald-300 hover:bg-emerald-400 text-black border border-emerald-400 font-black shadow-xs';
 
   const classeBotaoSecundarioNeutro = isDark
     ? 'bg-slate-900 hover:bg-slate-800 border border-slate-700 text-slate-200'
-    : 'bg-white hover:bg-slate-100 border border-slate-300 text-slate-950';
+    : 'bg-slate-100 hover:bg-slate-200 border border-slate-300 text-slate-800';
 
   const classeBotaoPorQueUsar = isDark
     ? 'bg-transparent hover:bg-slate-800 border border-slate-700/80 text-slate-200 hover:text-white'
-    : 'bg-white hover:bg-slate-100 border border-slate-300 text-slate-950 hover:text-black';
+    : 'bg-slate-100 hover:bg-slate-200 border border-slate-300 text-slate-800 hover:text-slate-900';
 
   const obterConfigModalPorQueUsar = (
     etapaId: EtapaOnboardingId | null
@@ -686,6 +792,27 @@ export const ModalQuestionarioOnboarding: React.FC<ModalQuestionarioOnboardingPr
                 navegarParaConfigurarEtapa(
                   'busca_fotos_serper',
                   'Busca Automática de Fotos (Serper.dev)',
+                  '/config?tab=dados-loja'
+                );
+              },
+            },
+          ],
+        };
+      case 'perfil_negocio_ia':
+        return {
+          icone: Sparkles,
+          configurado: Boolean(etapaPerfilIa?.concluido),
+          acoes: [
+            {
+              id: 'abrir-dados-loja-ia',
+              rotulo: 'Abrir Dados da Loja',
+              variante: 'primaria_neutra',
+              icone: 'arrow',
+              onClick: () => {
+                setEtapaPorQueUsarId(null);
+                navegarParaConfigurarEtapa(
+                  'perfil_negocio_ia',
+                  'Identidade do Negócio (Segmento & Especialidade para IAs)',
                   '/config?tab=dados-loja'
                 );
               },
@@ -1193,7 +1320,120 @@ export const ModalQuestionarioOnboarding: React.FC<ModalQuestionarioOnboardingPr
                     </div>
                   </div>
 
-                  {/* Card 3: Dados da Loja e Endereço/CEP de Origem */}
+                  {/* Card 3: Identidade do Negócio (Segmento & Especialidade para Calibração das IAs) */}
+                  <div
+                    ref={(el) => {
+                      cardRefs.current.perfil_negocio_ia = el;
+                    }}
+                    className={classeCardBase('perfil_negocio_ia', Boolean(etapaPerfilIa?.concluido))}
+                  >
+                    <div className="flex flex-col sm:flex-row sm:items-start justify-between gap-3">
+                      <div className="flex items-start gap-3">
+                        <div className="w-10 h-10 rounded-xl bg-emerald-500/15 text-emerald-700 dark:text-emerald-400 flex items-center justify-center shrink-0">
+                          <Sparkles className="w-5 h-5" />
+                        </div>
+                        <div className="space-y-1">
+                          <h4 className={`text-base font-bold ${isDark ? 'text-white' : 'text-slate-900'}`}>
+                            3. Identidade do Negócio (Segmento & Especialidade para IAs)
+                          </h4>
+                          <p className={`text-sm sm:text-[15px] leading-relaxed font-normal ${isDark ? 'text-slate-200' : 'text-slate-800'}`}>
+                            Estes dois campos alimentam diretamente todas as IAs do Rubi: <strong>Cadastro Inteligente de Produtos</strong>, <strong>Busca de Fotos</strong>, <strong>Assistente Executiva Rubi</strong> e <strong>Vendedora IA</strong>. Sem defini-los, a IA fica genérica e menos assertiva.
+                          </p>
+                        </div>
+                      </div>
+                      {renderBadgeStatus(Boolean(etapaPerfilIa?.concluido), 'Recomendado')}
+                    </div>
+
+                    <div className="mt-4 grid grid-cols-1 sm:grid-cols-2 gap-3">
+                      <div className="space-y-1.5">
+                        <label
+                          htmlFor="onboarding-segmento-negocio"
+                          className={`text-xs sm:text-sm font-bold block ${isDark ? 'text-slate-100' : 'text-slate-900'}`}
+                        >
+                          Segmento de Atuação (Recomendado):
+                        </label>
+                        <select
+                          id="onboarding-segmento-negocio"
+                          value={segmentoInline}
+                          onChange={(e) => setSegmentoInline(e.target.value)}
+                          className={`w-full rounded-xl px-3.5 py-2.5 text-sm font-medium border focus:border-emerald-500 outline-hidden ${
+                            isDark
+                              ? 'bg-slate-950 border-slate-700 text-white'
+                              : 'bg-white border-slate-300 text-slate-900'
+                          }`}
+                        >
+                          {SEGMENTOS_NEGOCIO.map((seg) => (
+                            <option key={seg.id} value={seg.id}>
+                              {seg.icone} {seg.nome} — {seg.papel}
+                            </option>
+                          ))}
+                        </select>
+                      </div>
+
+                      <div className="space-y-1.5">
+                        <label
+                          htmlFor="onboarding-especialidade-negocio"
+                          className={`text-xs sm:text-sm font-bold block ${isDark ? 'text-slate-100' : 'text-slate-900'}`}
+                        >
+                          Especialidade ou Foco Principal da Loja (Opcional — Alto Impacto):
+                        </label>
+                        <input
+                          id="onboarding-especialidade-negocio"
+                          type="text"
+                          value={especialidadeInline}
+                          onChange={(e) => setEspecialidadeInline(e.target.value)}
+                          placeholder="Ex: Roupas femininas, peças Honda e Yamaha, informática gamer..."
+                          className={`w-full rounded-xl px-3.5 py-2.5 text-sm border focus:border-emerald-500 outline-hidden ${
+                            isDark
+                              ? 'bg-slate-950 border-slate-700 text-white placeholder:text-slate-500'
+                              : 'bg-white border-slate-300 text-slate-900 placeholder:text-slate-500'
+                          }`}
+                        />
+                      </div>
+                    </div>
+
+                    <div className="mt-4 flex flex-wrap items-center gap-2.5">
+                      <button
+                        type="button"
+                        disabled={salvandoChaveInline === 'perfil_negocio_ia'}
+                        onClick={() => void handleSalvarPerfilIAInline()}
+                        className={`px-3.5 py-2 rounded-xl text-xs inline-flex items-center gap-1.5 transition cursor-pointer disabled:opacity-60 ${classeBotaoPrincipalAcao}`}
+                      >
+                        {salvandoChaveInline === 'perfil_negocio_ia' ? (
+                          <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                        ) : (
+                          <CheckCircle2 className="w-3.5 h-3.5" />
+                        )}
+                        <span>Salvar Identidade para IAs</span>
+                      </button>
+
+                      <button
+                        type="button"
+                        onClick={() =>
+                          navegarParaConfigurarEtapa(
+                            'perfil_negocio_ia',
+                            'Identidade do Negócio (Segmento & Especialidade para IAs)',
+                            '/config?tab=dados-loja'
+                          )
+                        }
+                        className={`px-3.5 py-2 rounded-xl font-bold text-xs inline-flex items-center gap-1.5 transition cursor-pointer ${classeBotaoAcaoNeutra}`}
+                      >
+                        <span>Abrir Dados da Loja</span>
+                        <ArrowRight className="w-3.5 h-3.5" />
+                      </button>
+
+                      <button
+                        type="button"
+                        onClick={() => setEtapaPorQueUsarId('perfil_negocio_ia')}
+                        className={`px-3 py-2 rounded-xl text-xs font-semibold inline-flex items-center gap-1.5 transition cursor-pointer ${classeBotaoPorQueUsar}`}
+                      >
+                        <Info className="w-3.5 h-3.5" />
+                        <span>Por que usar?</span>
+                      </button>
+                    </div>
+                  </div>
+
+                  {/* Card 4: Dados da Loja e Endereço/CEP de Origem */}
                   <div
                     ref={(el) => {
                       cardRefs.current.dados_loja_cep = el;
@@ -1206,8 +1446,8 @@ export const ModalQuestionarioOnboarding: React.FC<ModalQuestionarioOnboardingPr
                           <MapPin className="w-5 h-5" />
                         </div>
                         <div className="space-y-1">
-                          <h4 className={`text-base font-bold ${isDark ? 'text-white' : 'text-black'}`}>
-                            3. Dados da Loja e Endereço/CEP de Origem
+                          <h4 className={`text-base font-bold ${isDark ? 'text-white' : 'text-slate-900'}`}>
+                            4. Dados da Loja e Endereço/CEP de Origem
                           </h4>
                           <p className={`text-sm sm:text-[15px] leading-relaxed font-normal ${isDark ? 'text-slate-200' : 'text-black'}`}>
                             O WhatsApp comercial e o <strong>CEP de origem</strong> são obrigatórios para calcular qualquer frete, entrega local ou retirada na loja.
@@ -1257,7 +1497,7 @@ export const ModalQuestionarioOnboarding: React.FC<ModalQuestionarioOnboardingPr
                         </div>
                         <div className="space-y-1">
                           <h4 className={`text-base font-bold ${isDark ? 'text-white' : 'text-black'}`}>
-                            4. Tabelas de Preço e Tipos de Venda
+                            5. Tabelas de Preço e Tipos de Venda
                           </h4>
                           <p className={`text-sm sm:text-[15px] font-semibold ${isDark ? 'text-slate-100' : 'text-black'}`}>
                             Quais tabelas de venda você utiliza?
@@ -1350,7 +1590,7 @@ export const ModalQuestionarioOnboarding: React.FC<ModalQuestionarioOnboardingPr
                         </div>
                         <div className="space-y-1">
                           <h4 className={`text-base font-bold ${isDark ? 'text-white' : 'text-black'}`}>
-                            5. Formas de Pagamento e Taxas de Maquininha
+                            6. Formas de Pagamento e Taxas de Maquininha
                           </h4>
                           <p className={`text-sm sm:text-[15px] leading-relaxed font-normal ${isDark ? 'text-slate-200' : 'text-black'}`}>
                             Cadastre Pix, Dinheiro, Cartões e taxas das operadoras para calcular seu lucro líquido real nas vendas.
@@ -1401,7 +1641,7 @@ export const ModalQuestionarioOnboarding: React.FC<ModalQuestionarioOnboardingPr
                         <div className="space-y-1">
                           <div className="flex flex-wrap items-center gap-2">
                             <h4 className={`text-base font-bold ${isDark ? 'text-white' : 'text-black'}`}>
-                              6. Fluxo de Status dos Pedidos (Kanban)
+                              7. Fluxo de Status dos Pedidos (Kanban)
                             </h4>
                             {qtdStatusOpcionaisAtivos === 0 && (
                               <span className="inline-flex items-center gap-1 text-xs font-black px-2.5 py-0.5 rounded-full bg-emerald-500/15 text-emerald-700 dark:text-emerald-400 border border-emerald-500/30">
@@ -1543,7 +1783,7 @@ export const ModalQuestionarioOnboarding: React.FC<ModalQuestionarioOnboardingPr
                         <div className="space-y-1">
                           <div className="flex flex-wrap items-center gap-2">
                             <h4 className={`text-base font-bold ${isDark ? 'text-white' : 'text-black'}`}>
-                              7. Categorias e Unidades de Medida
+                              8. Categorias e Unidades de Medida
                             </h4>
                             {statusCompleto?.setup.unidades_conferidas && (
                               <span className="inline-flex items-center gap-1 text-xs font-bold px-2.5 py-0.5 rounded-full bg-emerald-500/10 text-emerald-700 dark:text-emerald-400 border border-emerald-500/20">
@@ -1597,7 +1837,7 @@ export const ModalQuestionarioOnboarding: React.FC<ModalQuestionarioOnboardingPr
                     </div>
                   </div>
 
-                  {/* Card 8: Metas da Loja (Cockpit Executivo F1) */}
+                  {/* Card 9: Metas da Loja (Cockpit Executivo F1) */}
                   <div
                     ref={(el) => {
                       cardRefs.current.metas_loja = el;
@@ -1610,18 +1850,103 @@ export const ModalQuestionarioOnboarding: React.FC<ModalQuestionarioOnboardingPr
                           <Target className="w-5 h-5" />
                         </div>
                         <div className="space-y-1">
-                          <h4 className={`text-base font-bold ${isDark ? 'text-white' : 'text-black'}`}>
-                            8. Metas da Loja (Cockpit Executivo F1)
+                          <h4 className={`text-base font-bold ${isDark ? 'text-white' : 'text-slate-900'}`}>
+                            9. Metas da Loja (Cockpit Executivo F1)
                           </h4>
-                          <p className={`text-sm sm:text-[15px] leading-relaxed font-normal ${isDark ? 'text-slate-200' : 'text-black'}`}>
-                            Defina suas metas de faturamento, pedidos e lucro para alimentar os velocímetros em tempo real do Dashboard.
+                          <p className={`text-sm sm:text-[15px] leading-relaxed font-normal ${isDark ? 'text-slate-200' : 'text-slate-800'}`}>
+                            Sem metas configuradas, os velocímetros do <strong>Dashboard / Cockpit Executivo F1</strong> permanecem zerados (<code>0.00</code>). Defina sua meta mensal agora ou agende no checklist.
                           </p>
                         </div>
                       </div>
                       {renderBadgeStatus(Boolean(etapaMetas?.concluido))}
                     </div>
 
+                    <div className="mt-4 grid grid-cols-1 sm:grid-cols-3 gap-3">
+                      <div className="space-y-1">
+                        <label
+                          htmlFor="onboarding-meta-faturamento"
+                          className={`text-xs font-bold block ${isDark ? 'text-slate-200' : 'text-slate-900'}`}
+                        >
+                          Meta Faturamento Mensal (R$):
+                        </label>
+                        <input
+                          id="onboarding-meta-faturamento"
+                          type="number"
+                          min="0"
+                          step="100"
+                          value={metaFaturamentoInline}
+                          onChange={(e) => setMetaFaturamentoInline(e.target.value)}
+                          placeholder="Ex: 30000"
+                          className={`w-full rounded-xl px-3 py-2 text-sm font-semibold border focus:border-emerald-500 outline-hidden ${
+                            isDark
+                              ? 'bg-slate-950 border-slate-700 text-white placeholder:text-slate-500'
+                              : 'bg-white border-slate-300 text-slate-900 placeholder:text-slate-500'
+                          }`}
+                        />
+                      </div>
+
+                      <div className="space-y-1">
+                        <label
+                          htmlFor="onboarding-meta-pedidos"
+                          className={`text-xs font-bold block ${isDark ? 'text-slate-200' : 'text-slate-900'}`}
+                        >
+                          Meta Pedidos / Mês (Opcional):
+                        </label>
+                        <input
+                          id="onboarding-meta-pedidos"
+                          type="number"
+                          min="0"
+                          step="1"
+                          value={metaPedidosInline}
+                          onChange={(e) => setMetaPedidosInline(e.target.value)}
+                          placeholder="Ex: 150"
+                          className={`w-full rounded-xl px-3 py-2 text-sm font-semibold border focus:border-emerald-500 outline-hidden ${
+                            isDark
+                              ? 'bg-slate-950 border-slate-700 text-white placeholder:text-slate-500'
+                              : 'bg-white border-slate-300 text-slate-900 placeholder:text-slate-500'
+                          }`}
+                        />
+                      </div>
+
+                      <div className="space-y-1">
+                        <label
+                          htmlFor="onboarding-meta-lucro"
+                          className={`text-xs font-bold block ${isDark ? 'text-slate-200' : 'text-slate-900'}`}
+                        >
+                          Meta Lucro Líquido (R$, Opcional):
+                        </label>
+                        <input
+                          id="onboarding-meta-lucro"
+                          type="number"
+                          min="0"
+                          step="100"
+                          value={metaLucroInline}
+                          onChange={(e) => setMetaLucroInline(e.target.value)}
+                          placeholder="Ex: 8000"
+                          className={`w-full rounded-xl px-3 py-2 text-sm font-semibold border focus:border-emerald-500 outline-hidden ${
+                            isDark
+                              ? 'bg-slate-950 border-slate-700 text-white placeholder:text-slate-500'
+                              : 'bg-white border-slate-300 text-slate-900 placeholder:text-slate-500'
+                          }`}
+                        />
+                      </div>
+                    </div>
+
                     <div className="mt-4 flex flex-wrap items-center gap-2.5">
+                      <button
+                        type="button"
+                        disabled={salvandoChaveInline === 'metas_rapidas'}
+                        onClick={() => void handleSalvarMetasRapidasInline()}
+                        className={`px-3.5 py-2 rounded-xl text-xs inline-flex items-center gap-1.5 transition cursor-pointer disabled:opacity-60 ${classeBotaoPrincipalAcao}`}
+                      >
+                        {salvandoChaveInline === 'metas_rapidas' ? (
+                          <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                        ) : (
+                          <Target className="w-3.5 h-3.5" />
+                        )}
+                        <span>Salvar Metas Rápidas</span>
+                      </button>
+
                       <button
                         type="button"
                         onClick={() =>
@@ -1633,9 +1958,10 @@ export const ModalQuestionarioOnboarding: React.FC<ModalQuestionarioOnboardingPr
                         }
                         className={`px-3.5 py-2 rounded-xl font-bold text-xs inline-flex items-center gap-1.5 transition cursor-pointer ${classeBotaoAcaoNeutra}`}
                       >
-                        <span>Definir Minhas Metas</span>
+                        <span>Configurar Todas as Metas</span>
                         <ArrowRight className="w-3.5 h-3.5" />
                       </button>
+
                       <button
                         type="button"
                         onClick={() => setEtapaPorQueUsarId('metas_loja')}
@@ -1647,7 +1973,7 @@ export const ModalQuestionarioOnboarding: React.FC<ModalQuestionarioOnboardingPr
                     </div>
                   </div>
 
-                  {/* Card 9: Cadastro de Colaboradores */}
+                  {/* Card 10: Cadastro de Colaboradores */}
                   <div
                     ref={(el) => {
                       cardRefs.current.colaboradores = el;
@@ -1661,8 +1987,8 @@ export const ModalQuestionarioOnboarding: React.FC<ModalQuestionarioOnboardingPr
                         </div>
                         <div className="space-y-1">
                           <div className="flex flex-wrap items-center gap-2">
-                            <h4 className={`text-base font-bold ${isDark ? 'text-white' : 'text-black'}`}>
-                              9. Cadastro de Colaboradores
+                            <h4 className={`text-base font-bold ${isDark ? 'text-white' : 'text-slate-900'}`}>
+                              10. Cadastro de Colaboradores
                             </h4>
                             {statusCompleto?.setup.opera_sozinho ? (
                               <span className="inline-flex items-center gap-1 text-xs font-bold px-2.5 py-0.5 rounded-full bg-emerald-500/10 text-emerald-700 dark:text-emerald-400 border border-emerald-500/20">
@@ -1787,12 +2113,26 @@ export const ModalQuestionarioOnboarding: React.FC<ModalQuestionarioOnboardingPr
                                 <Icone className="w-5 h-5" />
                               </div>
                               <div className="space-y-1">
-                                <h4 className={`text-base font-bold ${isDark ? 'text-white' : 'text-black'}`}>
+                                <h4 className={`text-base font-bold ${isDark ? 'text-white' : 'text-slate-900'}`}>
                                   {idx + 1}. {modulo.titulo}
                                 </h4>
-                                <p className={`text-sm sm:text-[15px] leading-relaxed font-normal ${isDark ? 'text-slate-200' : 'text-black'}`}>
+                                <p className={`text-sm sm:text-[15px] leading-relaxed font-normal ${isDark ? 'text-slate-200' : 'text-slate-800'}`}>
                                   {modulo.descricaoComercial}
                                 </p>
+                                {modulo.id === 'whatsapp_ia_receptiva' && (
+                                  <div
+                                    className={`mt-2 p-3 rounded-xl border text-xs sm:text-sm leading-relaxed font-medium flex items-start gap-2 ${
+                                      isDark
+                                        ? 'bg-amber-950/30 border-amber-700/60 text-amber-200'
+                                        : 'bg-amber-50 border-amber-300 text-slate-900'
+                                    }`}
+                                  >
+                                    <AlertCircle className={`w-4 h-4 shrink-0 mt-0.5 ${isDark ? 'text-amber-400' : 'text-amber-700'}`} />
+                                    <span>
+                                      <strong>Requisito da API Oficial da Meta:</strong> exige um <strong>número de telefone exclusivo cadastrado na WhatsApp Cloud API</strong>, que não pode ser utilizado simultaneamente no aplicativo WhatsApp do celular.
+                                    </span>
+                                  </div>
+                                )}
                               </div>
                             </div>
 

@@ -1619,7 +1619,8 @@ export const PosCheckout: React.FC = () => {
         atualizado_por: usuario?.id || null,
         observacoes: obsFinal || null,
         metadados: Object.keys(metaExistente).length > 0 ? metaExistente : null,
-        data_venda: dataVendaFinal
+        data_venda: dataVendaFinal,
+        data_pagamento: null
       };
 
       const itensFormatados = itens.map(item => {
@@ -1660,7 +1661,7 @@ export const PosCheckout: React.FC = () => {
               parcelas: l.parcelas || 1,
               valor_taxa: 0,
               valor_liquido: Number(l.valor),
-              data_pagamento: dataIso,
+              data_pagamento: null,
               eh_pagamento_fiado: l.forma_tipo === 'fiado',
               eh_pagamento_caderneta: l.forma_tipo === 'caderneta'
             };

@@ -277,6 +277,7 @@ export interface Database {
           fiado_quitado: boolean;
           observacoes: string | null;
           data_venda: string;
+          data_pagamento: string | null;
           criado_em: string;
           atualizado_em: string;
         };
@@ -298,6 +299,7 @@ export interface Database {
           fiado_quitado?: boolean;
           observacoes?: string | null;
           data_venda?: string;
+          data_pagamento?: string | null;
         };
         Update: Partial<Database['public']['Tables']['pedidos']['Insert']>;
       };

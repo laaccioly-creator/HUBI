@@ -87,6 +87,26 @@ export const CONTEUDO_POR_QUE_USAR_ETAPAS: Record<EtapaOnboardingId, ConteudoPor
     exemploPratico:
       'Ao bipar o código de barras de 30 bebidas ou cosméticos novos, você escolhe a melhor foto em segundos sem precisar fotografar item por item.',
   },
+  perfil_negocio_ia: {
+    id: 'perfil_negocio_ia',
+    grupo: 'essencial',
+    titulo: 'Identidade do Negócio (Segmento & Especialidade para IAs)',
+    subtitulo: 'Calibração de contexto para todas as Inteligências Artificiais do sistema Rubi',
+    resumoPratico:
+      'O Segmento de Atuação e a Especialidade / Foco Principal alimentam diretamente o Cadastro Inteligente de Produtos, a Busca de Fotos (Serper), a Assistente Executiva Rubi e a Vendedora IA do Catálogo/WhatsApp. Sem essa definição, as respostas e sugestões da IA ficam genéricas.',
+    problemasResolvidos: [
+      'Descrições de produtos genéricas que não falam a língua do seu cliente.',
+      'Buscas de fotos trazendo itens de outros nichos por falta de contexto comercial.',
+      'Atendimento automático sem vocabulário técnico ou consultivo adequado ao ramo.',
+    ],
+    ganhosReais: [
+      'Cadastro Inteligente gerando fichas técnicas e palavras-chave exatas do seu nicho.',
+      'Vendedora IA do Catálogo e WhatsApp atuando como especialista do seu segmento.',
+      'Insights da Assistente Executiva Rubi alinhados à realidade do seu tipo de loja.',
+    ],
+    exemploPratico:
+      'Ao informar segmento "Motopeças" e especialidade "Peças Honda e Yamaha", a IA já entende compatibilidade de modelos ao descrever itens, buscar fotos e atender clientes.',
+  },
   dados_loja_cep: {
     id: 'dados_loja_cep',
     grupo: 'essencial',
@@ -193,10 +213,10 @@ export const CONTEUDO_POR_QUE_USAR_ETAPAS: Record<EtapaOnboardingId, ConteudoPor
     titulo: 'Metas da Loja (Cockpit Executivo F1)',
     subtitulo: 'Acompanhamento diário do ritmo de faturamento, pedidos e lucro',
     resumoPratico:
-      'As metas transformam os números do mês em um painel visual claro: o Dashboard compara o faturamento realizado até hoje com a meta proporcional do dia, sinalizando rapidamente se a loja está no ritmo esperado ou precisa de ação comercial.',
+      'Sem metas definidas, os velocímetros do Dashboard / Cockpit Executivo F1 ficam zerados (0.00), sem mostrar se a loja está no ritmo certo. Ao definir sua meta mensal, o painel compara o realizado até hoje com a meta proporcional do período.',
     problemasResolvidos: [
+      'Velocímetros do Cockpit F1 zerados (0.00) sem referência visual de desempenho.',
       'Chegar ao fim do mês sem perceber que o faturamento ficou abaixo do planejado.',
-      'Velocímetros do Cockpit zerados ou sem referência clara de desempenho.',
       'Falta de direcionamento para campanhas promocionais e metas da equipe.',
     ],
     ganhosReais: [
@@ -350,10 +370,10 @@ export const CONTEUDO_POR_QUE_USAR_ETAPAS: Record<EtapaOnboardingId, ConteudoPor
   whatsapp_auto: {
     id: 'whatsapp_auto',
     grupo: 'opcional',
-    titulo: 'Notificações Automáticas no WhatsApp (Meta Cloud API)',
+    titulo: 'Notificações Ativas no WhatsApp (Meta Cloud API)',
     subtitulo: 'Avisos automáticos de status de pedido, rastreio e lembretes de agenda',
     resumoPratico:
-      'Conecte a API oficial do WhatsApp (ou utilize a carteira pré-paga Rubi) para enviar notificações automáticas sempre que um pedido for confirmado, pesado, separado, despachado ou quando houver um agendamento próximo.',
+      'Conecte a API oficial do WhatsApp (ou utilize a carteira pré-paga Rubi) para enviar notificações ativas automáticas sempre que um pedido for confirmado, pesado, separado, despachado ou quando houver um agendamento próximo. Este módulo cuida dos disparos de aviso, separado do robô receptivo de atendimento.',
     problemasResolvidos: [
       'Atendentes sobrecarregados respondendo "meu pedido já saiu?" o dia inteiro.',
       'Faltas em serviços agendados por esquecimento do cliente.',
@@ -366,6 +386,26 @@ export const CONTEUDO_POR_QUE_USAR_ETAPAS: Record<EtapaOnboardingId, ConteudoPor
     ],
     exemploPratico:
       'Assim que você marca o pedido como "Pronto para retirar" ou informa o código de rastreio, o cliente recebe o aviso automático no WhatsApp na mesma hora.',
+  },
+  whatsapp_ia_receptiva: {
+    id: 'whatsapp_ia_receptiva',
+    grupo: 'opcional',
+    titulo: 'Robô Atendente / Vendedora IA no WhatsApp (Meta Cloud API)',
+    subtitulo: 'Atendimento receptivo 24h com IA conectado à API Oficial da Meta (número exclusivo)',
+    resumoPratico:
+      'Ative uma Vendedora IA no WhatsApp oficial da loja para responder dúvidas dos clientes 24h por dia, consultar preços e estoque em tempo real e encaminhar pedidos. Importante: a API Oficial da Meta exige um número de telefone exclusivo cadastrado na WhatsApp Cloud API — esse número não pode ser usado simultaneamente no aplicativo WhatsApp do celular.',
+    problemasResolvidos: [
+      'Clientes aguardando resposta fora do horário comercial e desistindo da compra.',
+      'Equipe respondendo manualmente perguntas repetitivas de preço, estoque e frete.',
+      'Atendimento sem padronização ou sem conhecimento atualizado do catálogo.',
+    ],
+    ganhosReais: [
+      'Atendimento imediato 24/7 com vocabulário calibrado pelo Segmento e Especialidade da loja.',
+      'Consulta em tempo real aos produtos, variações, preços e disponibilidade.',
+      'Operação 100% oficial na Meta Cloud API, sem risco de banimento por automações piratas.',
+    ],
+    exemploPratico:
+      'O cliente manda mensagem às 21h perguntando se há determinado item em estoque; o Robô IA responde na hora com o preço atualizado e envia o link do Catálogo Online para fechar a compra.',
   },
   mercado_livre: {
     id: 'mercado_livre',

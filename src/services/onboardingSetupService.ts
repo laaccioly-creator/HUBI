@@ -5,6 +5,7 @@ import { ConfiguracoesExtrasLoja, PagamentosDigitaisConfig } from '../types';
 export type EtapaOnboardingId =
   | 'ia_gemini'
   | 'busca_fotos_serper'
+  | 'perfil_negocio_ia'
   | 'dados_loja_cep'
   | 'tipos_venda'
   | 'formas_pagamento'
@@ -19,6 +20,7 @@ export type EtapaOnboardingId =
   | 'apps_corrida'
   | 'transportadoras_manuais'
   | 'whatsapp_auto'
+  | 'whatsapp_ia_receptiva'
   | 'mercado_livre'
   | 'agendamento_servicos'
   | 'venda_por_peso'
@@ -34,6 +36,7 @@ export type ChaveInteresseOnboarding =
   | 'interesse_ia_gemini'
   | 'interesse_busca_fotos_serper'
   | 'interesse_whatsapp_auto'
+  | 'interesse_whatsapp_ia_receptiva'
   | 'interesse_mercado_livre'
   | 'interesse_agendamento_servicos'
   | 'interesse_venda_por_peso'
@@ -53,12 +56,15 @@ export interface OnboardingSetupRecord {
   interesse_ia_gemini: boolean;
   interesse_busca_fotos_serper: boolean;
   interesse_whatsapp_auto: boolean;
+  interesse_whatsapp_ia_receptiva: boolean;
   interesse_mercado_livre: boolean;
   interesse_agendamento_servicos: boolean;
   interesse_venda_por_peso: boolean;
   interesse_caderneta_fiado: boolean;
   unidades_conferidas: boolean;
   opera_sozinho: boolean;
+  metas_conferidas: boolean;
+  perfil_ia_conferido: boolean;
   criado_em: string;
   atualizado_em: string;
 }
@@ -111,8 +117,16 @@ export interface SnapshotLojaOnboarding {
   trabalha_com_agenda: boolean;
   aceita_pedidos_online: boolean;
   whatsapp_auto_ativo: boolean;
+  whatsapp_ia_receptiva_ativa: boolean;
   gemini_configurado: boolean;
   serper_configurado: boolean;
+  segmento_negocio: string;
+  especialidade_negocio: string;
+  tom_voz_rubi: string;
+  perfil_ia_configurado: boolean;
+  meta_faturamento: number;
+  meta_pedidos: number;
+  meta_lucro_liquido: number;
   colaboradores_ativos_count: number;
   colaboradores_equipe_count: number;
 }
@@ -191,6 +205,9 @@ interface FormaPagamentoOnboardingQueryRow {
 
 interface LojaMetasOnboardingQueryRow {
   meta_faturamento?: number | null;
+  meta_pedidos?: number | null;
+  meta_lucro_liquido?: number | null;
+  meta_ticket_medio?: number | null;
 }
 
 export interface OpcoesAvaliacaoOnboarding {
@@ -223,12 +240,15 @@ const criarRegistroPadraoSetup = (lojaId: string): OnboardingSetupRecord => {
     interesse_ia_gemini: true,
     interesse_busca_fotos_serper: true,
     interesse_whatsapp_auto: false,
+    interesse_whatsapp_ia_receptiva: false,
     interesse_mercado_livre: false,
     interesse_agendamento_servicos: false,
     interesse_venda_por_peso: false,
     interesse_caderneta_fiado: false,
     unidades_conferidas: false,
     opera_sozinho: false,
+    metas_conferidas: false,
+    perfil_ia_conferido: false,
     criado_em: agora,
     atualizado_em: agora,
   };
@@ -392,6 +412,10 @@ const normalizarRegistroSetup = (
     interesse_ia_gemini: row.interesse_ia_gemini ?? true,
     interesse_busca_fotos_serper: row.interesse_busca_fotos_serper ?? true,
     interesse_whatsapp_auto: Boolean(row.interesse_whatsapp_auto),
+    interesse_whatsapp_ia_receptiva:
+      typeof row.interesse_whatsapp_ia_receptiva === 'boolean'
+        ? row.interesse_whatsapp_ia_receptiva
+        : Boolean(lerSetupFallbackLocal(lojaId).interesse_whatsapp_ia_receptiva),
     interesse_mercado_livre: Boolean(row.interesse_mercado_livre),
     interesse_agendamento_servicos: Boolean(row.interesse_agendamento_servicos),
     interesse_venda_por_peso: Boolean(row.interesse_venda_por_peso),
@@ -401,6 +425,14 @@ const normalizarRegistroSetup = (
       typeof row.opera_sozinho === 'boolean'
         ? row.opera_sozinho
         : Boolean(lerSetupFallbackLocal(lojaId).opera_sozinho),
+    metas_conferidas:
+      typeof row.metas_conferidas === 'boolean'
+        ? row.metas_conferidas
+        : Boolean(lerSetupFallbackLocal(lojaId).metas_conferidas),
+    perfil_ia_conferido:
+      typeof row.perfil_ia_conferido === 'boolean'
+        ? row.perfil_ia_conferido
+        : Boolean(lerSetupFallbackLocal(lojaId).perfil_ia_conferido),
     criado_em: row.criado_em || padrao.criado_em,
     atualizado_em: row.atualizado_em || padrao.atualizado_em,
   };
@@ -647,8 +679,25 @@ export async function salvarRespostasOnboarding(
     .single();
 
   if (error) {
-    if (isErroTabelaAusente(error) || isErroColunaAusente(error) || isErroRlsOuPermissao(error)) {
-      if (!isErroTabelaAusente(error) && !isErroColunaAusente(error)) {
+    if (isErroColunaAusente(error)) {
+      const {
+        interesse_whatsapp_ia_receptiva: _wppIa,
+        metas_conferidas: _metasConf,
+        perfil_ia_conferido: _perfilConf,
+        ...payloadCompativel
+      } = payload;
+      if (Object.keys(payloadCompativel).length > 2) {
+        await supabase
+          .from('loja_onboarding_setup')
+          .upsert(payloadCompativel, { onConflict: 'loja_id' });
+      }
+      const localAtualizado = salvarSetupFallbackLocal(lojaId, dados);
+      dispararEventoJanela(EVENTO_ONBOARDING_ATUALIZADO, { lojaId });
+      return localAtualizado;
+    }
+
+    if (isErroTabelaAusente(error) || isErroRlsOuPermissao(error)) {
+      if (!isErroTabelaAusente(error)) {
         logger.warn(
           'onboardingSetupService',
           'salvarRespostasOnboarding:upsert',
@@ -773,6 +822,71 @@ export async function atualizarConfiguracaoDiretaLoja(
 }
 
 /**
+ * Persiste Segmento de Atuação e Especialidade/Foco Principal na mesma estrutura de
+ * `ConfiguracoesLoja.tsx` (`lojas.configuracoes_extras.perfil_negocio` e `ia`) para
+ * calibrar todas as IAs do sistema e marca `perfil_ia_conferido = true`.
+ */
+export async function salvarPerfilNegocioIALoja(
+  lojaId: string,
+  params: {
+    segmento: string;
+    descricao_especialidade: string;
+    tom_voz?: 'consultivo' | 'tecnico' | 'amigavel' | 'formal';
+  }
+): Promise<void> {
+  if (!lojaId) {
+    throw new Error('Identificador da loja não informado.');
+  }
+
+  await garantirSessaoAuthAtiva(lojaId);
+
+  const { data: lojaAtual, error: erroConsulta } = await supabase
+    .from('lojas')
+    .select('configuracoes_extras')
+    .eq('id', lojaId)
+    .maybeSingle();
+
+  if (erroConsulta) {
+    throw new Error('Não foi possível ler as configurações atuais da loja.');
+  }
+
+  const extrasAtuais =
+    ((lojaAtual as { configuracoes_extras?: ConfiguracoesExtrasLoja } | null)
+      ?.configuracoes_extras) || {};
+
+  const segmentoLimpo = (params.segmento || 'geral').trim() || 'geral';
+  const especialidadeLimpa = (params.descricao_especialidade || '').trim();
+  const tomVozFinal: 'consultivo' | 'tecnico' | 'amigavel' | 'formal' =
+    params.tom_voz || extrasAtuais.perfil_negocio?.tom_voz || 'consultivo';
+
+  const novasExtras: ConfiguracoesExtrasLoja = {
+    ...extrasAtuais,
+    perfil_negocio: {
+      ...(extrasAtuais.perfil_negocio || {}),
+      segmento: segmentoLimpo,
+      descricao_especialidade: especialidadeLimpa,
+      tom_voz: tomVozFinal,
+    },
+    ia: {
+      ...(extrasAtuais.ia || {}),
+      segmento: segmentoLimpo,
+    },
+  };
+
+  const { error: erroUpdate } = await supabase
+    .from('lojas')
+    .update({ configuracoes_extras: novasExtras })
+    .eq('id', lojaId);
+
+  if (erroUpdate) {
+    throw new Error('Não foi possível salvar a identidade de negócio da loja.');
+  }
+
+  await salvarRespostasOnboarding(lojaId, { perfil_ia_conferido: true });
+  dispararEventoJanela(EVENTO_ONBOARDING_ATUALIZADO, { lojaId });
+}
+
+/**
  * Avalia em paralelo no Supabase o estado real de implantação de todas as etapas
  * essenciais (Grupo 1) e opcionais selecionadas pelo lojista (Grupo 2).
  */
@@ -828,7 +942,7 @@ export async function avaliarProgressoCompletoOnboarding(
     try {
       const { data, error } = await supabase
         .from('loja_metas')
-        .select('meta_faturamento')
+        .select('meta_faturamento, meta_pedidos, meta_lucro_liquido, meta_ticket_medio')
         .eq('loja_id', lojaId)
         .maybeSingle();
       if (error) return null;
@@ -970,11 +1084,23 @@ export async function avaliarProgressoCompletoOnboarding(
     return true;
   };
 
-  const whatsappAutoConfigurado = Boolean(
-    lojaEfetiva?.whatsapp_auto_ativo === true ||
-      lojaEfetiva?.whatsapp_ia_receptiva_ativa === true ||
+  const whatsappAutoConfigurado = Boolean(lojaEfetiva?.whatsapp_auto_ativo === true);
+  const whatsappIaReceptivaConfigurado = Boolean(
+    lojaEfetiva?.whatsapp_ia_receptiva_ativa === true ||
       (lojaEfetiva?.ia_whatsapp_ativa === true &&
         Boolean(lojaEfetiva?.meta_phone_number_id?.trim() || lojaEfetiva?.meta_access_token?.trim()))
+  );
+
+  const segmentoAtual =
+    extras.perfil_negocio?.segmento ||
+    extras.ia?.segmento ||
+    'geral';
+  const especialidadeAtual = (extras.perfil_negocio?.descricao_especialidade || '').trim();
+  const tomVozAtual = extras.perfil_negocio?.tom_voz || 'consultivo';
+  const perfilIaConfigurado = Boolean(
+    setup.perfil_ia_conferido ||
+      especialidadeAtual.length > 0 ||
+      (segmentoAtual && segmentoAtual !== 'geral')
   );
 
   const lojaSnapshot: SnapshotLojaOnboarding = {
@@ -1008,12 +1134,20 @@ export async function avaliarProgressoCompletoOnboarding(
     trabalha_com_agenda: lojaEfetiva?.trabalha_com_agenda === true,
     aceita_pedidos_online: Boolean(lojaEfetiva?.aceita_pedidos_online),
     whatsapp_auto_ativo: whatsappAutoConfigurado,
+    whatsapp_ia_receptiva_ativa: whatsappIaReceptivaConfigurado,
     gemini_configurado: Boolean(
       (lojaEfetiva?.gemini_api_key || extras.ia?.gemini_api_key || '').trim()
     ),
     serper_configurado: Boolean(
       (lojaEfetiva?.serper_api_key || extras.ia?.serper_api_key || '').trim()
     ),
+    segmento_negocio: segmentoAtual,
+    especialidade_negocio: especialidadeAtual,
+    tom_voz_rubi: tomVozAtual,
+    perfil_ia_configurado: perfilIaConfigurado,
+    meta_faturamento: Number(lojaMetas?.meta_faturamento || 0),
+    meta_pedidos: Number(lojaMetas?.meta_pedidos || 0),
+    meta_lucro_liquido: Number(lojaMetas?.meta_lucro_liquido || 0),
     colaboradores_ativos_count: countColaboradoresAtivos,
     colaboradores_equipe_count: countColaboradoresEquipe,
   };
@@ -1054,6 +1188,7 @@ export async function avaliarProgressoCompletoOnboarding(
     interesse_apps_corrida: appsCorridaConfigurado,
     interesse_transportadoras_manuais: transportadorasManuaisConfigurado,
     interesse_whatsapp_auto: whatsappAutoConfigurado,
+    interesse_whatsapp_ia_receptiva: whatsappIaReceptivaConfigurado,
     interesse_mercado_livre: mercadoLivreConfigurado,
     interesse_agendamento_servicos: agendamentoServicosConfigurado,
     interesse_venda_por_peso: vendaPorPesoConfigurado,
@@ -1154,9 +1289,20 @@ export async function avaliarProgressoCompletoOnboarding(
       acaoDiretaModal: 'serper',
     },
     {
-      id: 'dados_loja_cep',
+      id: 'perfil_negocio_ia',
       grupo: 'essencial',
       ordem: 3,
+      titulo: 'Identidade do Negócio (Segmento & Especialidade para IAs)',
+      descricao:
+        'Define o nicho e o foco principal da loja para calibrar o Cadastro Inteligente, Busca de Fotos, Assistente Executiva Rubi e Vendedora IA.',
+      concluido: perfilIaConfigurado,
+      rotaDestino: '/config?tab=dados-loja',
+      interesseAtivo: true,
+    },
+    {
+      id: 'dados_loja_cep',
+      grupo: 'essencial',
+      ordem: 4,
       titulo: 'Dados da Loja e Endereço/CEP de Origem',
       descricao:
         'WhatsApp comercial e CEP de origem são obrigatórios para calcular fretes, rotas locais e retirada na loja.',
@@ -1170,7 +1316,7 @@ export async function avaliarProgressoCompletoOnboarding(
     {
       id: 'tipos_venda',
       grupo: 'essencial',
-      ordem: 4,
+      ordem: 5,
       titulo: 'Tabelas de Preço e Tipos de Venda',
       descricao:
         'Defina se sua operação trabalha com Varejo, Atacado, Autoatacado / Distribuidor ou mais de uma tabela.',
@@ -1184,7 +1330,7 @@ export async function avaliarProgressoCompletoOnboarding(
     {
       id: 'formas_pagamento',
       grupo: 'essencial',
-      ordem: 5,
+      ordem: 6,
       titulo: 'Formas de Pagamento e Taxas de Maquininha',
       descricao:
         'Cadastre Pix, Dinheiro, Cartões e taxas de operadora para apuração fiel do lucro líquido no cockpit.',
@@ -1195,7 +1341,7 @@ export async function avaliarProgressoCompletoOnboarding(
     {
       id: 'status_pedidos',
       grupo: 'essencial',
-      ordem: 6,
+      ordem: 7,
       titulo: 'Fluxo de Status dos Pedidos',
       descricao:
         'Os status Pendente, Confirmado, Cancelado e Concluído já são padrão do sistema. Personalize etapas opcionais do Kanban apenas se desejar.',
@@ -1206,7 +1352,7 @@ export async function avaliarProgressoCompletoOnboarding(
     {
       id: 'categorias_unidades',
       grupo: 'essencial',
-      ordem: 7,
+      ordem: 8,
       titulo: 'Categorias e Unidades de Medida',
       descricao:
         'Organize seu catálogo em departamentos e valide as unidades de medida (UN, KG, CX, LT) usadas no estoque.',
@@ -1218,10 +1364,10 @@ export async function avaliarProgressoCompletoOnboarding(
     {
       id: 'metas_loja',
       grupo: 'essencial',
-      ordem: 8,
+      ordem: 9,
       titulo: 'Metas da Loja (Cockpit Executivo F1)',
       descricao:
-        'Defina sua meta mensal de faturamento para alimentar os velocímetros de desempenho no Dashboard.',
+        'Sem metas definidas, os velocímetros do Dashboard / Cockpit F1 ficam zerados (0.00). Defina sua meta mensal para acompanhar o ritmo real.',
       concluido: Number(lojaMetas?.meta_faturamento || 0) > 0,
       rotaDestino: '/config?tab=metas',
       interesseAtivo: true,
@@ -1229,7 +1375,7 @@ export async function avaliarProgressoCompletoOnboarding(
     {
       id: 'colaboradores',
       grupo: 'essencial',
-      ordem: 9,
+      ordem: 10,
       titulo: 'Cadastro de Colaboradores',
       descricao:
         'Adicione vendedores, operadores de caixa, técnicos ou prestadores de serviço',
@@ -1316,7 +1462,7 @@ export async function avaliarProgressoCompletoOnboarding(
     {
       id: 'whatsapp_auto',
       grupo: 'opcional',
-      ordem: 15,
+      ordem: 16,
       titulo: 'Notificações Automáticas no WhatsApp (Meta Cloud API)',
       descricao:
         'Avise o cliente automaticamente quando o pedido sair para entrega, ficar pronto para retirada ou lembrar do agendamento.',
@@ -1324,6 +1470,18 @@ export async function avaliarProgressoCompletoOnboarding(
       rotaDestino: '/config?tab=whatsapp-ia',
       chaveInteresse: 'interesse_whatsapp_auto',
       interesseAtivo: whatsappAutoConfigurado,
+    },
+    {
+      id: 'whatsapp_ia_receptiva',
+      grupo: 'opcional',
+      ordem: 17,
+      titulo: 'Robô Atendente / Vendedora IA no WhatsApp (Meta Cloud API)',
+      descricao:
+        'Atendimento receptivo 24h com IA respondendo dúvidas, consultando estoque e fechando pedidos. Exige número exclusivo na API Oficial da Meta (não pode ser usado no app WhatsApp do celular).',
+      concluido: whatsappIaReceptivaConfigurado,
+      rotaDestino: '/config?tab=whatsapp-ia',
+      chaveInteresse: 'interesse_whatsapp_ia_receptiva',
+      interesseAtivo: whatsappIaReceptivaConfigurado,
     },
     {
       id: 'mercado_livre',

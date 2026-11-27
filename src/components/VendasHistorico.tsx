@@ -53,6 +53,11 @@ import { ReciboPedidoModal } from './pedidos/ReciboPedidoModal';
 import { obterInfoVencimentoFiado } from '../utils/statusPedidoUtils';
 import { obterDataOperacao } from '../utils/dataOperacao';
 import { obterInicioDiaISO, obterFimDiaISO } from '../utils/dateTime';
+import {
+  obterDataRecebimentoPedidoISO,
+  obterDataRecebimentoPedidoDate,
+  pedidoCriadoEmDiaDiferenteDoPagamento
+} from '../utils/regimeCaixa';
 import { useFeedbackModal } from '../contexts/FeedbackContext';
 import { useRegisterOverlay } from '../hooks/useRegisterOverlay';
 import { EstoquePedidoService } from '../services/estoquePedidoService';
@@ -115,7 +120,7 @@ export const VendasHistorico: React.FC = () => {
     return vendas.filter(v => {
       const vAny = v as any;
       if (vAny.sessao_caixa_id && vAny.sessao_caixa_id === sessaoTurnoAtivo.id) return true;
-      const dtIso = v.data_venda || v.criado_em;
+      const dtIso = obterDataRecebimentoPedidoISO(v);
       if (!dtIso) return false;
       const t = new Date(dtIso).getTime();
       return t >= tsAbertura && t <= tsFechamento;
@@ -304,7 +309,7 @@ export const VendasHistorico: React.FC = () => {
       // Considera apenas vendas efetivamente concluídas (não canceladas) para métricas
       if (v.status !== 'concluido') return;
 
-      const dataVenda = new Date(v.data_venda || v.criado_em || '');
+      const dataVenda = obterDataRecebimentoPedidoDate(v);
       const valor = Number(v.valor_total || 0);
 
       // Hoje
@@ -389,9 +394,9 @@ export const VendasHistorico: React.FC = () => {
           if (!temFormaSelecionada && (v.pagamentos || []).length > 0) return false;
         }
 
-        // 4. Filtro de Período
-        const dataVenda = new Date(v.data_venda || v.criado_em || '');
-        const agora = new Date();
+        // 4. Filtro de Período (Regime de Caixa Real pela data do pagamento/recebimento)
+        const dataVenda = obterDataRecebimentoPedidoDate(v);
+        const agora = obterDataOperacao();
         const inicioHoje = new Date(agora.getFullYear(), agora.getMonth(), agora.getDate(), 0, 0, 0);
 
         if (periodoSelecionado === 'hoje') {
@@ -452,7 +457,7 @@ export const VendasHistorico: React.FC = () => {
       .sort((a, b) => {
         let cmp = 0;
         if (campoOrdenacao === 'data') {
-          cmp = new Date(a.data_venda || a.criado_em || '').getTime() - new Date(b.data_venda || b.criado_em || '').getTime();
+          cmp = obterDataRecebimentoPedidoDate(a).getTime() - obterDataRecebimentoPedidoDate(b).getTime();
         } else if (campoOrdenacao === 'valor') {
           cmp = Number(a.valor_total || 0) - Number(b.valor_total || 0);
         } else if (campoOrdenacao === 'codigo') {
@@ -1002,7 +1007,9 @@ export const VendasHistorico: React.FC = () => {
               </thead>
               <tbody className={`divide-y ${isDark ? 'divide-slate-800' : 'divide-slate-200'}`}>
                 {vendasFiltradas.map((venda) => {
-                  const { data, hora } = formatarDataTabela(venda.data_venda || venda.criado_em || '');
+                  const dataRecebIso = obterDataRecebimentoPedidoISO(venda);
+                  const { data, hora } = formatarDataTabela(dataRecebIso);
+                  const infoPedidoAntigo = pedidoCriadoEmDiaDiferenteDoPagamento(venda);
                   const totalItens = calcularTotalItens(venda);
                   const isCatalogo = venda.origem === 'catalogo_online';
                   const codigoFormatado = isCatalogo ? `#c-${venda.numero_pedido}` : `#${venda.numero_pedido}`;
@@ -1040,10 +1047,17 @@ export const VendasHistorico: React.FC = () => {
                         </div>
                       </td>
 
-                      {/* Data da Venda */}
+                      {/* Data do Recebimento (Regime de Caixa) */}
                       <td className={`py-3.5 px-4 whitespace-nowrap ${isDark ? 'text-slate-300' : 'text-black'}`}>
-                        <span className={`font-semibold ${isDark ? 'text-slate-200' : 'text-black'}`}>{data}</span>
-                        {hora && <span className={`ml-1.5 font-mono text-[11px] ${isDark ? 'text-slate-400' : 'text-black'}`}>{hora}</span>}
+                        <div>
+                          <span className={`font-semibold ${isDark ? 'text-slate-200' : 'text-black'}`}>{data}</span>
+                          {hora && <span className={`ml-1.5 font-mono text-[11px] ${isDark ? 'text-slate-400' : 'text-black'}`}>{hora}</span>}
+                        </div>
+                        {infoPedidoAntigo.diferente && (
+                          <div className={`text-[10px] font-medium mt-0.5 ${isDark ? 'text-slate-400' : 'text-slate-600'}`}>
+                            Pedido: {infoPedidoAntigo.dataPedidoCurta}
+                          </div>
+                        )}
                       </td>
 
                       {/* Cliente */}

@@ -33,6 +33,7 @@ import { ModalNovoCliente } from './ModalNovoCliente';
 import { ClientePerfilMobile } from './ClientePerfilMobile';
 import { MobileHeader } from './layout/MobileHeader';
 import { useRegisterOverlay } from '../hooks/useRegisterOverlay';
+import { obterDataOperacaoISO, obterDataOperacaoYMD } from '../utils/dataOperacao';
 import { ModalHistoricoFiadoCliente } from './ModalHistoricoFiadoCliente';
 import { useFeedbackModal } from '../contexts/FeedbackContext';
 import { obterInfoVencimentoFiado } from '../utils/statusPedidoUtils';
@@ -391,8 +392,8 @@ export const ClientesFiado: React.FC = () => {
           categoria: 'Quitação de Fiado',
           descricao: `Recebimento de Fiado - Cliente: ${clienteQuitar.nome}`,
           valor: valor,
-          data_vencimento: obterDataLocalYYYYMMDD(),
-          data_pagamento: new Date().toISOString(),
+          data_vencimento: obterDataOperacaoYMD(),
+          data_pagamento: obterDataOperacaoISO(),
           status: 'pago'
         }
       ]);

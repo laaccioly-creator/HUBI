@@ -7,6 +7,7 @@ import {
   obterConfigCicloCliente,
 } from '../utils/cadernetaCiclo';
 import { obterDataLocalYYYYMMDD } from '../utils/dateTime';
+import { obterDataOperacaoISO, obterDataOperacaoYMD } from '../utils/dataOperacao';
 
 export interface ResumoCadernetaCliente {
   cliente: Cliente;
@@ -442,18 +443,24 @@ export class CadernetaService {
         console.warn('[CadernetaService] Aviso ao gravar lançamento de pagamento:', lancErr);
       }
 
-      // 3. Se quitou tudo, marcar pedidos da caderneta como fiado_quitado = true e saldo_devedor = 0
+      const dataIso = obterDataOperacaoISO();
+      const dataYmd = obterDataOperacaoYMD();
+
+      // 3. Se quitou tudo, marcar pedidos da caderneta ainda em aberto como pagos com data_pagamento efetiva
       if (saldoPosterior <= 0.01) {
         await supabase
           .from('pedidos')
           .update({
             fiado_quitado: true,
             saldo_devedor: 0,
-            status_pagamento: 'pago'
+            status_pagamento: 'pago',
+            data_pagamento: dataIso,
+            atualizado_em: dataIso
           })
           .eq('loja_id', lojaId)
           .eq('cliente_id', clienteId)
-          .eq('eh_venda_caderneta', true);
+          .eq('eh_venda_caderneta', true)
+          .neq('status_pagamento', 'pago');
       }
 
       // 4. Registrar transação financeira de entrada
@@ -465,8 +472,8 @@ export class CadernetaService {
           categoria: 'Recebimento de Caderneta',
           descricao: `Recebimento Caderneta - Cliente ${cliente.nome}`,
           valor: valorEfetivo,
-          data_vencimento: obterDataLocalYYYYMMDD(),
-          data_pagamento: new Date().toISOString(),
+          data_vencimento: dataYmd,
+          data_pagamento: dataIso,
           status: 'pago'
         });
 
@@ -661,18 +668,24 @@ export class CadernetaService {
         .eq('loja_id', lojaId)
         .eq('id', cliente.id);
 
-      // 3. Se quitou tudo, marcar pedidos da caderneta como pagos
+      const dataIso = obterDataOperacaoISO();
+      const dataYmd = obterDataOperacaoYMD();
+
+      // 3. Se quitou tudo, marcar pedidos da caderneta ainda em aberto como pagos com data_pagamento efetiva
       if (saldoPosterior <= 0.01) {
         await supabase
           .from('pedidos')
           .update({
             fiado_quitado: true,
             saldo_devedor: 0,
-            status_pagamento: 'pago'
+            status_pagamento: 'pago',
+            data_pagamento: dataIso,
+            atualizado_em: dataIso
           })
           .eq('loja_id', lojaId)
           .eq('cliente_id', cliente.id)
-          .eq('eh_venda_caderneta', true);
+          .eq('eh_venda_caderneta', true)
+          .neq('status_pagamento', 'pago');
       }
 
       // 4. Registrar transação financeira de entrada
@@ -684,8 +697,8 @@ export class CadernetaService {
           categoria: 'Recebimento de Caderneta',
           descricao: `Recebimento Caderneta (Conferido) - Cliente ${cliente.nome}`,
           valor: valorEfetivo,
-          data_vencimento: obterDataLocalYYYYMMDD(),
-          data_pagamento: new Date().toISOString(),
+          data_vencimento: dataYmd,
+          data_pagamento: dataIso,
           status: 'pago'
         });
 

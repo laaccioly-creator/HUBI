@@ -2572,7 +2572,7 @@ export const PedidosLista: React.FC = () => {
             parcelas: 1,
             valor_taxa: 0,
             valor_liquido: Number(pedidoSelecionado.valor_total || 0),
-            data_pagamento: dataIso,
+            data_pagamento: meioPagamentoConclusao === 'fiado' ? null : dataIso,
             eh_pagamento_fiado: meioPagamentoConclusao === 'fiado'
           }
         ]);
@@ -2660,6 +2660,10 @@ export const PedidosLista: React.FC = () => {
       const statusAnteriorConclusao = pedidoSelecionado.status || null;
       const obsLimpa = extrairObservacaoLimpa(pedidoSelecionado.observacoes);
       const dataIsoConclusao = obterDataOperacaoISO();
+      const dataPagamentoFinal =
+        pedidoSelecionado.status_pagamento === 'pago' && pedidoSelecionado.data_pagamento
+          ? pedidoSelecionado.data_pagamento
+          : dataIsoConclusao;
       const { error } = await supabase
         .from('pedidos')
         .update({
@@ -2667,6 +2671,7 @@ export const PedidosLista: React.FC = () => {
           status_pagamento: 'pago',
           valor_pago: valorTotal,
           saldo_devedor: 0,
+          data_pagamento: dataPagamentoFinal,
           observacoes: obsLimpa || null,
           atualizado_por: usuario?.id || null,
           atualizado_em: dataIsoConclusao
@@ -2689,6 +2694,7 @@ export const PedidosLista: React.FC = () => {
             status_pagamento: 'pago' as StatusPagamento,
             valor_pago: valorTotal,
             saldo_devedor: 0,
+            data_pagamento: dataPagamentoFinal,
             observacoes: obsLimpa || null,
             atualizado_em: dataIsoConclusao,
             ...(peAtual ? { pedido_entrega: peAtual } : {})

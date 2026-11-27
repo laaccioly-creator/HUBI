@@ -1052,10 +1052,32 @@ export const DashboardCockpit: React.FC = () => {
                       <span>🚀 Primeiros Passos: Checklist de Prontidão da Loja</span>
                     </h3>
                     <p className={`text-xs sm:text-sm leading-relaxed max-w-2xl ${
-                      isDark ? 'text-slate-400' : 'text-slate-900'
+                      isDark ? 'text-slate-300' : 'text-slate-800'
                     }`}>
-                      Sua loja está em fase de configuração. Complete os passos essenciais para liberar vendas e agendamentos.
+                      Sua loja está em fase de configuração. Complete os passos essenciais (como <strong>Identidade para IA</strong> e <strong>Metas do Cockpit F1</strong>) para liberar todo o potencial do sistema.
                     </p>
+                    {statusOnboarding?.etapasEssenciais && (
+                      <div className="flex flex-wrap items-center gap-1.5 pt-1.5">
+                        {statusOnboarding.etapasEssenciais
+                          .filter((et) => !et.concluido)
+                          .slice(0, 3)
+                          .map((et) => (
+                            <button
+                              key={et.id}
+                              type="button"
+                              onClick={() => solicitarAberturaQuestionarioOnboarding(et.id)}
+                              className={`px-2.5 py-1 rounded-lg text-[11px] font-bold transition cursor-pointer border ${
+                                isDark
+                                  ? 'bg-slate-900 hover:bg-slate-800 border-slate-700 text-slate-200'
+                                  : 'bg-slate-100 hover:bg-slate-200 border-slate-300 text-slate-800'
+                              }`}
+                              title={`Abrir ${et.titulo} no questionário`}
+                            >
+                              • {et.id === 'perfil_negocio_ia' ? 'Identidade para IA' : et.id === 'metas_loja' ? 'Metas do Cockpit F1' : et.titulo}
+                            </button>
+                          ))}
+                      </div>
+                    )}
                   </div>
                 </div>
 

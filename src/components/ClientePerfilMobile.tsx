@@ -33,6 +33,7 @@ import { usePermissions } from '../hooks/usePermissions';
 import { useRegisterOverlay } from '../hooks/useRegisterOverlay';
 import { Cliente, CicloCaderneta, Pedido, MovimentacaoSaldoCliente, TabelaPreco } from '../types';
 import { extrairEnderecoEstruturado } from './ModalNovoCliente';
+import { obterDataOperacaoISO, obterDataOperacaoYMD } from '../utils/dataOperacao';
 import { caixaService } from '../services/caixaService';
 import { useFeedbackModal } from '../contexts/FeedbackContext';
 import { ModalHistoricoFiadoCliente } from './ModalHistoricoFiadoCliente';
@@ -286,6 +287,8 @@ export const ClientePerfilMobile: React.FC<ClientePerfilMobileProps> = ({
       if (errCli) throw errCli;
 
       // 2. Insere na tabela transacoes_financeiras
+      const dataIsoOp = obterDataOperacaoISO();
+      const dataYmdOp = obterDataOperacaoYMD();
       try {
         await supabase.from('transacoes_financeiras').insert([{
           loja_id: loja.id,
@@ -295,8 +298,8 @@ export const ClientePerfilMobile: React.FC<ClientePerfilMobileProps> = ({
           valor: valorNum,
           forma_pagamento: formaQuitar,
           status: 'pago',
-          data_vencimento: obterDataLocalYYYYMMDD(),
-          data_pagamento: new Date().toISOString(),
+          data_vencimento: dataYmdOp,
+          data_pagamento: dataIsoOp,
           observacoes: `Abatimento fiado. ${obsQuitar}`.trim()
         }]);
       } catch (errFin) {
@@ -317,7 +320,8 @@ export const ClientePerfilMobile: React.FC<ClientePerfilMobileProps> = ({
             forma_tipo: formaQuitar,
             valor: valorNum
           }],
-          usuarioId: usuario?.id || ''
+          usuarioId: usuario?.id || '',
+          dataPagamentoIso: dataIsoOp
         });
       } catch (errCaixa) {
         console.warn('Aviso ao registrar quitação no caixa:', errCaixa);

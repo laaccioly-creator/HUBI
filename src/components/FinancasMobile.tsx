@@ -46,7 +46,8 @@ import {
   formatarHoraLocal,
   formatarDataHoraLocal,
   obterInicioDiaISO,
-  obterFimDiaISO
+  obterFimDiaISO,
+  obterDataLocalYYYYMMDD
 } from '../utils/dateTime';
 
 export interface FinancasMobileProps {
@@ -1015,7 +1016,15 @@ export const FinancasMobile: React.FC<FinancasMobileProps> = ({
                                 {t.descricao}
                               </span>
                               <span className={`text-sm leading-relaxed block font-medium ${isDark ? 'text-slate-300' : 'text-black'}`}>
-                                {t.categoria || 'Geral'} • {formatarDataLocal(t.data_vencimento || (t as any).criado_em || (t as any).data || Date.now())}
+                                {t.categoria || 'Geral'} •{' '}
+                                {isEntrada
+                                  ? `Pago em ${formatarDataHoraLocal(t.data || t.dataPagamento || (t as any).criado_em || Date.now(), { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit' })}${
+                                      (t as any).dataPedidoOriginal &&
+                                      obterDataLocalYYYYMMDD((t as any).dataPedidoOriginal) !== obterDataLocalYYYYMMDD(t.data || t.dataPagamento || '')
+                                        ? ` (Pedido de ${formatarDataLocal((t as any).dataPedidoOriginal, { day: '2-digit', month: '2-digit' })})`
+                                        : ''
+                                    }`
+                                  : formatarDataLocal(t.data_vencimento || (t as any).criado_em || (t as any).data || Date.now())}
                               </span>
                             </div>
                             <span

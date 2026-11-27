@@ -98,6 +98,7 @@ import { comprimirFotoProduto } from '../utils/imageCompressor';
 import { useLojaProntidao } from '../hooks/useLojaProntidao';
 import {
   notificarConfiguracaoSalvaParaOnboarding,
+  salvarRespostasOnboarding,
   solicitarAberturaQuestionarioOnboarding,
 } from '../services/onboardingSetupService';
 
@@ -1811,6 +1812,7 @@ export const ConfiguracoesLoja: React.FC<ConfiguracoesLojaProps> = ({ subTelaIni
       setTemAlteracoesNaoSalvas(false);
       await recarregarDadosLoja();
       mostrarToast('Configurações salvas com sucesso!');
+      await salvarRespostasOnboarding(loja.id, { perfil_ia_conferido: true }).catch(() => {});
       notificarConfiguracaoSalvaParaOnboarding('configuracoes_loja');
       setSubTela('menu');
     } catch (err: any) {
@@ -4319,6 +4321,14 @@ export const ConfiguracoesLoja: React.FC<ConfiguracoesLojaProps> = ({ subTelaIni
                     style={{ width: `${percentual}%` }}
                   />
                 </div>
+                {statusOnboarding?.proximaEtapaPendente && (
+                  <p className={`text-xs font-medium ${isDark ? 'text-slate-300' : 'text-slate-800'}`}>
+                    Próximo passo:{' '}
+                    <strong className={isDark ? 'text-white' : 'text-slate-900'}>
+                      {statusOnboarding.proximaEtapaPendente.titulo}
+                    </strong>
+                  </p>
+                )}
               </div>
 
               <div className="flex flex-wrap items-center gap-2.5 shrink-0">

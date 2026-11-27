@@ -64,7 +64,7 @@ import { ModalRecargaWhatsapp } from '../configuracoes/ModalRecargaWhatsapp';
 import { formatarMoeda as formatCurrency } from '../../utils/formatters';
 import { ModalQuestionarioOnboarding } from '../onboarding/ModalQuestionarioOnboarding';
 import {
-  obterOuCriarSetupLoja,
+  avaliarProgressoCompletoOnboarding,
   obterRetornoOnboardingAtivo,
   consumirRetornoOnboarding,
   limparRetornoOnboarding,
@@ -305,9 +305,17 @@ export const AppLayout: React.FC = () => {
     let cancelado = false;
     verificouPrimeiroAcessoRef.current = loja.id;
 
-    obterOuCriarSetupLoja(loja.id)
-      .then((setup) => {
-        if (!cancelado && !setup.id.startsWith('local-') && !setup.questionario_respondido) {
+    avaliarProgressoCompletoOnboarding(loja.id, {
+      sincronizarDetectados: false,
+      lojaFallback: loja,
+    })
+      .then((status) => {
+        if (
+          !cancelado &&
+          !status.setup.id.startsWith('local-') &&
+          !status.setup.questionario_respondido &&
+          !status.tudoPronto
+        ) {
           setEtapaDestaqueOnboarding(null);
           setModalQuestionarioOnboardingAberto(true);
         }

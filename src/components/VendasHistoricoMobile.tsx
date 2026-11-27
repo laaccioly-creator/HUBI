@@ -39,6 +39,12 @@ import {
   obterInicioDiaISO,
   obterFimDiaISO
 } from '../utils/dateTime';
+import { obterDataOperacao } from '../utils/dataOperacao';
+import {
+  obterDataRecebimentoPedidoISO,
+  obterDataRecebimentoPedidoDate,
+  pedidoCriadoEmDiaDiferenteDoPagamento
+} from '../utils/regimeCaixa';
 import { useAuth } from '../contexts/AuthContext';
 import { useTheme } from '../contexts/ThemeContext';
 import { usePermissions } from '../hooks/usePermissions';
@@ -151,10 +157,10 @@ export const VendasHistoricoMobile: React.FC<VendasHistoricoMobileProps> = ({
         if (!match) return false;
       }
 
-      // Filtro por Data
+      // Filtro por Data (Regime de Caixa Real pela data do pagamento/recebimento)
       if (periodoFiltro !== 'todos') {
-        const dtVenda = new Date(venda.data_venda || venda.criado_em || Date.now());
-        const hoje = new Date();
+        const dtVenda = obterDataRecebimentoPedidoDate(venda);
+        const hoje = obterDataOperacao();
         hoje.setHours(0, 0, 0, 0);
 
         if (periodoFiltro === 'hoje') {
@@ -164,31 +170,31 @@ export const VendasHistoricoMobile: React.FC<VendasHistoricoMobileProps> = ({
           ontem.setDate(ontem.getDate() - 1);
           if (dtVenda < ontem || dtVenda >= hoje) return false;
         } else if (periodoFiltro === '30dias') {
-          const limite = new Date();
+          const limite = obterDataOperacao();
           limite.setDate(limite.getDate() - 30);
           if (dtVenda < limite) return false;
         } else if (periodoFiltro === 'custom') {
-          const rawData = venda.data_venda || venda.criado_em || '';
+          const rawData = obterDataRecebimentoPedidoISO(venda);
           if (dataInicio && rawData && new Date(rawData) < new Date(obterInicioDiaISO(dataInicio))) return false;
           if (dataFim && rawData && new Date(rawData) > new Date(obterFimDiaISO(dataFim))) return false;
         }
       }
 
       return true;
-    });
+    }).sort((a, b) => obterDataRecebimentoPedidoDate(b).getTime() - obterDataRecebimentoPedidoDate(a).getTime());
   }, [vendas, busca, vendedorFiltroId, meiosPagamentoFiltro, periodoFiltro, dataInicio, dataFim, permissions.podeVerTransacoesOutros, usuario]);
 
-  // Agrupamento por Data
+  // Agrupamento por Data de Recebimento
   const gruposPorData = useMemo(() => {
     const grupos: { [key: string]: { label: string; vendas: Pedido[]; totalValor: number } } = {};
-    const hoje = new Date();
-    const ontem = new Date();
+    const hoje = obterDataOperacao();
+    const ontem = obterDataOperacao();
     ontem.setDate(ontem.getDate() - 1);
     const hojeYmd = obterDataLocalYYYYMMDD(hoje);
     const ontemYmd = obterDataLocalYYYYMMDD(ontem);
 
     vendasFiltradas.forEach((v) => {
-      const d = new Date(v.data_venda || v.criado_em || Date.now());
+      const d = obterDataRecebimentoPedidoDate(v);
       const ymd = obterDataLocalYYYYMMDD(d);
       let label = formatarDataLocal(d);
 
@@ -333,7 +339,10 @@ export const VendasHistoricoMobile: React.FC<VendasHistoricoMobileProps> = ({
                 Venda #{vendaDetalhes.numero_pedido}
               </h2>
               <span className={`text-[10px] ${isDark ? 'text-slate-300' : 'text-black font-semibold'}`}>
-                {formatarDataHoraLocal(vendaDetalhes.data_venda)}
+                Pago em {formatarDataHoraLocal(obterDataRecebimentoPedidoISO(vendaDetalhes))}
+                {pedidoCriadoEmDiaDiferenteDoPagamento(vendaDetalhes).diferente
+                  ? ` • Pedido: ${pedidoCriadoEmDiaDiferenteDoPagamento(vendaDetalhes).dataPedidoCurta}`
+                  : ''}
               </span>
             </div>
           </div>
@@ -802,9 +811,16 @@ export const VendasHistoricoMobile: React.FC<VendasHistoricoMobileProps> = ({
                           })()}
                         </div>
 
-                        <span className={`text-[10px] font-medium shrink-0 ${isDark ? 'text-slate-300' : 'text-black font-bold'}`}>
-                          {formatarHoraLocal(v.data_venda, { hour: '2-digit', minute: '2-digit' })}
-                        </span>
+                        <div className="text-right shrink-0">
+                          <span className={`text-[10px] font-medium block ${isDark ? 'text-slate-300' : 'text-black font-bold'}`}>
+                            {formatarHoraLocal(obterDataRecebimentoPedidoISO(v), { hour: '2-digit', minute: '2-digit' })}
+                          </span>
+                          {pedidoCriadoEmDiaDiferenteDoPagamento(v).diferente && (
+                            <span className={`text-[9px] block ${isDark ? 'text-slate-400' : 'text-slate-600'}`}>
+                              Pedido: {pedidoCriadoEmDiaDiferenteDoPagamento(v).dataPedidoCurta}
+                            </span>
+                          )}
+                        </div>
                       </div>
 
                       <div className={`flex items-center justify-between text-[10px] ${isDark ? 'text-slate-300' : 'text-black'}`}>

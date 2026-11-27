@@ -2505,7 +2505,7 @@ export const CatalogoPublico: React.FC = () => {
             parcelas: 1,
             valor_taxa: 0,
             valor_liquido: total,
-            data_pagamento: dataOperacaoIso,
+            data_pagamento: null,
             eh_pagamento_fiado: true
           }]);
           await atualizarDadosContaCliente();
@@ -2529,7 +2529,7 @@ export const CatalogoPublico: React.FC = () => {
             parcelas: 1,
             valor_taxa: 0,
             valor_liquido: total,
-            data_pagamento: dataOperacaoIso,
+            data_pagamento: null,
             eh_pagamento_caderneta: true
           }]);
           await atualizarDadosContaCliente();

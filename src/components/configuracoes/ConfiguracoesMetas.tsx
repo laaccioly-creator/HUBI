@@ -23,7 +23,10 @@ import { useAuth } from '../../contexts/AuthContext';
 import { usePermissions } from '../../hooks/usePermissions';
 import { useFeedbackModal } from '../../contexts/FeedbackContext';
 import { useTheme } from '../../contexts/ThemeContext';
-import { notificarConfiguracaoSalvaParaOnboarding } from '../../services/onboardingSetupService';
+import {
+  notificarConfiguracaoSalvaParaOnboarding,
+  salvarRespostasOnboarding,
+} from '../../services/onboardingSetupService';
 
 export interface ConfiguracoesMetasProps {
   lojaId?: string;
@@ -158,6 +161,9 @@ export const ConfiguracoesMetas: React.FC<ConfiguracoesMetasProps> = ({
 
       const resultado = await dashboardService.salvarMetasLoja(idLojaAlvo, payload, usuario?.id);
       mostrarSucesso('Metas da loja atualizadas com sucesso!');
+      if (numFaturamento > 0) {
+        await salvarRespostasOnboarding(idLojaAlvo, { metas_conferidas: true }).catch(() => {});
+      }
       notificarConfiguracaoSalvaParaOnboarding('metas_loja');
       setMensagemSucesso('Metas mensais salvas com sucesso!');
       setTimeout(() => setMensagemSucesso(null), 3500);
