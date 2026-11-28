@@ -36,16 +36,19 @@ import {
   CalendarClock,
   Sparkles,
   Scissors,
-  Bell
+  Bell,
+  Info
 } from 'lucide-react';
 import { useAuth } from '../../contexts/AuthContext';
 import { useTheme } from '../../contexts/ThemeContext';
 import { useFeedbackModal } from '../../contexts/FeedbackContext';
 import { useRegisterOverlay } from '../../hooks/useRegisterOverlay';
 import { agendamentoService, formatarDataPtBr, timeStringToMinutes } from '../../services/agendamentoService';
+import { SELECT_PROFISSIONAL_PUBLICO } from '../../lib/publicSelects';
 import { whatsappWalletService } from '../../services/whatsappWalletService';
 import { supabase } from '../../lib/supabase';
 import { ModalLembretesPendentesAgenda } from './ModalLembretesPendentesAgenda';
+import { ModalMiniCurriculoProfissional } from './ModalMiniCurriculoProfissional';
 import { ReciboPedidoModal } from '../pedidos/ReciboPedidoModal';
 import { obterDataLocalYYYYMMDD } from '../../utils/dateTime';
 import type {
@@ -105,7 +108,7 @@ export const AgendaServicosLoja: React.FC = () => {
     try {
       const { data, error } = await supabase
         .from('usuarios_loja')
-        .select('*')
+        .select(SELECT_PROFISSIONAL_PUBLICO)
         .eq('loja_id', loja.id)
         .eq('ativo', true)
         .eq('presta_servicos', true)
@@ -885,8 +888,16 @@ export const AgendaServicosLoja: React.FC = () => {
                       <div className={`flex items-center gap-3 text-xs flex-wrap ${
                         isDark ? 'text-slate-400' : 'text-slate-500'
                       }`}>
-                        <span className="inline-flex items-center gap-1 min-w-0">
-                          <User className="w-3.5 h-3.5 text-emerald-500 shrink-0" />
+                        <span className="inline-flex items-center gap-1.5 min-w-0">
+                          {item.profissional?.url_foto ? (
+                            <img
+                              src={item.profissional.url_foto}
+                              alt={item.profissional.nome_completo || 'Profissional'}
+                              className="w-5 h-5 rounded-md object-cover shrink-0 border border-emerald-500/30"
+                            />
+                          ) : (
+                            <User className="w-3.5 h-3.5 text-emerald-500 shrink-0" />
+                          )}
                           <span className={`font-medium truncate ${isDark ? 'text-slate-300' : 'text-slate-700'}`}>
                             {item.profissional?.nome_completo || 'Não informado'}
                           </span>
@@ -1302,6 +1313,7 @@ const ModalNovoAgendamentoAvulso: React.FC<ModalNovoAgendamentoAvulsoProps> = ({
   const [slotSelecionado, setSlotSelecionado] = useState<SlotHorarioDisponivel | null>(null);
   const [carregandoSlots, setCarregandoSlots] = useState<boolean>(false);
   const [salvando, setSalvando] = useState<boolean>(false);
+  const [profissionalCurriculo, setProfissionalCurriculo] = useState<UsuarioLoja | null>(null);
 
   // Inicializa com primeiro serviço
   useEffect(() => {
@@ -1464,7 +1476,7 @@ const ModalNovoAgendamentoAvulso: React.FC<ModalNovoAgendamentoAvulsoProps> = ({
           </div>
 
           {/* Seleção de Serviço e Profissional */}
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+          <div className="space-y-3">
             <div>
               <label className="text-xs font-bold block mb-1">Serviço *</label>
               <select
@@ -1483,20 +1495,78 @@ const ModalNovoAgendamentoAvulso: React.FC<ModalNovoAgendamentoAvulsoProps> = ({
             </div>
 
             <div>
-              <label className="text-xs font-bold block mb-1">Profissional Designado *</label>
-              <select
-                value={profissionalId}
-                onChange={(e) => setProfissionalId(e.target.value)}
-                className={`w-full px-3 py-2 rounded-xl border text-xs focus:outline-none focus:border-emerald-500 cursor-pointer ${
-                  isDark ? 'bg-slate-900 border-slate-700 text-white' : 'bg-white border-slate-300 text-slate-900'
-                }`}
-              >
-                {profissionaisDisponiveis.map((p) => (
-                  <option key={p.id} value={p.id}>
-                    {p.nome_completo} {p.especialidade_cargo ? `(${p.especialidade_cargo})` : ''}
-                  </option>
-                ))}
-              </select>
+              <label className="text-xs font-bold block mb-1.5">2. Com qual profissional? *</label>
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 max-h-48 overflow-y-auto pr-0.5">
+                {profissionaisDisponiveis.map((p) => {
+                  const isSel = p.id === profissionalId;
+                  const iniciais = (p.nome_completo || 'PR')
+                    .split(' ')
+                    .filter(Boolean)
+                    .map((n) => n[0])
+                    .slice(0, 2)
+                    .join('')
+                    .toUpperCase();
+                  const temCurriculoAprovado = Boolean(p.mini_curriculo?.trim()) && p.curriculo_aprovado === true;
+
+                  return (
+                    <div
+                      key={p.id}
+                      role="button"
+                      tabIndex={0}
+                      onClick={() => setProfissionalId(p.id)}
+                      onKeyDown={(e) => {
+                        if (e.key === 'Enter' || e.key === ' ') {
+                          e.preventDefault();
+                          setProfissionalId(p.id);
+                        }
+                      }}
+                      className={`p-2.5 rounded-2xl border text-left transition cursor-pointer flex items-center gap-3 ${
+                        isSel
+                          ? 'border-emerald-500 bg-emerald-500/10 ring-1 ring-emerald-500/30'
+                          : isDark
+                          ? 'border-slate-800 bg-slate-900/70 hover:bg-slate-800'
+                          : 'border-slate-200 bg-slate-50 hover:bg-slate-100'
+                      }`}
+                    >
+                      <div className={`w-14 h-14 rounded-xl font-black text-sm flex items-center justify-center shrink-0 border overflow-hidden ${
+                        isSel
+                          ? 'bg-emerald-600 text-white border-emerald-500'
+                          : isDark
+                          ? 'bg-slate-800 border-slate-700 text-slate-200'
+                          : 'bg-white border-slate-300 text-slate-700'
+                      }`}>
+                        {p.url_foto ? (
+                          <img src={p.url_foto} alt={p.nome_completo} className="w-full h-full object-cover" />
+                        ) : (
+                          iniciais
+                        )}
+                      </div>
+                      <div className="min-w-0 flex-1 space-y-1">
+                        <div className="flex items-center gap-1.5 flex-wrap">
+                          <span className="text-xs font-bold truncate">{p.nome_completo}</span>
+                          {temCurriculoAprovado && (
+                            <button
+                              type="button"
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                setProfissionalCurriculo(p);
+                              }}
+                              className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold bg-slate-200 hover:bg-slate-300 text-black border border-slate-300 dark:bg-slate-800 dark:hover:bg-slate-700 dark:text-white dark:border-slate-700 transition cursor-pointer"
+                            >
+                              <Info className="w-3 h-3" />
+                              <span>Ver currículo</span>
+                            </button>
+                          )}
+                        </div>
+                        {p.especialidade_cargo && (
+                          <span className="text-[11px] text-slate-400 truncate block">{p.especialidade_cargo}</span>
+                        )}
+                      </div>
+                      {isSel && <CheckCircle2 className="w-4 h-4 text-emerald-500 shrink-0" />}
+                    </div>
+                  );
+                })}
+              </div>
             </div>
           </div>
 
@@ -1646,6 +1716,13 @@ const ModalNovoAgendamentoAvulso: React.FC<ModalNovoAgendamentoAvulsoProps> = ({
           </div>
         </form>
       </div>
+
+      <ModalMiniCurriculoProfissional
+        isOpen={Boolean(profissionalCurriculo)}
+        onClose={() => setProfissionalCurriculo(null)}
+        profissional={profissionalCurriculo}
+        onSelecionar={(prof) => setProfissionalId(prof.id)}
+      />
     </div>
   );
 };
@@ -1683,6 +1760,7 @@ const ModalRemarcarAgendamentoRetaguarda: React.FC<ModalRemarcarAgendamentoRetag
   const [slotSelecionado, setSlotSelecionado] = useState<SlotHorarioDisponivel | null>(null);
   const [carregandoSlots, setCarregandoSlots] = useState<boolean>(false);
   const [salvando, setSalvando] = useState<boolean>(false);
+  const [profissionalCurriculo, setProfissionalCurriculo] = useState<UsuarioLoja | null>(null);
 
   useEffect(() => {
     if (!agendamento.loja_id || !agendamento.produto_id || !profissionalId || !novaData) return;
@@ -1772,20 +1850,78 @@ const ModalRemarcarAgendamentoRetaguarda: React.FC<ModalRemarcarAgendamentoRetag
           </div>
 
           <div>
-            <label className="text-xs font-bold block mb-1">Profissional:</label>
-            <select
-              value={profissionalId}
-              onChange={(e) => setProfissionalId(e.target.value)}
-              className={`w-full px-3 py-2 rounded-xl border text-xs focus:outline-none focus:border-emerald-500 cursor-pointer ${
-                isDark ? 'bg-slate-900 border-slate-700 text-white' : 'bg-white border-slate-300 text-slate-900'
-              }`}
-            >
-              {profissionais.map((p) => (
-                <option key={p.id} value={p.id}>
-                  {p.nome_completo} {p.especialidade_cargo ? `(${p.especialidade_cargo})` : ''}
-                </option>
-              ))}
-            </select>
+            <label className="text-xs font-bold block mb-1.5">2. Com qual profissional?</label>
+            <div className="grid grid-cols-1 gap-2 max-h-40 overflow-y-auto pr-0.5">
+              {profissionais.map((p) => {
+                const isSel = p.id === profissionalId;
+                const iniciais = (p.nome_completo || 'PR')
+                  .split(' ')
+                  .filter(Boolean)
+                  .map((n) => n[0])
+                  .slice(0, 2)
+                  .join('')
+                  .toUpperCase();
+                const temCurriculoAprovado = Boolean(p.mini_curriculo?.trim()) && p.curriculo_aprovado === true;
+
+                return (
+                  <div
+                    key={p.id}
+                    role="button"
+                    tabIndex={0}
+                    onClick={() => setProfissionalId(p.id)}
+                    onKeyDown={(e) => {
+                      if (e.key === 'Enter' || e.key === ' ') {
+                        e.preventDefault();
+                        setProfissionalId(p.id);
+                      }
+                    }}
+                    className={`p-2.5 rounded-2xl border text-left transition cursor-pointer flex items-center gap-3 ${
+                      isSel
+                        ? 'border-emerald-500 bg-emerald-500/10 ring-1 ring-emerald-500/30'
+                        : isDark
+                        ? 'border-slate-800 bg-slate-900/70 hover:bg-slate-800'
+                        : 'border-slate-200 bg-slate-50 hover:bg-slate-100'
+                    }`}
+                  >
+                    <div className={`w-14 h-14 rounded-xl font-black text-sm flex items-center justify-center shrink-0 border overflow-hidden ${
+                      isSel
+                        ? 'bg-emerald-600 text-white border-emerald-500'
+                        : isDark
+                        ? 'bg-slate-800 border-slate-700 text-slate-200'
+                        : 'bg-white border-slate-300 text-slate-700'
+                    }`}>
+                      {p.url_foto ? (
+                        <img src={p.url_foto} alt={p.nome_completo} className="w-full h-full object-cover" />
+                      ) : (
+                        iniciais
+                      )}
+                    </div>
+                    <div className="min-w-0 flex-1 space-y-1">
+                      <div className="flex items-center gap-1.5 flex-wrap">
+                        <span className="text-xs font-bold truncate">{p.nome_completo}</span>
+                        {temCurriculoAprovado && (
+                          <button
+                            type="button"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              setProfissionalCurriculo(p);
+                            }}
+                            className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold bg-slate-200 hover:bg-slate-300 text-black border border-slate-300 dark:bg-slate-800 dark:hover:bg-slate-700 dark:text-white dark:border-slate-700 transition cursor-pointer"
+                          >
+                            <Info className="w-3 h-3" />
+                            <span>Ver currículo</span>
+                          </button>
+                        )}
+                      </div>
+                      {p.especialidade_cargo && (
+                        <span className="text-[11px] text-slate-400 truncate block">{p.especialidade_cargo}</span>
+                      )}
+                    </div>
+                    {isSel && <CheckCircle2 className="w-4 h-4 text-emerald-500 shrink-0" />}
+                  </div>
+                );
+              })}
+            </div>
           </div>
 
           <div>
@@ -1872,6 +2008,13 @@ const ModalRemarcarAgendamentoRetaguarda: React.FC<ModalRemarcarAgendamentoRetag
           </div>
         </div>
       </div>
+
+      <ModalMiniCurriculoProfissional
+        isOpen={Boolean(profissionalCurriculo)}
+        onClose={() => setProfissionalCurriculo(null)}
+        profissional={profissionalCurriculo}
+        onSelecionar={(prof) => setProfissionalId(prof.id)}
+      />
     </div>
   );
 };

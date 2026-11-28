@@ -1,7 +1,7 @@
 # 🗺️ MAPA DE COMPONENTES E ARQUITETURA FRONTEND (HUBI)
 
-> **Versão do Documento:** 1.8.0  
-> **Data de Atualização:** 06/11/2026  
+> **Versão do Documento:** 1.9.0  
+> **Data de Atualização:** 28/11/2026  
 > **Classificação:** Guia de Referência Rápida de Componentes, Hooks, Serviços e Utilitários  
 > **Objetivo:** Localização cirúrgica de arquivos em `src/`, agilizando a navegação de desenvolvedores e agentes de IA com máxima economia de contexto.
 
@@ -25,6 +25,8 @@
 15. [Suíte de Segurança Anti-REA-Shield v2 (`packages/anti-rea-shield/`)](#15-suíte-de-segurança-anti-rea-shield-v2-packagesanti-rea-shield)
 16. [Serverless Edge Functions do Supabase (`supabase/functions/`)](#16-serverless-edge-functions-do-supabase-supabasefunctions)
 17. [Módulo de Agendamento de Serviços Omnichannel](#17-módulo-de-agendamento-de-serviços-omnichannel)
+18. [Integração Nativa Shopee e Publicação em Massa (ML & Shopee)](#18-integração-nativa-shopee-e-publicação-em-massa-ml--shopee)
+19. [Cockpit Área HUBI (Super Admin) e Onboarding de Implantação](#19-cockpit-área-hubi-super-admin-e-onboarding-de-implantação)
 
 ---
 
@@ -69,6 +71,7 @@
 | **Modal de Alteração de Status** | `src/components/ModalAlterarStatusPedido.tsx` | Modal para avançar ou regredir status do pedido com justificativa e persistência de histórico auditado. |
 | **Definição de Envio em Pedido** | `src/components/pedidos/ModalDefinirEnvio.tsx` | Seleção de transportadora e modalidade de entrega para pedidos pendentes. |
 | **Modal de Recibo do Pedido** | `src/components/pedidos/ReciboPedidoModal.tsx` | Visualização do cupom térmico (58/80mm), envio via WhatsApp e atalhos de impressão direta. |
+| **Visualizador de Comprovante Pix** | `src/components/pedidos/ModalVisualizarComprovantePedido.tsx` | Modal de conferência na retaguarda para visualizar comprovantes (imagem ou PDF) enviados pelo cliente no Catálogo Online. |
 | **Visualizador de Recibo Genérico** | `src/components/ModalReciboPedido.tsx` | Componente de pré-visualização e impressão de cupom fiscal/não-fiscal. |
 | **Página Pública do Recibo** | `src/components/ReciboPublico.tsx` | Página web pública (`/recibo/:id`) acessível via QR Code ou link compartilhado com o cliente. |
 | **Acompanhamento Público do Pedido** | `src/components/PedidoAndamentoPublico.tsx` | Tela pública de tracking (`/order-tracking/:id`) com progresso em tempo real do preparo e entrega. |
@@ -127,6 +130,7 @@
 | **Estoque de Produtos Desktop** | `src/components/ProdutosEstoque.tsx` | Catálogo geral desktop com filtros por categoria, saldo de estoque, custo, margens e ações em lote. |
 | **Gestão de Produtos Mobile** | `src/components/ProdutosMobile.tsx` | Gestão completa e fluida de produtos no celular com cards responsivos e edição rápida. |
 | **Cadastro e Edição de Produto** | `src/components/ProdutoCadastro.tsx` | Formulário completo com grade de até 2 eixos de variação, preços progressivos (Atacado/Autoatacado) e fotos. |
+| **Alerta de Produto Duplicado** | `src/components/ModalProdutoDuplicado.tsx` | Modal preventivo exibido ao detectar produto com mesmo EAN ou nome similar no cadastro, evitando duplicidade de catálogo. |
 | **Câmera In-App Mobile (Anti-OOM)** | `src/components/ui/ModalCameraCapturaMobile.tsx` | Modal leve de captura fotográfica via WebRTC (`getUserMedia`) com downsampling nativo, fallback sem `capture` e liberação imediata de memória para cadastro de produtos e análise IA. |
 | **Detalhes Rápidos do Produto** | `src/components/ModalDetalhesProduto.tsx` | Ficha técnica com estoque de cada variação, SKU e código de barras. |
 | **Entrada Rápida de Estoque** | `src/components/ModalEntradaEstoque.tsx` | Lançamento ágil de compras e ajustes com atualização do custo médio e auditoria de movimentação. |
@@ -206,13 +210,18 @@
 | **Diálogo de Alerta / Feedback** | `src/components/ModalAlertaFeedback.tsx` | Modal acessível de feedback para mensagens de sucesso, alerta ou erro operacional. |
 | **Tutorial Chave Gemini AI** | `src/components/configuracoes/ModalComoObterGeminiApiKey.tsx` | Modal educativo ilustrado em 4 passos com links diretos e botão de colar para obtenção de API Key gratuita no Google AI Studio. |
 | **Modal Nova Filial (Conglomerado)** | `src/components/lojas/ModalAdicionarLoja.tsx` | Cadastro de nova unidade/filial com degustação gratuita, formulário de endereço completo (CEP, logradouro, número, complemento, bairro, cidade, UF), autopreenchimento assíncrono via ViaCEP e foco automático. |
-| **Parâmetros Globais HUBI (Admin)** | `src/components/configuracoes/CardParametrosHubiAdmin.tsx` | Painel exclusivo do Super Admin (`5585997374372@hubi.app`) para controle de dias de trial, valores base e modo manutenção. |
+| **Parâmetros Globais HUBI (Admin)** | `src/components/configuracoes/CardParametrosHubiAdmin.tsx` | Painel exclusivo do Super Admin (`5585997374372@hubi.app`) para controle de dias de trial, valores base, credenciais MP e modo manutenção. |
+| **Checklist de Prontidão da Loja** | `src/components/configuracoes/ModalChecklistConfiguracao.tsx` | Modal interativo guiando o lojista pelos passos pendentes de implantação conforme módulos ativados no onboarding. |
+| **Recuperação de Senha via WhatsApp** | `src/components/ModalRecuperacaoSenha.tsx` | Fluxo de redefinição de senha de colaborador por código de 6 dígitos enviado via WhatsApp. |
 | **Painel Carteira Pré-Paga WhatsApp** | `src/components/configuracoes/CardCarteiraWhatsapp.tsx` | Painel de gestão da Carteira Pré-Paga de WhatsApp: switch de automação, saldo em tempo real, estimativa de disparos e histórico auditável paginado. |
 | **Modal Recarga Carteira WhatsApp** | `src/components/configuracoes/ModalRecargaWhatsapp.tsx` | Modal de recarga instantânea de créditos WhatsApp via Pix Mercado Pago com QR Code dinâmico e atualização automática via Supabase Realtime. |
 | **Configurações de WhatsApp e IA** | `src/components/configuracoes/ConfiguracoesWhatsAppIA.tsx` | Painel de configuração de credenciais, prompts e parâmetros da Vendedora e Atendente IA. |
-| **Painel de Gatilhos Granulares WhatsApp** | `src/components/configuracoes/PainelGatilhosWhatsapp.tsx` | Painel de controle individual dos 8 gatilhos de disparo automático via Meta Cloud API com badges e controle de consumo. |
+| **Painel de Gatilhos Granulares WhatsApp** | `src/components/configuracoes/PainelGatilhosWhatsapp.tsx` | Painel de controle individual dos 10 gatilhos de disparo automático via Meta Cloud API (incluindo vencimentos de Caderneta/Fiado). |
 | **Conexão Mercado Livre** | `src/components/mercadolivre/CardConexaoMercadoLivre.tsx` | Card de integração OAuth 2.0 com Mercado Livre, status em tempo real, dados do vendedor e ações de vínculo. |
+| **Modal Conectar Mercado Livre** | `src/components/mercadolivre/ModalConectarMercadoLivre.tsx` | Modal de inicialização guiada da conexão OAuth 2.0 com o Mercado Livre. |
 | **Vínculo de Anúncio ML** | `src/components/mercadolivre/ModalVincularAnuncioMl.tsx` | Modal para associação de anúncios/variações do Mercado Livre aos produtos e variações nativas do HUBI. |
+| **Publicação em Massa ML** | `src/components/mercadolivre/ModalPublicarMassaMl.tsx` | Modal de configuração e disparo em lote de anúncios para o Mercado Livre com IA de categoria/GTIN e margem. |
+| **Progresso Publicação em Massa ML** | `src/components/mercadolivre/BarraProgressoPublicacaoMassaMl.tsx` | Barra flutuante de acompanhamento em tempo real dos lotes de publicação no Mercado Livre. |
 | **Banner de Trial e Renovação Anual** | `src/components/assinatura/BannerAssinaturaTop.tsx` | Tarja superior centralizada em vermelho e branco puro com dias restantes de trial e conversão rápida colada ao valor. |
 | **Tela de Bloqueio Operacional** | `src/components/assinatura/TelaBloqueioAssinatura.tsx` | Bloqueio irremovível da filial vencida, checkout Mercado Pago (12x R$ 49,90) e alternador para lojas ativas. |
 | **Prompt de Atualização PWA** | `src/components/pwa/ReloadPrompt.tsx` | Toast discreto de notificação para recarregar quando uma nova versão do app estiver pronta. |
@@ -243,6 +252,8 @@
 | **useNetworkStatus** | `src/hooks/useNetworkStatus.ts` | Monitoramento contínuo do status online/offline da conexão com a internet. |
 | **useAssinaturaStatus** | `src/hooks/useAssinaturaStatus.ts` | Avaliação dinâmica do ciclo de vida da loja (Trial via `dias_trial` global, Ativo, Alerta 7 dias, Bloqueado), valores de referência e Realtime. |
 | **useGlobalNavigation** | `src/hooks/useGlobalNavigation.ts` | Hook de navegação segura para controle de telas, parâmetros de rota e histórico. |
+| **useLojaProntidao** | `src/hooks/useLojaProntidao.ts` | Cálculo reativo de prontidão e checklist de implantação baseado em `loja_onboarding_setup`. |
+| **useSystemBillingConfig** | `src/hooks/useSystemBillingConfig.ts` | Hook de leitura e salvamento das credenciais Mercado Pago e parâmetros comerciais globais (Super Admin). |
 
 ---
 
@@ -281,6 +292,14 @@
 | **loggerService** | `src/services/loggerService.ts` | Singleton de observabilidade com fila assíncrona não-bloqueante e sanitizador de PII (LGPD). |
 | **gdmCatalogService** | `src/services/gdmCatalogService.ts` | Governança GDM: exportação canônica e clonagem de catálogos mestre entre filiais de uma organização. |
 | **mercadoLivreService** | `src/services/mercadoLivreService.ts` | Conexão OAuth com refresh preventivo de sessão, gestão de anúncios, vínculo de grades e download de etiquetas. |
+| **mercadoLivrePublicacaoMassaService** | `src/services/mercadoLivrePublicacaoMassaService.ts` | Orquestração em lote de publicações no Mercado Livre com persistência relacional de progresso e erros. |
+| **shopeeService** | `src/services/shopeeService.ts` | Conexão OAuth 2.0 Shopee, gestão de anúncios, vínculo de estoque e sincronização com API Shopee. |
+| **shopeePublicacaoMassaService** | `src/services/shopeePublicacaoMassaService.ts` | Orquestração em lote de publicações na Shopee com persistência em `marketplace_lotes_publicacao`. |
+| **imagemStorageService** | `src/services/imagemStorageService.ts` | Espelhamento de URLs externas de fotos para o Supabase Storage garantindo estabilidade em marketplaces. |
+| **comprovantePedidoService** | `src/services/comprovantePedidoService.ts` | Upload de comprovantes Pix/transferência para Storage e registro seguro via RPC no catálogo online. |
+| **recuperacaoSenhaService** | `src/services/recuperacaoSenhaService.ts` | Fluxo de solicitação e validação de código de 6 dígitos via WhatsApp para redefinição de senha. |
+| **areaHubiService** | `src/services/areaHubiService.ts` | Camada de consumo das RPCs executivas e administrativas do Cockpit Área HUBI (Super Admin). |
+| **onboardingSetupService** | `src/services/onboardingSetupService.ts` | Persistência e consulta do questionário inicial e marcos de implantação em `loja_onboarding_setup`. |
 | **configuracoesPlataformaService** | `src/services/configuracoesPlataformaService.ts` | Singleton de governança com cache em memória para parâmetros de trial, valores base, tarifas da Carteira WhatsApp e Super Admin. |
 | **whatsappWalletService** | `src/services/whatsappWalletService.ts` | Motor híbrido de notificações WhatsApp (Janela 24h gratuita, Disparo Tarifado Cloud API e Fallback Manual Gratuito), extrato e recarga Pix da carteira pré-paga. |
 | **agendamentoService** | `src/services/agendamentoService.ts` | Motor de cálculo de slots disponíveis sem overbooking, gestão de expedientes, vínculo serviço-profissionais, remarcação atômica e templates de mensagens WhatsApp. |
@@ -303,6 +322,8 @@
 | **cashAuditJevService** | `src/services/cashAuditJevService.ts` | Auditoria inteligente de fechamento de turnos e detecção de padrões de quebra/sobra. |
 | **creditRiskJevService**| `src/services/creditRiskJevService.ts`| Avaliação probabilística de risco de crédito para concessão de fiado a clientes. |
 | **orderGuardJevService** | `src/services/orderGuardJevService.ts` | Guardião contra anomalias em pedidos, fraudes de frete e inconsistências de valores. |
+| **mercadoLivreJevService** | `src/services/mercadoLivreJevService.ts` | Classificação inteligente de categorias, inferência de GTIN e suporte preditivo na publicação em marketplaces. |
+| **descricaoComercialService** | `src/services/descricaoComercialService.ts` | Geração de descrições comerciais otimizadas para produtos e anúncios via `gemini-proxy`. |
 
 ### Importação, Exportação e Feeds
 | Serviço | Arquivo | Responsabilidade |
@@ -330,6 +351,14 @@
 | **gdmMercadoLivreMapper.ts** | `src/utils/gdmMercadoLivreMapper.ts` | Normalizador de atributos e variações de anúncios do Mercado Livre para modelo canônico GDM. |
 | **categoriasHierarquia.ts** | `src/utils/categoriasHierarquia.ts` | Montagem de árvore de categorias/subcategorias, resolução de pais, ordenação e persistência em cache local. |
 | **pixUtils.ts** | `src/utils/pixUtils.ts` | Geração client-side de payload Pix Copia e Cola (BR Code padrão EMV) com cálculo de checksum CRC-16/CCITT-FALSE. |
+| **regimeCaixa.ts** | `src/utils/regimeCaixa.ts` | Resolução de data efetiva de recebimento (`data_pagamento`) para apuração financeira em Regime de Caixa Real. |
+| **cadernetaCiclo.ts** | `src/utils/cadernetaCiclo.ts` | Cálculo de datas de fechamento e ciclos flexíveis (mensal, quinzenal e semanal) da Caderneta de Mercadinho. |
+| **taxaDomicilioUtils.ts** | `src/utils/taxaDomicilioUtils.ts` | Cálculo de taxa de deslocamento a domicílio com suporte a abatimento ao concluir atendimento. |
+| **reciboServicoHelper.ts** | `src/utils/reciboServicoHelper.ts` | Formatação e segmentação de recibos para pedidos híbridos contendo produtos e serviços agendados. |
+| **produtoDuplicado.ts** | `src/utils/produtoDuplicado.ts` | Heurística de detecção preventiva de produtos duplicados por EAN ou similaridade nominal. |
+| **dateTime.ts** | `src/utils/dateTime.ts` | Utilitários de manipulação, conversão e formatação segura de datas e horários locais/UTC. |
+| **publicSelects.ts** | `src/lib/publicSelects.ts` | Projeções explícitas e estritas de colunas públicas para consultas do Catálogo Online (Zero-Trust). |
+| **billingConfigSchema.ts** | `src/lib/validations/billingConfigSchema.ts` | Schema Zod para validação de credenciais do Mercado Pago e parâmetros comerciais globais da plataforma. |
 | **pesagemSchema.ts** | `src/lib/validations/pesagemSchema.ts` | Validação Zod de quantidades fracionadas (até 3 decimais) e decodificação de código de barras EAN-13 de balança comercial iniciado com 2. |
 | **cadernetaSchema.ts** | `src/lib/validations/cadernetaSchema.ts` | Schemas Zod de validação de crédito, dias de acerto e lançamentos contábeis da Caderneta de Mercadinho. |
 | **checkoutSchema.ts** | `src/lib/validations/checkoutSchema.ts` | Schemas Zod para validação rigorosa de splits de pagamento, endereço e finalização de compras. |
@@ -349,6 +378,7 @@
 | **Skill 04: Migrador Zero-Trust** | `packages/anti-rea-shield/skills/04-zero-trust-migrator/` | Scanner AST de queries PostgREST e gerador de templates RPC/Edge Functions protegidas. |
 | **Skill 05: Anti-Scraping Harvest**| `packages/anti-rea-shield/skills/05-anti-scraping-harvest/` | Canários de rastreamento (`canary-watermark.ts`), proteção de paginação e bloqueio OpenAPI. |
 | **CLI do Anti-REA-Shield** | `packages/anti-rea-shield/bin/cli.mjs` | Utilitário de linha de comando para auditoria, inspeção e build com proteções ativas. |
+| **Validador Anti-Clonagem** | `packages/anti-rea-shield/bin/test-clone.mjs` | Script de verificação de proteção contra clonagem de domínio, marcas d'água e iscas de segurança. |
 
 ---
 
@@ -365,10 +395,19 @@
 | **ml-estoque-sync** | `supabase/functions/ml-estoque-sync/` | Sincronização push automática de saldo de estoque local para anúncios ativos do Mercado Livre. |
 | **ml-webhook** | `supabase/functions/ml-webhook/` | Ingestão resiliente e idempotente de notificações de venda (`orders_v2`) do Mercado Livre. |
 | **ml-etiquetas** | `supabase/functions/ml-etiquetas/` | Proxy autenticado para download direto de etiquetas de expedição em PDF/ZPL do Mercado Livre. |
+| **shopee-oauth** | `supabase/functions/shopee-oauth/` | Fluxo OAuth 2.0 com a Shopee usando assinatura HMAC-SHA256 (`_shared/shopeeClient.ts`). |
+| **shopee-estoque-sync** | `supabase/functions/shopee-estoque-sync/` | Sincronização push de estoque local para anúncios vinculados na Shopee. |
+| **shopee-webhook** | `supabase/functions/shopee-webhook/` | Receptor de notificações de pedidos da Shopee com ingestão atômica via `processar_pedido_shopee_atomico`. |
+| **espelhar-imagem-storage** | `supabase/functions/espelhar-imagem-storage/` | Download seguro e espelhamento de imagens externas para o Supabase Storage (`_shared/imagemStorageHelper.ts`). |
+| **recuperar-senha-whatsapp** | `supabase/functions/recuperar-senha-whatsapp/` | Emissão e validação de tokens de 6 dígitos via WhatsApp para redefinição de senha de colaboradores. |
+| **whatsapp-lembretes-vencimento** | `supabase/functions/whatsapp-lembretes-vencimento/` | Rotina matinal (`pg_cron` 08:00 BRT) de lembretes automáticos de vencimento de Caderneta e Fiado. |
+| **criar-colaborador-loja** | `supabase/functions/criar-colaborador-loja/` | Provisionamento seguro de colaboradores/operadores da loja via servidor. |
+| **whatsapp-webhook** | `supabase/functions/whatsapp-webhook/` | Receptor de eventos inbound da Meta Cloud API para ativação de janela de 24h e atendimento IA receptivo. |
 | **typesafe-eval** | `supabase/functions/typesafe-eval/` | Proxy blindado para avaliações e classificações calibradas com o modelo System One Jev (TypeSafe AI). |
 | **buscar-fotos-serpapi** | `supabase/functions/buscar-fotos-serpapi/` | Enriquecimento de catálogo com busca de fotos de produtos via Google Imagens (BYOK e fallback de plataforma). |
 | **uber-dispatch** & **webhook** | `supabase/functions/uber-dispatch/` | Cotação e despacho sob demanda ponto a ponto via Uber Direct v1 com acompanhamento de rotas. |
-| **melhor-envio-despacho** | `supabase/functions/melhor-envio-despacho/` | Cotação multi-sedex, emissão de etiquetas e rastreamento GraphQL com o Melhor Rastreio / Correios SRO. |
+| **melhor-envio-despacho** & **webhook** | `supabase/functions/melhor-envio-despacho/` | Cotação multi-sedex, emissão de etiquetas e rastreamento GraphQL (`melhor-envio-webhook`). |
+| **Módulos Compartilhados (`_shared`)** | `supabase/functions/_shared/` | Helpers server-side: `mpPlataformaConfig.ts`, `whatsappMetaConfig.ts`, `shopeeClient.ts` e `imagemStorageHelper.ts`. |
 
 ---
 
@@ -379,8 +418,40 @@
 | **AgendaServicosLoja** | `src/components/agendamento/AgendaServicosLoja.tsx` | `/agenda` | Painel visual de controle da agenda: visão em grade horária / slots, filtros por data e profissional, KPIs do dia e ações operacionais (iniciar, concluir, cancelar e remarcar). |
 | **ModalSelecionarAgendamentoPdv** | `src/components/agendamento/ModalSelecionarAgendamentoPdv.tsx` | PDV (`PosCheckout.tsx` e `PosCheckoutMobile.tsx`) | Modal obrigatório ao adicionar itens do tipo serviço agendável no caixa físico. Permite selecionar local (loja/externo), profissional, data e slot livre em tempo real. |
 | **ModalExpedienteProfissional** | `src/components/agendamento/ModalExpedienteProfissional.tsx` | Usuários (`UsuariosGestao.tsx`) | Configuração semanal de grade de horários de expediente de cada funcionário (7 dias da semana, horários de entrada/saída e intervalo de almoço). |
+| **ModalServicosProfissional** | `src/components/agendamento/ModalServicosProfissional.tsx` | Usuários (`UsuariosGestao.tsx`) | Vínculo especializado dos serviços que cada profissional está habilitado a executar, duração customizada e comissão. |
 | **ModalAgendarServicoCatalogo** | `src/components/catalogo/ModalAgendarServicoCatalogo.tsx` | Catálogo (`CatalogoPublico.tsx`) | Experiência de agendamento mobile-first para o consumidor final na vitrine pública. Etapas de escolha de modalidade (loja/domicílio), profissional, carrossel de datas e grade de horários. |
-| **ConfirmarAgendamentoPublico** | `src/pages/ConfirmarAgendamentoPublico.tsx` | `/confirmar-agendamento/:token` | Página pública autônoma do cliente (sem login) com identidade visual da loja, confirmação de presença, remarcação de profissional/data/horários livres e cancelamento via RPC atômica. |
+| **ConfirmarAgendamentoPublico** | `src/pages/ConfirmarAgendamentoPublico.tsx` | `/confirmar-agendamento/:token` | Página wrapper de rota pública autônoma do cliente (sem login) para confirmação, remarcação e cancelamento via RPC atômica. |
+| **ConfirmacaoAgendamentoPublico** | `src/components/agendamento/ConfirmacaoAgendamentoPublico.tsx` | `/confirmar-agendamento/:token` | Componente visual de confirmação, remarcação de horários livres e cancelamento do agendamento pelo cliente final. |
 | **ModalLembretesPendentesAgenda** | `src/components/agendamento/ModalLembretesPendentesAgenda.tsx` | Agenda (`AgendaServicosLoja.tsx`) | Fila de lembretes de atendimento do dia seguinte com opção de disparo em lote automático via WhatsApp Wallet ou disparo manual gratuito item a item via WhatsApp Web (`wa.me`). |
 | **PainelGatilhosWhatsapp** | `src/components/configuracoes/PainelGatilhosWhatsapp.tsx` | Configurações da Loja | Parametrização dos gatilhos de criação e lembrete de agendamento (antecedência em horas, limite de remarcações pelo cliente e antecedência mínima). |
+
+---
+
+## 18. Integração Nativa Shopee e Publicação em Massa (ML & Shopee)
+
+| Componente | Arquivo | Resumo da Responsabilidade |
+| :--- | :--- | :--- |
+| **CardConexaoShopee** | `src/components/shopee/CardConexaoShopee.tsx` | Card de status da conta Shopee conectada, controle de sincronização de estoque e acesso ao publicador em massa. |
+| **ModalConectarShopee** | `src/components/shopee/ModalConectarShopee.tsx` | Fluxo guiado de autorização OAuth 2.0 com a Shopee e configuração opcional de Partner ID/Key da loja. |
+| **ModalVincularAnuncioShopee** | `src/components/shopee/ModalVincularAnuncioShopee.tsx` | Associação de anúncios/modelos ativos da Shopee aos produtos e variações do estoque do HUBI. |
+| **ModalPublicarMassaShopee** | `src/components/shopee/ModalPublicarMassaShopee.tsx` | Disparo em lote de produtos da loja ou categoria selecionada para a Shopee com margem configurável. |
+| **BarraProgressoPublicacaoMassaShopee** | `src/components/shopee/BarraProgressoPublicacaoMassaShopee.tsx` | Indicador persistente em tempo real do andamento, sucessos e falhas de lotes publicados na Shopee. |
+| **ModalConectarMercadoLivre** | `src/components/mercadolivre/ModalConectarMercadoLivre.tsx` | Modal de conexão OAuth 2.0 com o Mercado Livre e verificação de sessão. |
+| **ModalPublicarMassaMl** | `src/components/mercadolivre/ModalPublicarMassaMl.tsx` | Publicação em lote no Mercado Livre com seleção de exposição (`gold_special`/`gold_pro`), categoria IA e GTIN. |
+| **BarraProgressoPublicacaoMassaMl** | `src/components/mercadolivre/BarraProgressoPublicacaoMassaMl.tsx` | Indicador em tempo real do progresso de publicação em massa no Mercado Livre. |
+
+---
+
+## 19. Cockpit Área HUBI (Super Admin) e Onboarding de Implantação
+
+| Componente | Arquivo | Rota / Localização | Resumo da Responsabilidade |
+| :--- | :--- | :--- | :--- |
+| **AreaHubiCockpit** | `src/pages/AreaHubiCockpit.tsx` | `/area-hubi` | Painel executivo exclusivo do Super Admin com KPIs globais da plataforma, funil de assinaturas e gestão de lojas. |
+| **DrawerComercialAreaHubi** | `src/components/areaHubi/DrawerComercialAreaHubi.tsx` | `/area-hubi` | Gaveta de acompanhamento comercial, filtros de trials/renovações e histórico de contato com lojistas. |
+| **ModalAtivarAssinaturaManual** | `src/components/areaHubi/ModalAtivarAssinaturaManual.tsx` | `/area-hubi` | Ativação manual de licença anual de uma loja com registro de observações administrativas. |
+| **ModalConfigurarMetasHubi** | `src/components/areaHubi/ModalConfigurarMetasHubi.tsx` | `/area-hubi` | Parametrização das metas executivas globais da plataforma HUBI (`meta_hubi_*`). |
+| **ModalEditarLojaSuperAdmin** | `src/components/areaHubi/ModalEditarLojaSuperAdmin.tsx` | `/area-hubi` | Edição administrativa de dados cadastrais e status operacional de qualquer loja da plataforma. |
+| **ModalQuestionarioOnboarding** | `src/components/onboarding/ModalQuestionarioOnboarding.tsx` | Onboarding Inicial | Diagnóstico inicial guiado (operação individual vs. equipe e seleção de módulos de interesse). |
+| **ModalPorQueUsarModulo** | `src/components/onboarding/ModalPorQueUsarModulo.tsx` | Onboarding / Configurações | Explicação contextual dos benefícios operacionais de cada módulo antes da ativação. |
+| **ModalChecklistConfiguracao** | `src/components/configuracoes/ModalChecklistConfiguracao.tsx` | Header / Configurações | Checklist dinâmico de prontidão da loja conectado ao `useLojaProntidao`. |
 

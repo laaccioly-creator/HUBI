@@ -33,7 +33,8 @@ import {
 } from 'lucide-react';
 import { supabase } from '../lib/supabase';
 import { useAuth } from '../contexts/AuthContext';
-import { Loja, ModoExibicaoCatalogo, ComportamentoSemEstoque } from '../types';
+import { Loja, ModoExibicaoCatalogo, ModoPaginaInicialCatalogo, ComportamentoSemEstoque } from '../types';
+import { PainelApresentacaoCatalogo } from './configuracoes/PainelApresentacaoCatalogo';
 import { ConfiguracaoCatalogoMobile } from './ConfiguracaoCatalogoMobile';
 import { useTheme } from '../contexts/ThemeContext';
 import { useFeedbackModal } from '../contexts/FeedbackContext';
@@ -83,6 +84,13 @@ export const ConfiguracaoCatalogo: React.FC = () => {
   );
 
   const [modoExibicao, setModoExibicao] = useState<ModoExibicaoCatalogo>('grade');
+  const [modoPaginaInicial, setModoPaginaInicial] = useState<ModoPaginaInicialCatalogo>('vitrine');
+  const [lpTituloHero, setLpTituloHero] = useState<string>('');
+  const [lpSubtituloHero, setLpSubtituloHero] = useState<string>('');
+  const [lpSobreTitulo, setLpSobreTitulo] = useState<string>('');
+  const [lpSobreTexto, setLpSobreTexto] = useState<string>('');
+  const [lpMostrarEquipe, setLpMostrarEquipe] = useState<boolean>(true);
+  const [lpGaleriaUrls, setLpGaleriaUrls] = useState<string[]>([]);
   const [bannerUrl, setBannerUrl] = useState<string>('');
   const [exibirBanner, setExibirBanner] = useState<boolean>(false);
   const [uploadingBanner, setUploadingBanner] = useState<boolean>(false);
@@ -105,6 +113,13 @@ export const ConfiguracaoCatalogo: React.FC = () => {
         ? loja.instrucoes_pos_pedido
         : 'Em breve entraremos em contato para confirmar os detalhes da sua compra.\nAgradecemos pela preferência!';
       const modo = catConfig.modo_exibicao || 'grade';
+      const modoPag = (loja.modo_exibicao_catalogo === 'apresentacao' ? 'apresentacao' : 'vitrine') as ModoPaginaInicialCatalogo;
+      const tituloHero = loja.lp_titulo_hero || '';
+      const subHero = loja.lp_subtitulo_hero || '';
+      const sobreTit = loja.lp_sobre_titulo || '';
+      const sobreTxt = loja.lp_sobre_texto || '';
+      const mostrarEq = loja.lp_mostrar_equipe ?? true;
+      const galeriaUrls = Array.isArray(loja.lp_galeria_urls) ? loja.lp_galeria_urls : [];
       const banUrl = loja.url_banner || '';
       const exBan = catConfig.exibir_banner ?? Boolean(loja.url_banner);
       const semEst = catConfig.produtos_sem_estoque || 'exibir';
@@ -120,6 +135,13 @@ export const ConfiguracaoCatalogo: React.FC = () => {
       setExigirPesagemPreviaPagamento(Boolean(loja.exigir_pesagem_previa_pagamento));
       setInstrucoesPosPedido(instr);
       setModoExibicao(modo);
+      setModoPaginaInicial(modoPag);
+      setLpTituloHero(tituloHero);
+      setLpSubtituloHero(subHero);
+      setLpSobreTitulo(sobreTit);
+      setLpSobreTexto(sobreTxt);
+      setLpMostrarEquipe(mostrarEq);
+      setLpGaleriaUrls(galeriaUrls);
       setExibirBanner(exBan);
       setBannerUrl(banUrl);
       setComportamentoSemEstoque(semEst);
@@ -134,6 +156,13 @@ export const ConfiguracaoCatalogo: React.FC = () => {
           exigirPesagemPreviaPagamento: Boolean(loja.exigir_pesagem_previa_pagamento),
           instrucoesPosPedido: instr,
           modoExibicao: modo,
+          modoPaginaInicial: modoPag,
+          lpTituloHero: tituloHero,
+          lpSubtituloHero: subHero,
+          lpSobreTitulo: sobreTit,
+          lpSobreTexto: sobreTxt,
+          lpMostrarEquipe: mostrarEq,
+          lpGaleriaUrls: galeriaUrls,
           exibirBanner: exBan,
           bannerUrl: banUrl,
           comportamentoSemEstoque: semEst,
@@ -224,6 +253,13 @@ export const ConfiguracaoCatalogo: React.FC = () => {
           exigir_pesagem_previa_pagamento: exigirPesagemPreviaPagamento,
           instrucoes_pos_pedido: instrucoesPosPedido,
           url_banner: bannerUrl,
+          modo_exibicao_catalogo: modoPaginaInicial,
+          lp_titulo_hero: lpTituloHero.trim() || null,
+          lp_subtitulo_hero: lpSubtituloHero.trim() || null,
+          lp_sobre_titulo: lpSobreTitulo.trim() || null,
+          lp_sobre_texto: lpSobreTexto.trim() || null,
+          lp_mostrar_equipe: lpMostrarEquipe,
+          lp_galeria_urls: lpGaleriaUrls,
           configuracoes_extras: novasExtras
         })
         .eq('id', loja.id);
@@ -297,6 +333,13 @@ export const ConfiguracaoCatalogo: React.FC = () => {
       exigirPesagemPreviaPagamento,
       instrucoesPosPedido,
       modoExibicao,
+      modoPaginaInicial,
+      lpTituloHero,
+      lpSubtituloHero,
+      lpSobreTitulo,
+      lpSobreTexto,
+      lpMostrarEquipe,
+      lpGaleriaUrls,
       exibirBanner,
       bannerUrl,
       comportamentoSemEstoque,
@@ -309,6 +352,13 @@ export const ConfiguracaoCatalogo: React.FC = () => {
     resumoWhatsapp,
     instrucoesPosPedido,
     modoExibicao,
+    modoPaginaInicial,
+    lpTituloHero,
+    lpSubtituloHero,
+    lpSobreTitulo,
+    lpSobreTexto,
+    lpMostrarEquipe,
+    lpGaleriaUrls,
     exibirBanner,
     bannerUrl,
     comportamentoSemEstoque,
@@ -388,7 +438,7 @@ export const ConfiguracaoCatalogo: React.FC = () => {
                 type="button"
                 onClick={handleSalvarConfiguracoes}
                 disabled={salvando}
-                className="px-4 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-black flex items-center gap-2 transition cursor-pointer disabled:opacity-50 animate-in fade-in shadow-md shadow-emerald-500/20 border border-emerald-500"
+                className="px-4 py-2 rounded-xl bg-emerald-300 hover:bg-emerald-400 text-black text-xs font-black flex items-center gap-2 transition cursor-pointer disabled:opacity-50 animate-in fade-in shadow-md border border-emerald-400"
               >
                 <Save className="w-4 h-4" />
                 <span>{salvando ? 'Salvando...' : 'Salvar Alterações'}</span>
@@ -488,6 +538,32 @@ export const ConfiguracaoCatalogo: React.FC = () => {
               </div>
 
 
+
+            {/* 2.5 PÁGINA DE APRESENTAÇÃO OPCIONAL (SERVIÇOS, SALÕES E CLÍNICAS) */}
+            {loja && (
+              <PainelApresentacaoCatalogo
+                loja={loja}
+                modoPaginaInicial={modoPaginaInicial}
+                onChangeModoPaginaInicial={setModoPaginaInicial}
+                lpTituloHero={lpTituloHero}
+                onChangeLpTituloHero={setLpTituloHero}
+                lpSubtituloHero={lpSubtituloHero}
+                onChangeLpSubtituloHero={setLpSubtituloHero}
+                lpSobreTitulo={lpSobreTitulo}
+                onChangeLpSobreTitulo={setLpSobreTitulo}
+                lpSobreTexto={lpSobreTexto}
+                onChangeLpSobreTexto={setLpSobreTexto}
+                lpMostrarEquipe={lpMostrarEquipe}
+                onChangeLpMostrarEquipe={setLpMostrarEquipe}
+                lpGaleriaUrls={lpGaleriaUrls}
+                onChangeLpGaleriaUrls={setLpGaleriaUrls}
+                isDark={isDark}
+                mostrarFeedback={(msg, tipo) => {
+                  if (tipo === 'erro') mostrarErro(msg);
+                  else mostrarFeedback(msg);
+                }}
+              />
+            )}
 
             {/* 3. MODO DE EXIBIÇÃO PRINCIPAL */}
             <div className={`rounded-3xl p-6 shadow-xs space-y-4 border ${

@@ -34,6 +34,9 @@ interface ColaboradorPayload {
   pode_editar_vendas_passadas?: boolean;
   presta_servicos?: boolean;
   especialidade_cargo?: string | null;
+  url_foto?: string | null;
+  mini_curriculo?: string | null;
+  curriculo_aprovado?: boolean;
   tela_inicial?: string | null;
 }
 
@@ -286,6 +289,16 @@ serve(async (req: Request) => {
       ativo: ehOwner ? true : (body.ativo ?? true),
       usuario_auth_id: authUserIdValidado,
     };
+
+    if (body.url_foto !== undefined) {
+      payloadDb.url_foto = body.url_foto?.trim() || null;
+    }
+    if (body.mini_curriculo !== undefined) {
+      payloadDb.mini_curriculo = body.mini_curriculo?.trim() || null;
+    }
+    if (body.curriculo_aprovado !== undefined) {
+      payloadDb.curriculo_aprovado = Boolean(body.curriculo_aprovado);
+    }
 
     if (senhaLimpa.length >= 6) {
       payloadDb.senha_hash = senhaLimpa;

@@ -18,11 +18,13 @@ import {
   Loader2,
   Sparkles,
   AlertCircle,
-  Scissors
+  Scissors,
+  Info
 } from 'lucide-react';
 import { useRegisterOverlay } from '../../hooks/useRegisterOverlay';
 import { useTheme } from '../../contexts/ThemeContext';
 import { agendamentoService, formatarDataPtBr } from '../../services/agendamentoService';
+import { ModalMiniCurriculoProfissional } from '../agendamento/ModalMiniCurriculoProfissional';
 import type {
   ItemAgendamentoInfo,
   ModalidadeLocalPrestacao,
@@ -35,6 +37,7 @@ export interface ModalAgendarServicoCatalogoProps {
   onClose: () => void;
   produto: Produto;
   lojaId: string;
+  profissionalInicialId?: string | null;
   onConfirmarAgendamento: (dadosAgendamento: ItemAgendamentoInfo) => void;
 }
 
@@ -43,6 +46,7 @@ export const ModalAgendarServicoCatalogo: React.FC<ModalAgendarServicoCatalogoPr
   onClose,
   produto,
   lojaId,
+  profissionalInicialId,
   onConfirmarAgendamento
 }) => {
   useRegisterOverlay(isOpen, onClose, 'modal-agendar-servico-catalogo');
@@ -59,6 +63,7 @@ export const ModalAgendarServicoCatalogo: React.FC<ModalAgendarServicoCatalogoPr
   // 2. Profissionais habilitados
   const [profissionais, setProfissionais] = useState<UsuarioLoja[]>([]);
   const [profissionalSelecionado, setProfissionalSelecionado] = useState<UsuarioLoja | null>(null);
+  const [profissionalCurriculo, setProfissionalCurriculo] = useState<UsuarioLoja | null>(null);
   const [carregandoProfissionais, setCarregandoProfissionais] = useState<boolean>(true);
 
   // 3. Seleção de Data
@@ -87,7 +92,10 @@ export const ModalAgendarServicoCatalogo: React.FC<ModalAgendarServicoCatalogoPr
         if (ativo) {
           setProfissionais(lista);
           if (lista.length > 0) {
-            setProfissionalSelecionado(lista[0]);
+            const pre = profissionalInicialId
+              ? lista.find((p) => p.id === profissionalInicialId)
+              : null;
+            setProfissionalSelecionado(pre || lista[0]);
           } else {
             setProfissionalSelecionado(null);
           }
@@ -315,12 +323,20 @@ export const ModalAgendarServicoCatalogo: React.FC<ModalAgendarServicoCatalogoPr
                     .slice(0, 2)
                     .join('')
                     .toUpperCase();
+                  const temCurriculoAprovado = Boolean(prof.mini_curriculo?.trim()) && prof.curriculo_aprovado === true;
 
                   return (
-                    <button
+                    <div
                       key={prof.id}
-                      type="button"
+                      role="button"
+                      tabIndex={0}
                       onClick={() => setProfissionalSelecionado(prof)}
+                      onKeyDown={(e) => {
+                        if (e.key === 'Enter' || e.key === ' ') {
+                          e.preventDefault();
+                          setProfissionalSelecionado(prof);
+                        }
+                      }}
                       className={`p-3 rounded-2xl border text-left transition cursor-pointer flex items-center gap-3 ${
                         isSel
                           ? 'border-emerald-500 bg-emerald-500/10 text-emerald-400 ring-2 ring-emerald-500/30'
@@ -329,27 +345,54 @@ export const ModalAgendarServicoCatalogo: React.FC<ModalAgendarServicoCatalogoPr
                           : 'border-slate-200 bg-slate-50 hover:bg-slate-100 text-slate-800'
                       }`}
                     >
-                      <div className={`w-9 h-9 rounded-xl font-black text-xs flex items-center justify-center shrink-0 border ${
+                      <div className={`w-14 h-14 rounded-xl font-black text-sm flex items-center justify-center shrink-0 border overflow-hidden ${
                         isSel
                           ? 'bg-emerald-600 text-white border-emerald-500'
                           : isDark
                           ? 'bg-slate-800 border-slate-700 text-slate-300'
                           : 'bg-white border-slate-300 text-slate-700'
                       }`}>
-                        {iniciais}
+                        {prof.url_foto ? (
+                          <img
+                            src={prof.url_foto}
+                            alt={prof.nome_completo}
+                            className="w-full h-full object-cover"
+                          />
+                        ) : (
+                          iniciais
+                        )}
                       </div>
-                      <div className="min-w-0 flex-1">
-                        <span className="text-xs font-bold truncate block">
-                          {prof.nome_completo}
-                        </span>
+                      <div className="min-w-0 flex-1 space-y-1">
+                        <div className="flex items-center gap-1.5 flex-wrap">
+                          <span className="text-xs font-bold truncate">
+                            {prof.nome_completo}
+                          </span>
+                          {temCurriculoAprovado && (
+                            <button
+                              type="button"
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                setProfissionalCurriculo(prof);
+                              }}
+                              className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold border transition cursor-pointer ${
+                                isDark
+                                  ? 'bg-slate-800 hover:bg-slate-700 text-emerald-300 border-slate-700'
+                                  : 'bg-slate-200 hover:bg-slate-300 text-black border-slate-300'
+                              }`}
+                            >
+                              <Info className="w-3 h-3" />
+                              <span>Ver currículo</span>
+                            </button>
+                          )}
+                        </div>
                         {prof.especialidade_cargo && (
-                          <span className="text-[10px] text-slate-400 truncate block">
+                          <span className="text-[11px] text-slate-400 truncate block">
                             {prof.especialidade_cargo}
                           </span>
                         )}
                       </div>
                       {isSel && <CheckCircle2 className="w-4 h-4 text-emerald-500 shrink-0" />}
-                    </button>
+                    </div>
                   );
                 })}
               </div>
@@ -506,6 +549,13 @@ export const ModalAgendarServicoCatalogo: React.FC<ModalAgendarServicoCatalogoPr
         </div>
 
       </div>
+
+      <ModalMiniCurriculoProfissional
+        isOpen={Boolean(profissionalCurriculo)}
+        onClose={() => setProfissionalCurriculo(null)}
+        profissional={profissionalCurriculo}
+        onSelecionar={(prof) => setProfissionalSelecionado(prof)}
+      />
     </div>
   );
 };

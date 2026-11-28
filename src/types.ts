@@ -41,6 +41,7 @@ export type FrequenciaRecorrencia = 'semanal' | 'mensal' | 'trimestral' | 'anual
 export type StatusCaixa = 'ABERTO' | 'FECHADO';
 
 export type ModoExibicaoCatalogo = 'lista' | 'grade' | 'instaview';
+export type ModoPaginaInicialCatalogo = 'vitrine' | 'apresentacao';
 export type ComportamentoSemEstoque = 'ocultar' | 'indisponivel' | 'exibir';
 
 export interface StatusPedidoPersonalizado {
@@ -442,6 +443,13 @@ export interface Loja {
   atendimento_domicilio_ativo?: boolean;
   taxa_padrao_domicilio?: number;
   abater_taxa_domicilio_ao_fechar?: boolean;
+  modo_exibicao_catalogo?: ModoPaginaInicialCatalogo | null;
+  lp_titulo_hero?: string | null;
+  lp_subtitulo_hero?: string | null;
+  lp_sobre_titulo?: string | null;
+  lp_sobre_texto?: string | null;
+  lp_galeria_urls?: string[] | null;
+  lp_mostrar_equipe?: boolean | null;
   tipos_venda?: {
     varejo?: boolean;
     atacado?: boolean;
@@ -522,6 +530,9 @@ export interface UsuarioLoja {
   ativo: boolean;
   presta_servicos?: boolean;
   especialidade_cargo?: string | null;
+  url_foto?: string | null;
+  mini_curriculo?: string | null;
+  curriculo_aprovado?: boolean;
   tela_inicial?: 'dashboard' | 'pos' | 'pedidos' | 'vendas' | string;
   criado_em?: string;
 
@@ -536,6 +547,8 @@ export interface Categoria {
   id: string;
   loja_id: string;
   nome: string;
+  descricao?: string | null;
+  imagem_url?: string | null;
   icone?: string | null;
   ordem_exibicao: number;
   ativo: boolean;

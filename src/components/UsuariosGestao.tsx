@@ -9,7 +9,8 @@ import {
   Crown,
   ArrowLeft,
   Calendar,
-  ListChecks
+  ListChecks,
+  Camera
 } from 'lucide-react';
 import { supabase } from '../lib/supabase';
 import { useAuth } from '../contexts/AuthContext';
@@ -18,7 +19,11 @@ import { UsuarioLoja, MetricasUsuario } from '../types';
 import { ModalUsuarioDrawer } from './ModalUsuarioDrawer';
 import { ModalExpedienteProfissional } from './agendamento/ModalExpedienteProfissional';
 import { ModalServicosProfissional } from './agendamento/ModalServicosProfissional';
+import { ModalCameraCapturaMobile } from './ui/ModalCameraCapturaMobile';
 import { agendamentoService } from '../services/agendamentoService';
+import { usuarioService } from '../services/usuarioService';
+import { uploadImagemComprimidaStorage } from '../utils/storageUpload';
+import type { CompressResult } from '../utils/imageCompressor';
 import { MobileHeader } from './layout/MobileHeader';
 import { useTheme } from '../contexts/ThemeContext';
 import { formatarMoeda, formatarTelefone } from '../utils/formatters';
@@ -56,6 +61,10 @@ export const UsuariosGestao: React.FC = () => {
   const [usuarioServicos, setUsuarioServicos] = useState<UsuarioLoja | null>(null);
   const [contagemServicos, setContagemServicos] = useState<Record<string, number>>({});
   const [hoveredUserId, setHoveredUserId] = useState<string | null>(null);
+  const [usuarioFotoAlvo, setUsuarioFotoAlvo] = useState<UsuarioLoja | null>(null);
+  const [salvandoFotoId, setSalvandoFotoId] = useState<string | null>(null);
+  const [cameraAbertaMobile, setCameraAbertaMobile] = useState<boolean>(false);
+  const inputFotoRef = React.useRef<HTMLInputElement | null>(null);
 
   // Métricas dos últimos 30 dias gerais da loja
   const [totalFaturamento30d, setTotalFaturamento30d] = useState<number>(0);
@@ -244,6 +253,50 @@ export const UsuariosGestao: React.FC = () => {
     const partes = nome.trim().split(' ');
     if (partes.length === 1) return partes[0].slice(0, 2).toUpperCase();
     return (partes[0][0] + partes[partes.length - 1][0]).toUpperCase();
+  };
+
+  const iniciarTrocaFotoRapida = (user: UsuarioLoja, preferirCameraMobile = false) => {
+    setUsuarioFotoAlvo(user);
+    if (preferirCameraMobile && typeof window !== 'undefined' && window.innerWidth < 768) {
+      setCameraAbertaMobile(true);
+      return;
+    }
+    setTimeout(() => {
+      if (inputFotoRef.current) {
+        inputFotoRef.current.value = '';
+        inputFotoRef.current.click();
+      }
+    }, 0);
+  };
+
+  const processarNovaFotoColaborador = async (origem: File | CompressResult) => {
+    if (!usuarioFotoAlvo || !loja?.id) return;
+    const alvo = usuarioFotoAlvo;
+    try {
+      setSalvandoFotoId(alvo.id);
+      const urlFinal = await uploadImagemComprimidaStorage(loja.id, 'colaboradores', origem, {
+        maxDimension: 600,
+        quality: 0.82
+      });
+      await usuarioService.atualizarFotoColaborador(alvo.id, loja.id, urlFinal);
+      setUsuarios((prev) =>
+        prev.map((item) => (item.id === alvo.id ? { ...item, url_foto: urlFinal } : item))
+      );
+    } catch (err) {
+      console.error('Erro ao atualizar foto do colaborador:', err);
+    } finally {
+      setSalvandoFotoId(null);
+      setUsuarioFotoAlvo(null);
+    }
+  };
+
+  const handleSelecionarArquivoFoto = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) {
+      setUsuarioFotoAlvo(null);
+      return;
+    }
+    await processarNovaFotoColaborador(file);
   };
 
   // Renderizar Gráfico Donut/Pizza Interativo
@@ -439,12 +492,28 @@ export const UsuariosGestao: React.FC = () => {
                     className={`p-3.5 rounded-2xl transition cursor-pointer flex items-center justify-between border ${isDark ? 'bg-[#000000] border-slate-700 hover:bg-slate-900 active:bg-slate-800' : 'bg-white border-2 border-slate-300 hover:bg-slate-50 active:bg-slate-100'}`}
                   >
                     <div className="flex items-center gap-3 min-w-0">
-                      <div
-                        className="w-10 h-10 rounded-xl flex items-center justify-center font-black text-xs text-white shrink-0 shadow-xs border border-white/10"
-                        style={{ backgroundColor: cor }}
+                      <button
+                        type="button"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          iniciarTrocaFotoRapida(u, true);
+                        }}
+                        title={u.url_foto ? 'Atualizar Foto' : 'Inserir Foto'}
+                        className="w-11 h-11 rounded-xl flex items-center justify-center font-black text-xs text-white shrink-0 shadow-xs border border-white/10 overflow-hidden relative cursor-pointer"
+                        style={{ backgroundColor: u.url_foto ? 'transparent' : cor }}
                       >
-                        {formatarIniciais(u.nome_completo)}
-                      </div>
+                        {salvandoFotoId === u.id ? (
+                          <Loader2 className="w-4 h-4 animate-spin text-emerald-500" />
+                        ) : u.url_foto ? (
+                          <img
+                            src={u.url_foto}
+                            alt={u.nome_completo}
+                            className="w-full h-full object-cover"
+                          />
+                        ) : (
+                          formatarIniciais(u.nome_completo)
+                        )}
+                      </button>
                       <div className="min-w-0">
                         <div className="flex items-center gap-1.5">
                           <span className={`font-black text-xs sm:text-sm truncate ${isDark ? 'text-white' : 'text-black'}`}>
@@ -469,6 +538,23 @@ export const UsuariosGestao: React.FC = () => {
                         </span>
                         <span className={`text-sm font-medium ${isDark ? 'text-slate-300' : 'text-black'}`}>30 dias</span>
                       </div>
+                      <button
+                        type="button"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          iniciarTrocaFotoRapida(u, true);
+                        }}
+                        disabled={salvandoFotoId === u.id}
+                        className="inline-flex items-center gap-1 px-2 py-0.5 rounded-lg text-[10px] font-bold bg-slate-200 hover:bg-slate-300 text-black border border-slate-300 dark:bg-slate-800 dark:hover:bg-slate-700 dark:text-white dark:border-slate-700 active:scale-95 cursor-pointer disabled:opacity-60"
+                        title={u.url_foto ? 'Atualizar foto do colaborador' : 'Inserir foto do colaborador'}
+                      >
+                        {salvandoFotoId === u.id ? (
+                          <Loader2 className="w-3 h-3 animate-spin" />
+                        ) : (
+                          <Camera className="w-3 h-3" />
+                        )}
+                        <span>{u.url_foto ? 'Atualizar Foto' : 'Inserir Foto'}</span>
+                      </button>
                       {u.presta_servicos && (
                         <>
                           <button
@@ -585,12 +671,13 @@ export const UsuariosGestao: React.FC = () => {
             
             {/* Título da Tabela */}
             <div className={`flex items-center justify-between border-b pb-3.5 text-xs font-black uppercase tracking-wider px-3 ${isDark ? 'border-slate-800 text-slate-400' : 'border-slate-200 text-slate-700'}`}>
-              <div className="flex-1 min-w-[220px] sm:min-w-[260px] pr-3">Nome</div>
+              <div className="flex-1 min-w-[220px] sm:min-w-[250px] pr-3">Nome</div>
+              <div className="w-32 shrink-0">Foto</div>
               <div className="w-28 shrink-0">Expediente</div>
               <div className="w-32 shrink-0">Serviços</div>
-              <div className="w-28 text-right">Faturamento</div>
+              <div className="w-24 text-right">Faturamento</div>
               <div className="w-16 text-right">Vendas</div>
-              <div className="w-16 text-right">%</div>
+              <div className="w-14 text-right">%</div>
             </div>
 
             {/* Linhas da Tabela */}
@@ -628,13 +715,29 @@ export const UsuariosGestao: React.FC = () => {
                       }`}
                     >
                       {/* Nome e Badge de Perfil */}
-                      <div className="flex items-center gap-3.5 flex-1 min-w-[220px] sm:min-w-[260px] pr-3">
-                        <div
-                          className={`w-10 h-10 rounded-xl border font-black text-xs flex items-center justify-center shrink-0 transition ${isDark ? 'bg-[#08131A] text-white' : 'bg-slate-100 text-black'}`}
+                      <div className="flex items-center gap-3.5 flex-1 min-w-[220px] sm:min-w-[250px] pr-3">
+                        <button
+                          type="button"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            iniciarTrocaFotoRapida(user, false);
+                          }}
+                          title={user.url_foto ? 'Clique para atualizar a foto' : 'Clique para inserir foto'}
+                          className={`w-11 h-11 rounded-xl border font-black text-xs flex items-center justify-center shrink-0 transition overflow-hidden cursor-pointer ${isDark ? 'bg-[#08131A] text-white' : 'bg-slate-100 text-black'}`}
                           style={{ borderColor: isHovered ? corUser : (isDark ? '#475569' : '#CBD5E1') }}
                         >
-                          {formatarIniciais(user.nome_completo)}
-                        </div>
+                          {salvandoFotoId === user.id ? (
+                            <Loader2 className="w-4 h-4 animate-spin text-emerald-500" />
+                          ) : user.url_foto ? (
+                            <img
+                              src={user.url_foto}
+                              alt={user.nome_completo}
+                              className="w-full h-full object-cover"
+                            />
+                          ) : (
+                            formatarIniciais(user.nome_completo)
+                          )}
+                        </button>
 
                         <div className="min-w-0 flex-1">
                           <div className="flex items-center gap-2">
@@ -690,6 +793,27 @@ export const UsuariosGestao: React.FC = () => {
                         </div>
                       </div>
 
+                      {/* Coluna FOTO RÁPIDA */}
+                      <div className="w-32 shrink-0 flex justify-start">
+                        <button
+                          type="button"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            iniciarTrocaFotoRapida(user, false);
+                          }}
+                          disabled={salvandoFotoId === user.id}
+                          className="inline-flex items-center gap-1.5 text-[10px] bg-slate-200 hover:bg-slate-300 text-black border border-slate-300 dark:bg-slate-800 dark:hover:bg-slate-700 dark:text-white dark:border-slate-700 px-2.5 py-1 rounded-full font-black uppercase tracking-wider transition cursor-pointer disabled:opacity-60"
+                          title={user.url_foto ? 'Atualizar foto do colaborador' : 'Inserir foto do colaborador'}
+                        >
+                          {salvandoFotoId === user.id ? (
+                            <Loader2 className="w-3 h-3 animate-spin" />
+                          ) : (
+                            <Camera className="w-3 h-3" />
+                          )}
+                          <span>{user.url_foto ? 'Atualizar Foto' : 'Inserir Foto'}</span>
+                        </button>
+                      </div>
+
                       {/* Coluna EXPEDIENTE */}
                       <div className="w-28 shrink-0 flex justify-start">
                         {user.presta_servicos && (
@@ -729,7 +853,7 @@ export const UsuariosGestao: React.FC = () => {
                       </div>
 
                       {/* Faturamento */}
-                      <div className={`w-28 text-right text-xs font-mono font-black ${isDark ? 'text-white' : 'text-black'}`}>
+                      <div className={`w-24 text-right text-xs font-mono font-black ${isDark ? 'text-white' : 'text-black'}`}>
                         {fat > 0 ? formatarMoeda(fat) : '-'}
                       </div>
 
@@ -739,7 +863,7 @@ export const UsuariosGestao: React.FC = () => {
                       </div>
 
                       {/* % Participação */}
-                      <div className={`w-16 text-right text-xs font-mono font-black ${isDark ? 'text-emerald-400' : 'text-emerald-600'}`}>
+                      <div className={`w-14 text-right text-xs font-mono font-black ${isDark ? 'text-emerald-400' : 'text-emerald-600'}`}>
                         {perc > 0 ? `${perc.toFixed(1)}%` : '-'}
                       </div>
                     </div>
@@ -783,6 +907,31 @@ export const UsuariosGestao: React.FC = () => {
           onSalvo={carregarUsuariosEMetricas}
         />
       )}
+
+      {/* INPUT HIDDEN DE FOTO RÁPIDA + CÂMERA MOBILE */}
+      <input
+        ref={inputFotoRef}
+        type="file"
+        accept="image/*"
+        onChange={handleSelecionarArquivoFoto}
+        className="hidden"
+      />
+      <ModalCameraCapturaMobile
+        isOpen={cameraAbertaMobile}
+        onClose={() => {
+          setCameraAbertaMobile(false);
+          setUsuarioFotoAlvo(null);
+        }}
+        onCapturar={async (res) => {
+          setCameraAbertaMobile(false);
+          await processarNovaFotoColaborador(res);
+        }}
+        titulo="Foto do Colaborador"
+        subtitulo="Centralize o rosto do profissional na moldura"
+        overlayId="modal-camera-colaborador-lista"
+        maxDimension={600}
+        quality={0.82}
+      />
     </div>
   );
 };

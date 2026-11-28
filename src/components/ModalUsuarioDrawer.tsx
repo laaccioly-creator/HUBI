@@ -19,7 +19,11 @@ import {
   UserCheck,
   Power,
   DollarSign,
-  Building2
+  Building2,
+  Camera,
+  Trash2,
+  FileText,
+  Sparkles
 } from 'lucide-react';
 import { usePermissions } from '../hooks/usePermissions';
 import { supabase } from '../lib/supabase';
@@ -28,6 +32,9 @@ import { useFeedbackModal } from '../contexts/FeedbackContext';
 import { useRegisterOverlay } from '../hooks/useRegisterOverlay';
 import { usuarioService } from '../services/usuarioService';
 import { formatarMoeda, formatarTelefoneInput } from '../utils/formatters';
+import { uploadImagemComprimidaStorage } from '../utils/storageUpload';
+import type { CompressResult } from '../utils/imageCompressor';
+import { ModalCameraCapturaMobile } from './ui/ModalCameraCapturaMobile';
 import { useTheme } from '../contexts/ThemeContext';
 import { notificarConfiguracaoSalvaParaOnboarding } from '../services/onboardingSetupService';
 
@@ -71,7 +78,14 @@ export const ModalUsuarioDrawer: React.FC<ModalUsuarioDrawerProps> = ({
   const [podeTrocarLoja, setPodeTrocarLoja] = useState<boolean>(false);
   const [prestaServicos, setPrestaServicos] = useState<boolean>(false);
   const [especialidadeCargo, setEspecialidadeCargo] = useState<string>('');
+  const [urlFoto, setUrlFoto] = useState<string>('');
+  const [miniCurriculo, setMiniCurriculo] = useState<string>('');
+  const [curriculoAprovado, setCurriculoAprovado] = useState<boolean>(false);
+  const [uploadingFoto, setUploadingFoto] = useState<boolean>(false);
+  const [cameraAberta, setCameraAberta] = useState<boolean>(false);
+  const inputFotoDrawerRef = React.useRef<HTMLInputElement | null>(null);
   const permissions = usePermissions();
+  const podeAprovarCurriculo = permissions.ehGerente;
 
   const { confirmar } = useFeedbackModal();
   const ehOwner = usuarioEdicao?.perfil === 'owner';
@@ -99,7 +113,10 @@ export const ModalUsuarioDrawer: React.FC<ModalUsuarioDrawerProps> = ({
       podeCaixa: usuarioEdicao ? (isAdmin ? true : (usuarioEdicao.pode_abrir_fechar_caixa ?? false)) : false,
       podeTrocarLoja: usuarioEdicao ? (isAdmin ? Boolean(usuarioEdicao.pode_trocar_loja) : false) : false,
       prestaServicos: usuarioEdicao ? Boolean(usuarioEdicao.presta_servicos) : false,
-      especialidadeCargo: usuarioEdicao?.especialidade_cargo || ''
+      especialidadeCargo: usuarioEdicao?.especialidade_cargo || '',
+      urlFoto: usuarioEdicao?.url_foto || '',
+      miniCurriculo: usuarioEdicao?.mini_curriculo || '',
+      curriculoAprovado: usuarioEdicao ? Boolean(usuarioEdicao.curriculo_aprovado) : false
     });
   }, [usuarioEdicao, isOpen]);
 
@@ -121,7 +138,10 @@ export const ModalUsuarioDrawer: React.FC<ModalUsuarioDrawerProps> = ({
       podeCaixa,
       podeTrocarLoja,
       prestaServicos,
-      especialidadeCargo
+      especialidadeCargo,
+      urlFoto,
+      miniCurriculo,
+      curriculoAprovado
     });
   }, [
     nome,
@@ -140,7 +160,10 @@ export const ModalUsuarioDrawer: React.FC<ModalUsuarioDrawerProps> = ({
     podeCaixa,
     podeTrocarLoja,
     prestaServicos,
-    especialidadeCargo
+    especialidadeCargo,
+    urlFoto,
+    miniCurriculo,
+    curriculoAprovado
   ]);
 
   const temAlteracoesForm = snapshotAtual !== snapshotInicial;
@@ -210,6 +233,9 @@ export const ModalUsuarioDrawer: React.FC<ModalUsuarioDrawerProps> = ({
       setPodeTrocarLoja(Boolean(usuarioEdicao.pode_trocar_loja));
       setPrestaServicos(Boolean(usuarioEdicao.presta_servicos));
       setEspecialidadeCargo(usuarioEdicao.especialidade_cargo || '');
+      setUrlFoto(usuarioEdicao.url_foto || '');
+      setMiniCurriculo(usuarioEdicao.mini_curriculo || '');
+      setCurriculoAprovado(Boolean(usuarioEdicao.curriculo_aprovado));
       const ehGestor = p === 'owner' || p === 'admin' || p === 'gerente';
       setTelaInicial(usuarioEdicao.tela_inicial || (ehGestor ? 'dashboard' : 'pos'));
     } else {
@@ -232,6 +258,9 @@ export const ModalUsuarioDrawer: React.FC<ModalUsuarioDrawerProps> = ({
       setPodeTrocarLoja(false);
       setPrestaServicos(false);
       setEspecialidadeCargo('');
+      setUrlFoto('');
+      setMiniCurriculo('');
+      setCurriculoAprovado(false);
     }
     setErro(null);
   }, [usuarioEdicao, isOpen]);
@@ -355,6 +384,13 @@ export const ModalUsuarioDrawer: React.FC<ModalUsuarioDrawerProps> = ({
         ? 'owner' 
         : (ehAdmin ? 'admin' : perfil);
 
+      const miniCurriculoOriginal = (usuarioEdicao?.mini_curriculo || '').trim();
+      const miniCurriculoNovo = miniCurriculo.trim();
+      const miniCurriculoMudou = miniCurriculoNovo !== miniCurriculoOriginal;
+      const curriculoAprovadoFinal = podeAprovarCurriculo
+        ? curriculoAprovado
+        : (miniCurriculoMudou ? false : Boolean(usuarioEdicao?.curriculo_aprovado));
+
       await usuarioService.salvarOperador({
         id: usuarioEdicao?.id,
         lojaId,
@@ -378,6 +414,9 @@ export const ModalUsuarioDrawer: React.FC<ModalUsuarioDrawerProps> = ({
         podeEditarVendasPassadas: ehOwner || ehAdmin,
         prestaServicos,
         especialidadeCargo: especialidadeCargo.trim() || null,
+        urlFoto: urlFoto.trim() || null,
+        miniCurriculo: miniCurriculoNovo || null,
+        curriculoAprovado: curriculoAprovadoFinal,
         telaInicial: (ehOwner || ehAdmin || perfilFinal === 'gerente') ? telaInicial : (telaInicial === 'dashboard' ? 'pos' : telaInicial)
       });
 
@@ -403,6 +442,29 @@ export const ModalUsuarioDrawer: React.FC<ModalUsuarioDrawerProps> = ({
   };
 
   useRegisterOverlay(isOpen, handleFecharComConfirmacao, 'modal-usuario-drawer');
+
+  const iniciaisPreview = useMemo(() => {
+    const partes = (nome || usuarioEdicao?.nome_completo || 'US').trim().split(' ').filter(Boolean);
+    if (partes.length === 1) return partes[0].slice(0, 2).toUpperCase();
+    return ((partes[0]?.[0] || 'U') + (partes[partes.length - 1]?.[0] || 'S')).toUpperCase();
+  }, [nome, usuarioEdicao?.nome_completo]);
+
+  const processarUploadFotoDrawer = async (origem: File | CompressResult) => {
+    if (!lojaId) return;
+    try {
+      setUploadingFoto(true);
+      const urlGerada = await uploadImagemComprimidaStorage(lojaId, 'colaboradores', origem, {
+        maxDimension: 600,
+        quality: 0.82
+      });
+      setUrlFoto(urlGerada);
+    } catch (err) {
+      console.error('Erro ao enviar foto do colaborador:', err);
+      setErro('Não foi possível processar a imagem selecionada. Tente novamente.');
+    } finally {
+      setUploadingFoto(false);
+    }
+  };
 
   if (!isOpen) return null;
 
@@ -520,6 +582,88 @@ export const ModalUsuarioDrawer: React.FC<ModalUsuarioDrawerProps> = ({
               <UserCheck className="w-4 h-4 text-emerald-500" />
               <span>Dados do usuário</span>
             </h4>
+
+            {/* FOTO DE PERFIL DO COLABORADOR */}
+            <div className={`p-3.5 rounded-2xl border flex flex-col sm:flex-row sm:items-center gap-4 ${isDark ? 'bg-[#000000] border-slate-800' : 'bg-slate-50 border-slate-200'}`}>
+              <div className={`w-20 h-20 rounded-2xl overflow-hidden shrink-0 border flex items-center justify-center font-black text-lg ${isDark ? 'bg-slate-900 border-slate-700 text-white' : 'bg-white border-slate-300 text-slate-700'}`}>
+                {uploadingFoto ? (
+                  <Loader2 className="w-6 h-6 animate-spin text-emerald-500" />
+                ) : urlFoto ? (
+                  <img src={urlFoto} alt={nome || 'Colaborador'} className="w-full h-full object-cover" />
+                ) : (
+                  <span>{iniciaisPreview}</span>
+                )}
+              </div>
+
+              <div className="flex-1 space-y-2">
+                <div>
+                  <span className={`text-sm font-black block ${isDark ? 'text-white' : 'text-black'}`}>
+                    Foto de Perfil do Profissional
+                  </span>
+                  <span className={`text-xs font-medium block ${isDark ? 'text-slate-400' : 'text-slate-600'}`}>
+                    Exibida na listagem da equipe, no agendamento online e na página de apresentação da loja.
+                  </span>
+                </div>
+
+                <div className="flex flex-wrap items-center gap-2">
+                  <button
+                    type="button"
+                    disabled={uploadingFoto}
+                    onClick={() => {
+                      if (typeof window !== 'undefined' && window.innerWidth < 768) {
+                        setCameraAberta(true);
+                      } else if (inputFotoDrawerRef.current) {
+                        inputFotoDrawerRef.current.value = '';
+                        inputFotoDrawerRef.current.click();
+                      }
+                    }}
+                    className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-black bg-slate-200 hover:bg-slate-300 text-black border border-slate-300 dark:bg-slate-800 dark:hover:bg-slate-700 dark:text-white dark:border-slate-700 transition cursor-pointer disabled:opacity-60"
+                  >
+                    <Camera className="w-3.5 h-3.5" />
+                    <span>{urlFoto ? 'Atualizar Foto' : 'Inserir Foto'}</span>
+                  </button>
+
+                  {typeof window !== 'undefined' && window.innerWidth < 768 && (
+                    <button
+                      type="button"
+                      disabled={uploadingFoto}
+                      onClick={() => {
+                        if (inputFotoDrawerRef.current) {
+                          inputFotoDrawerRef.current.value = '';
+                          inputFotoDrawerRef.current.click();
+                        }
+                      }}
+                      className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-bold bg-slate-200 hover:bg-slate-300 text-black border border-slate-300 dark:bg-slate-800 dark:hover:bg-slate-700 dark:text-white dark:border-slate-700 transition cursor-pointer disabled:opacity-60"
+                    >
+                      <span>Galeria</span>
+                    </button>
+                  )}
+
+                  {urlFoto && (
+                    <button
+                      type="button"
+                      disabled={uploadingFoto}
+                      onClick={() => setUrlFoto('')}
+                      className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-bold bg-rose-500/10 hover:bg-rose-500/20 text-rose-600 dark:text-rose-400 border border-rose-500/30 transition cursor-pointer"
+                    >
+                      <Trash2 className="w-3.5 h-3.5" />
+                      <span>Remover</span>
+                    </button>
+                  )}
+                </div>
+              </div>
+
+              <input
+                ref={inputFotoDrawerRef}
+                type="file"
+                accept="image/*"
+                onChange={async (e) => {
+                  const file = e.target.files?.[0];
+                  if (file) await processarUploadFotoDrawer(file);
+                }}
+                className="hidden"
+              />
+            </div>
 
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               <div className="space-y-1.5">
@@ -747,23 +891,68 @@ export const ModalUsuarioDrawer: React.FC<ModalUsuarioDrawerProps> = ({
                 </label>
               </div>
 
-              {prestaServicos && (
-                <div className="space-y-1.5 pt-1 animate-in fade-in duration-200">
-                  <label className={`text-sm font-bold block ${isDark ? 'text-slate-200' : 'text-black'}`}>
-                    Cargo / Especialidade no Catálogo
-                  </label>
-                  <input
-                    type="text"
-                    placeholder="Ex: Barbeiro Master, Manicure, Técnico de Manutenção"
-                    value={especialidadeCargo}
-                    onChange={(e) => setEspecialidadeCargo(e.target.value)}
-                    className={`w-full rounded-xl px-3.5 py-2.5 text-sm font-bold focus:outline-none transition border ${isDark ? 'bg-[#000000] border-slate-700 text-white placeholder:text-slate-500 focus:border-emerald-500' : 'bg-white border-2 border-slate-300 text-black placeholder:text-slate-500 focus:border-emerald-500'}`}
-                  />
-                  <span className={`text-sm leading-relaxed font-medium block ${isDark ? 'text-slate-300' : 'text-black'}`}>
-                    Especialidade exibida para o cliente final ao escolher o profissional na página pública.
-                  </span>
-                </div>
-              )}
+              <div className="space-y-4 pt-2 animate-in fade-in duration-200">
+                  <div className={`p-3.5 rounded-2xl border space-y-1.5 ${isDark ? 'bg-emerald-950/15 border-emerald-500/30' : 'bg-emerald-50/70 border-2 border-emerald-300'}`}>
+                    <label className={`text-sm font-black flex items-center gap-1.5 ${isDark ? 'text-emerald-300' : 'text-black'}`}>
+                      <Sparkles className="w-4 h-4 text-emerald-500" />
+                      <span>Especialidade / Cargo Profissional</span>
+                    </label>
+                    <input
+                      type="text"
+                      placeholder="Ex: Cabeleireira & Colorista, Manicure, Barbeiro"
+                      value={especialidadeCargo}
+                      onChange={(e) => setEspecialidadeCargo(e.target.value)}
+                      className={`w-full rounded-xl px-3.5 py-2.5 text-sm font-bold focus:outline-none transition border ${isDark ? 'bg-[#000000] border-slate-700 text-white placeholder:text-slate-500 focus:border-emerald-500' : 'bg-white border-2 border-slate-300 text-black placeholder:text-slate-500 focus:border-emerald-500'}`}
+                    />
+                    <span className={`text-xs leading-relaxed font-medium block ${isDark ? 'text-slate-300' : 'text-slate-700'}`}>
+                      Destaque exibido abaixo do nome do profissional no catálogo online e no modal de agendamento.
+                    </span>
+                  </div>
+
+                  <div className="space-y-1.5">
+                    <label className={`text-sm font-bold flex items-center gap-1.5 ${isDark ? 'text-slate-200' : 'text-black'}`}>
+                      <FileText className="w-4 h-4 text-emerald-500" />
+                      <span>Mini Currículo / Apresentação Profissional</span>
+                    </label>
+                    <textarea
+                      rows={4}
+                      placeholder="Descreva formação, anos de experiência, especialidades e diferenciais para valorizar o atendimento..."
+                      value={miniCurriculo}
+                      onChange={(e) => {
+                        const novoTexto = e.target.value;
+                        setMiniCurriculo(novoTexto);
+                        if (!podeAprovarCurriculo) {
+                          setCurriculoAprovado(false);
+                        }
+                      }}
+                      className={`w-full rounded-xl px-3.5 py-2.5 text-sm font-medium focus:outline-none transition border resize-y ${isDark ? 'bg-[#000000] border-slate-700 text-white placeholder:text-slate-500 focus:border-emerald-500' : 'bg-white border-2 border-slate-300 text-black placeholder:text-slate-500 focus:border-emerald-500'}`}
+                    />
+                  </div>
+
+                  {/* GOVERNANÇA DO MINI CURRÍCULO */}
+                  <div className={`flex items-start justify-between gap-3 p-3.5 rounded-2xl border ${isDark ? 'bg-[#000000] border-slate-800' : 'bg-slate-50 border-slate-200'}`}>
+                    <div className="space-y-0.5">
+                      <span className={`text-sm font-black block ${isDark ? 'text-white' : 'text-black'}`}>
+                        Aprovar e publicar mini currículo no catálogo/agendamento
+                      </span>
+                      <p className={`text-xs leading-relaxed font-medium ${isDark ? 'text-slate-400' : 'text-slate-600'}`}>
+                        {podeAprovarCurriculo
+                          ? 'Quando ativo, o botão "Ver currículo" aparece para os clientes durante o agendamento e na página da equipe.'
+                          : 'Apenas administradores ou gerentes podem aprovar a publicação. Ao editar seu texto, ele volta para revisão.'}
+                      </p>
+                    </div>
+                    <label className={`relative inline-flex items-center shrink-0 mt-0.5 ${!podeAprovarCurriculo ? 'cursor-not-allowed opacity-60' : 'cursor-pointer'}`}>
+                      <input
+                        type="checkbox"
+                        checked={curriculoAprovado}
+                        disabled={!podeAprovarCurriculo}
+                        onChange={(e) => setCurriculoAprovado(e.target.checked)}
+                        className="sr-only peer"
+                      />
+                      <div className={`w-9 h-5 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-emerald-500 ${isDark ? 'bg-slate-700' : 'bg-slate-300'}`}></div>
+                    </label>
+                  </div>
+              </div>
             </div>
           </div>
 
@@ -1040,8 +1229,8 @@ export const ModalUsuarioDrawer: React.FC<ModalUsuarioDrawerProps> = ({
             <button
               type="button"
               onClick={handleSalvarUsuario}
-              disabled={salvando}
-              className="px-6 py-2.5 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white text-xs sm:text-sm font-black shadow-md shadow-emerald-500/20 border border-emerald-500 transition cursor-pointer flex items-center gap-2 disabled:opacity-50 active:scale-95"
+              disabled={salvando || uploadingFoto}
+              className="px-6 py-2.5 rounded-xl bg-emerald-300 hover:bg-emerald-400 text-black text-xs sm:text-sm font-black shadow-md border border-emerald-400 transition cursor-pointer flex items-center gap-2 disabled:opacity-50 active:scale-95"
             >
               {salvando ? (
                 <>
@@ -1059,6 +1248,20 @@ export const ModalUsuarioDrawer: React.FC<ModalUsuarioDrawerProps> = ({
         </div>
 
       </div>
+
+      <ModalCameraCapturaMobile
+        isOpen={cameraAberta}
+        onClose={() => setCameraAberta(false)}
+        onCapturar={async (res) => {
+          setCameraAberta(false);
+          await processarUploadFotoDrawer(res);
+        }}
+        titulo="Foto do Profissional"
+        subtitulo="Enquadre o rosto do colaborador"
+        overlayId="modal-camera-usuario-drawer"
+        maxDimension={600}
+        quality={0.82}
+      />
     </div>
   );
 };

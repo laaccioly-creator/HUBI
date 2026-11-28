@@ -4,6 +4,7 @@
 // =============================================================================
 
 import { supabase } from '../lib/supabase';
+import { SELECT_PROFISSIONAL_PUBLICO } from '../lib/publicSelects';
 import { whatsappWalletService } from './whatsappWalletService';
 import { logger } from './loggerService';
 import type {
@@ -204,7 +205,7 @@ export const agendamentoService = {
     // 1. Busca vínculos ativos específicos
     const { data: vinculos, error: vinculosErr } = await supabase
       .from('servico_profissionais')
-      .select('usuario_id, usuarios_loja(*)')
+      .select(`usuario_id, usuarios_loja(${SELECT_PROFISSIONAL_PUBLICO})`)
       .eq('loja_id', lojaId)
       .eq('produto_id', produtoId)
       .eq('ativo', true);
@@ -222,7 +223,7 @@ export const agendamentoService = {
     // 2. Fallback: Todos os colaboradores da loja que prestam serviços
     const { data: todosPrestadores, error: prestadoresErr } = await supabase
       .from('usuarios_loja')
-      .select('*')
+      .select(SELECT_PROFISSIONAL_PUBLICO)
       .eq('loja_id', lojaId)
       .eq('ativo', true)
       .eq('presta_servicos', true)
@@ -977,7 +978,7 @@ export const agendamentoService = {
           criado_em,
           atualizado_em,
           produto:produtos(id, nome, preco_venda_varejo, fotos_urls),
-          profissional:usuarios_loja!agendamentos_servicos_profissional_id_fkey(id, nome_completo, especialidade_cargo, whatsapp_atendimento)
+          profissional:usuarios_loja!agendamentos_servicos_profissional_id_fkey(id, nome_completo, especialidade_cargo, whatsapp_atendimento, url_foto, mini_curriculo, curriculo_aprovado)
         `)
         .single();
 
@@ -1621,7 +1622,7 @@ Esperamos por você!`.trim();
           .select(`
             *,
             produto:produtos(id, nome, preco_venda_varejo),
-            profissional:usuarios_loja!agendamentos_servicos_profissional_id_fkey(id, nome_completo, especialidade_cargo, whatsapp_atendimento)
+            profissional:usuarios_loja!agendamentos_servicos_profissional_id_fkey(id, nome_completo, especialidade_cargo, whatsapp_atendimento, url_foto, mini_curriculo, curriculo_aprovado)
           `)
       );
 
@@ -1640,7 +1641,7 @@ Esperamos por você!`.trim();
           .select(`
             *,
             produto:produtos(id, nome, preco_venda_varejo),
-            profissional:usuarios_loja!profissional_id(id, nome_completo, especialidade_cargo, whatsapp_atendimento)
+            profissional:usuarios_loja!profissional_id(id, nome_completo, especialidade_cargo, whatsapp_atendimento, url_foto, mini_curriculo, curriculo_aprovado)
           `)
       );
 
@@ -1771,7 +1772,7 @@ Esperamos por você!`.trim();
     const { data, error } = await supabase
       .from('agendamentos_servicos')
       .select(
-        '*, produto:produtos(nome), profissional:usuarios_loja!agendamentos_servicos_profissional_id_fkey(nome_completo)'
+        '*, produto:produtos(nome), profissional:usuarios_loja!agendamentos_servicos_profissional_id_fkey(id, nome_completo, especialidade_cargo, url_foto, mini_curriculo, curriculo_aprovado)'
       )
       .eq('loja_id', lojaId)
       .eq('pedido_id', pedidoId)

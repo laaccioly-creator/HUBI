@@ -19,7 +19,8 @@ import {
   Search,
   User,
   Plus,
-  AlertTriangle
+  AlertTriangle,
+  Info
 } from 'lucide-react';
 import { useRegisterOverlay } from '../../hooks/useRegisterOverlay';
 import { useTheme } from '../../contexts/ThemeContext';
@@ -28,6 +29,7 @@ import { agendamentoService, formatarDataPtBr } from '../../services/agendamento
 import { ShippingOrchestrator } from '../../services/shippingOrchestrator';
 import { ModalNovoCliente } from '../ModalNovoCliente';
 import { ModalAtualizarEnderecoCliente } from '../shipping/ModalAtualizarEnderecoCliente';
+import { ModalMiniCurriculoProfissional } from './ModalMiniCurriculoProfissional';
 import type {
   SlotHorarioDisponivel,
   ItemAgendamentoInfo,
@@ -124,6 +126,7 @@ export const ModalSelecionarAgendamentoPdv: React.FC<ModalSelecionarAgendamentoP
   const [profissionalId, setProfissionalId] = useState<string>(
     agendamentoExistente?.profissional_id || ''
   );
+  const [profissionalCurriculo, setProfissionalCurriculo] = useState<UsuarioLoja | null>(null);
 
   // 3. Data do Serviço
   const hojeStr = () => {
@@ -702,29 +705,76 @@ export const ModalSelecionarAgendamentoPdv: React.FC<ModalSelecionarAgendamentoP
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
                 {profissionais.map((prof) => {
                   const selecionado = prof.id === profissionalId;
+                  const nomeProf = prof.nome_completo || prof.nome || 'Profissional';
+                  const iniciais = nomeProf
+                    .split(' ')
+                    .filter(Boolean)
+                    .map((n) => n[0])
+                    .slice(0, 2)
+                    .join('')
+                    .toUpperCase();
+                  const temCurriculoAprovado = Boolean(prof.mini_curriculo?.trim()) && prof.curriculo_aprovado === true;
+
                   return (
-                    <button
+                    <div
                       key={prof.id}
-                      type="button"
+                      role="button"
+                      tabIndex={0}
                       onClick={() => setProfissionalId(prof.id)}
-                      className={`p-3 rounded-2xl border text-left transition flex items-center justify-between cursor-pointer ${
+                      onKeyDown={(e) => {
+                        if (e.key === 'Enter' || e.key === ' ') {
+                          e.preventDefault();
+                          setProfissionalId(prof.id);
+                        }
+                      }}
+                      className={`p-3 rounded-2xl border text-left transition flex items-center gap-3 cursor-pointer ${
                         selecionado
                           ? 'bg-emerald-500/10 border-emerald-500 text-slate-900 dark:text-white ring-1 ring-emerald-500/40 shadow-xs'
                           : 'bg-slate-50 dark:bg-slate-800/60 border-slate-200 dark:border-slate-700 text-slate-700 dark:text-slate-300 hover:border-slate-300'
                       }`}
                     >
-                      <div className="min-w-0 pr-2">
-                        <span className="text-xs font-black block truncate">
-                          {prof.nome_completo || prof.nome}
-                        </span>
+                      <div className={`w-14 h-14 rounded-xl font-black text-sm flex items-center justify-center shrink-0 border overflow-hidden ${
+                        selecionado
+                          ? 'bg-emerald-600 text-white border-emerald-500'
+                          : 'bg-white dark:bg-slate-800 border-slate-300 dark:border-slate-700 text-slate-700 dark:text-slate-200'
+                      }`}>
+                        {prof.url_foto ? (
+                          <img
+                            src={prof.url_foto}
+                            alt={nomeProf}
+                            className="w-full h-full object-cover"
+                          />
+                        ) : (
+                          iniciais
+                        )}
+                      </div>
+                      <div className="min-w-0 flex-1 pr-1 space-y-1">
+                        <div className="flex items-center gap-1.5 flex-wrap">
+                          <span className="text-xs font-black truncate">
+                            {nomeProf}
+                          </span>
+                          {temCurriculoAprovado && (
+                            <button
+                              type="button"
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                setProfissionalCurriculo(prof);
+                              }}
+                              className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold bg-slate-200 hover:bg-slate-300 text-black border border-slate-300 dark:bg-slate-700 dark:hover:bg-slate-600 dark:text-white dark:border-slate-600 transition cursor-pointer"
+                            >
+                              <Info className="w-3 h-3" />
+                              <span>Ver currículo</span>
+                            </button>
+                          )}
+                        </div>
                         {prof.especialidade_cargo && (
-                          <span className="text-[10px] text-slate-500 dark:text-slate-400 block truncate">
+                          <span className="text-[11px] text-slate-500 dark:text-slate-400 block truncate">
                             {prof.especialidade_cargo}
                           </span>
                         )}
                       </div>
                       {selecionado && <CheckCircle2 size={16} className="text-emerald-500 shrink-0" />}
-                    </button>
+                    </div>
                   );
                 })}
               </div>
@@ -984,6 +1034,13 @@ export const ModalSelecionarAgendamentoPdv: React.FC<ModalSelecionarAgendamentoP
         }}
       />
     )}
+    {/* Submodal: Mini Currículo do Profissional */}
+    <ModalMiniCurriculoProfissional
+      isOpen={Boolean(profissionalCurriculo)}
+      onClose={() => setProfissionalCurriculo(null)}
+      profissional={profissionalCurriculo}
+      onSelecionar={(prof) => setProfissionalId(prof.id)}
+    />
     </>
   );
 };

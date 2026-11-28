@@ -38,9 +38,11 @@ import { supabase } from '../lib/supabase';
 import { useAuth } from '../contexts/AuthContext';
 import {
   ModoExibicaoCatalogo,
+  ModoPaginaInicialCatalogo,
   ComportamentoSemEstoque,
   FormaEntrega
 } from '../types';
+import { PainelApresentacaoCatalogo } from './configuracoes/PainelApresentacaoCatalogo';
 import { MobileHeader } from './layout/MobileHeader';
 import { useTheme } from '../contexts/ThemeContext';
 import { useRegisterOverlay } from '../hooks/useRegisterOverlay';
@@ -55,6 +57,7 @@ type SubTelaCatalogoMobile =
   | 'redes-sociais'        // TELA006 / TELA016
   | 'cor-principal'        // TELA007
   | 'modo-exibicao'        // TELA008
+  | 'pagina-apresentacao'  // TELA008-B: Página de Apresentação (Serviços)
   | 'produtos-sem-estoque' // TELA009
   | 'banner'               // TELA010
   | 'orientacoes'          // TELA011
@@ -139,6 +142,13 @@ export const ConfiguracaoCatalogoMobile: React.FC = () => {
   const [corPrimaria, setCorPrimaria] = useState<string>('#10B981');
   const [abaCor, setAbaCor] = useState<'sugestoes' | 'personalizada'>('personalizada');
   const [modoExibicao, setModoExibicao] = useState<ModoExibicaoCatalogo>('grade');
+  const [modoPaginaInicial, setModoPaginaInicial] = useState<ModoPaginaInicialCatalogo>('vitrine');
+  const [lpTituloHero, setLpTituloHero] = useState<string>('');
+  const [lpSubtituloHero, setLpSubtituloHero] = useState<string>('');
+  const [lpSobreTitulo, setLpSobreTitulo] = useState<string>('');
+  const [lpSobreTexto, setLpSobreTexto] = useState<string>('');
+  const [lpMostrarEquipe, setLpMostrarEquipe] = useState<boolean>(true);
+  const [lpGaleriaUrls, setLpGaleriaUrls] = useState<string[]>([]);
   const [produtosSemEstoque, setProdutosSemEstoque] = useState<ComportamentoSemEstoque>('exibir');
   const [exibirProdutosSemFoto, setExibirProdutosSemFoto] = useState<boolean>(false);
   const [bannerUrl, setBannerUrl] = useState<string>('');
@@ -224,6 +234,13 @@ export const ConfiguracaoCatalogoMobile: React.FC = () => {
 
       setCorPrimaria(loja.cor_primaria || '#10B981');
       setModoExibicao(catConfig.modo_exibicao || 'grade');
+      setModoPaginaInicial(loja.modo_exibicao_catalogo === 'apresentacao' ? 'apresentacao' : 'vitrine');
+      setLpTituloHero(loja.lp_titulo_hero || '');
+      setLpSubtituloHero(loja.lp_subtitulo_hero || '');
+      setLpSobreTitulo(loja.lp_sobre_titulo || '');
+      setLpSobreTexto(loja.lp_sobre_texto || '');
+      setLpMostrarEquipe(loja.lp_mostrar_equipe ?? true);
+      setLpGaleriaUrls(Array.isArray(loja.lp_galeria_urls) ? loja.lp_galeria_urls : []);
       setProdutosSemEstoque(catConfig.produtos_sem_estoque || 'exibir');
       setExibirProdutosSemFoto(catConfig.exibir_produtos_sem_foto ?? false);
       setBannerUrl(loja.url_banner || '');
@@ -377,6 +394,13 @@ export const ConfiguracaoCatalogoMobile: React.FC = () => {
           exigir_pesagem_previa_pagamento: exigirPesagemPreviaPagamento,
           instrucoes_pos_pedido: orientacoesPosPedido,
           url_banner: bannerUrl,
+          modo_exibicao_catalogo: modoPaginaInicial,
+          lp_titulo_hero: lpTituloHero.trim() || null,
+          lp_subtitulo_hero: lpSubtituloHero.trim() || null,
+          lp_sobre_titulo: lpSobreTitulo.trim() || null,
+          lp_sobre_texto: lpSobreTexto.trim() || null,
+          lp_mostrar_equipe: lpMostrarEquipe,
+          lp_galeria_urls: lpGaleriaUrls,
           whatsapp: whatsappLoja.trim(),
           instagram: instagramLoja.trim(),
           email: emailLoja.trim(),
@@ -934,6 +958,22 @@ export const ConfiguracaoCatalogoMobile: React.FC = () => {
 
             <button
               type="button"
+              onClick={() => setSubTela('pagina-apresentacao')}
+              className={`w-full p-4 flex items-center justify-between text-left transition cursor-pointer ${
+                isDark ? 'hover:bg-slate-900/60 active:bg-slate-800' : 'hover:bg-slate-200/60 active:bg-slate-300'
+              }`}
+            >
+              <div>
+                <span className={`text-sm font-bold block ${isDark ? 'text-white' : 'text-black'}`}>Página de Apresentação (Serviços)</span>
+                <span className={`text-xs font-medium block mt-0.5 ${isDark ? 'text-slate-400' : 'text-slate-600'}`}>
+                  {modoPaginaInicial === 'apresentacao' ? 'Ativa — Salão / Clínica / Serviços' : 'Desativada (Vitrine Direta)'}
+                </span>
+              </div>
+              <ChevronRight className={`w-5 h-5 ${isDark ? 'text-slate-500' : 'text-slate-400'}`} />
+            </button>
+
+            <button
+              type="button"
               onClick={() => setSubTela('produtos-sem-estoque')}
               className={`w-full p-4 flex items-center justify-between text-left transition cursor-pointer ${
                 isDark ? 'hover:bg-slate-900/60 active:bg-slate-800' : 'hover:bg-slate-200/60 active:bg-slate-300'
@@ -1111,6 +1151,59 @@ export const ConfiguracaoCatalogoMobile: React.FC = () => {
               disabled={salvando}
               onClick={() => salvarDadosGerais('Modo de exibição salvo!', true)}
               className={btnSalvarFixoClass}
+            >
+              {salvando ? 'Salvando...' : 'Salvar'}
+            </button>
+          </div>
+        </div>
+      )}
+
+      {/* ===================================================================== */}
+      {/* TELA008-B: PÁGINA DE APRESENTAÇÃO (SERVIÇOS, SALÕES E CLÍNICAS)       */}
+      {/* ===================================================================== */}
+      {subTela === 'pagina-apresentacao' && loja && (
+        <div className={telaContainerClass}>
+          <div className={headerSubtelaClass}>
+            <div className="flex items-center gap-2">
+              <button
+                type="button"
+                onClick={() => setSubTela('opcoes-exibicao')}
+                className={headerBtnVoltarClass}
+              >
+                <ChevronLeft className="w-6 h-6" />
+              </button>
+              <h1 className={`text-base font-black ${isDark ? 'text-white' : 'text-black'}`}>Página de Apresentação</h1>
+            </div>
+          </div>
+
+          <div className="flex-1 overflow-y-auto p-4 space-y-4">
+            <PainelApresentacaoCatalogo
+              loja={loja}
+              modoPaginaInicial={modoPaginaInicial}
+              onChangeModoPaginaInicial={setModoPaginaInicial}
+              lpTituloHero={lpTituloHero}
+              onChangeLpTituloHero={setLpTituloHero}
+              lpSubtituloHero={lpSubtituloHero}
+              onChangeLpSubtituloHero={setLpSubtituloHero}
+              lpSobreTitulo={lpSobreTitulo}
+              onChangeLpSobreTitulo={setLpSobreTitulo}
+              lpSobreTexto={lpSobreTexto}
+              onChangeLpSobreTexto={setLpSobreTexto}
+              lpMostrarEquipe={lpMostrarEquipe}
+              onChangeLpMostrarEquipe={setLpMostrarEquipe}
+              lpGaleriaUrls={lpGaleriaUrls}
+              onChangeLpGaleriaUrls={setLpGaleriaUrls}
+              isDark={isDark}
+              mostrarFeedback={(msg, tipo) => mostrarToast(msg, tipo === 'erro' ? 'erro' : 'sucesso')}
+            />
+          </div>
+
+          <div className={rodapeFixoClass}>
+            <button
+              type="button"
+              disabled={salvando}
+              onClick={() => salvarDadosGerais('Página de apresentação salva!', true)}
+              className="w-full py-3.5 rounded-xl bg-emerald-300 hover:bg-emerald-400 text-black text-sm font-black shadow-md flex items-center justify-center gap-2 border border-emerald-400 transition cursor-pointer disabled:opacity-50"
             >
               {salvando ? 'Salvando...' : 'Salvar'}
             </button>

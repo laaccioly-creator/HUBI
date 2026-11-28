@@ -44,6 +44,9 @@ export interface SalvarOperadorParams {
   podeTrocarLoja?: boolean;
   prestaServicos?: boolean;
   especialidadeCargo?: string | null;
+  urlFoto?: string | null;
+  miniCurriculo?: string | null;
+  curriculoAprovado?: boolean;
   telaInicial?: string;
 }
 
@@ -137,6 +140,31 @@ export const usuarioService = {
     const ehAdmin = ehOwner || params.perfil === 'admin';
     const senhaLimpa = params.senha?.trim() || undefined;
     const telaInicialEfetiva = params.telaInicial || (ehAdmin || params.perfil === 'gerente' ? 'dashboard' : 'pos');
+    const temCamposPerfilPublico =
+      params.urlFoto !== undefined ||
+      params.miniCurriculo !== undefined ||
+      params.curriculoAprovado !== undefined;
+
+    const persistirCamposPerfilPublico = async (usuarioBase: UsuarioLoja): Promise<UsuarioLoja> => {
+      if (!temCamposPerfilPublico || !usuarioBase?.id) return usuarioBase;
+      const patchPerfil: Partial<UsuarioLoja> = {};
+      if (params.urlFoto !== undefined) patchPerfil.url_foto = params.urlFoto?.trim() || null;
+      if (params.miniCurriculo !== undefined) patchPerfil.mini_curriculo = params.miniCurriculo?.trim() || null;
+      if (params.curriculoAprovado !== undefined) patchPerfil.curriculo_aprovado = Boolean(params.curriculoAprovado);
+
+      const { data: atualizado, error: errPatch } = await supabase
+        .from('usuarios_loja')
+        .update(patchPerfil)
+        .eq('id', usuarioBase.id)
+        .eq('loja_id', params.lojaId)
+        .select()
+        .maybeSingle();
+
+      if (!errPatch && atualizado) {
+        return atualizado as UsuarioLoja;
+      }
+      return { ...usuarioBase, ...patchPerfil };
+    };
 
     let authUserIdExistente: string | null = params.usuarioAuthId || null;
     if (!authUserIdExistente) {
@@ -173,12 +201,15 @@ export const usuarioService = {
           pode_editar_vendas_passadas: ehAdmin || Boolean(params.podeEditarVendasPassadas),
           presta_servicos: Boolean(params.prestaServicos),
           especialidade_cargo: params.especialidadeCargo?.trim() || null,
+          url_foto: params.urlFoto !== undefined ? (params.urlFoto?.trim() || null) : undefined,
+          mini_curriculo: params.miniCurriculo !== undefined ? (params.miniCurriculo?.trim() || null) : undefined,
+          curriculo_aprovado: params.curriculoAprovado !== undefined ? Boolean(params.curriculoAprovado) : undefined,
           tela_inicial: telaInicialEfetiva,
         },
       });
 
       if (!fnErr && fnData?.sucesso && fnData?.usuario) {
-        return fnData.usuario as UsuarioLoja;
+        return await persistirCamposPerfilPublico(fnData.usuario as UsuarioLoja);
       }
 
       if (fnErr || (fnData && !fnData.sucesso)) {
@@ -227,7 +258,7 @@ export const usuarioService = {
       });
 
       if (!rpcErr && rpcUser) {
-        return rpcUser as UsuarioLoja;
+        return await persistirCamposPerfilPublico(rpcUser as UsuarioLoja);
       }
 
       if (rpcErr && !['42883', 'PGRST202'].includes(String(rpcErr.code || ''))) {
@@ -259,6 +290,9 @@ export const usuarioService = {
       pode_editar_vendas_passadas: ehAdmin || (params.podeEditarVendasPassadas ?? false),
       presta_servicos: Boolean(params.prestaServicos),
       especialidade_cargo: params.especialidadeCargo?.trim() || null,
+      ...(params.urlFoto !== undefined ? { url_foto: params.urlFoto?.trim() || null } : {}),
+      ...(params.miniCurriculo !== undefined ? { mini_curriculo: params.miniCurriculo?.trim() || null } : {}),
+      ...(params.curriculoAprovado !== undefined ? { curriculo_aprovado: Boolean(params.curriculoAprovado) } : {}),
       tela_inicial: telaInicialEfetiva,
       ativo: ehOwner ? true : (params.ativo ?? true),
       usuario_auth_id: params.id ? (authUserIdExistente || null) : null,
@@ -305,6 +339,19 @@ export const usuarioService = {
     }
 
     return usuarioSalvo;
+  },
+
+  /**
+   * Atualiza rapidamente apenas a foto de perfil de um colaborador (multi-tenant estrito)
+   */
+  async atualizarFotoColaborador(usuarioId: string, lojaId: string, urlFoto: string | null): Promise<void> {
+    const { error } = await supabase
+      .from('usuarios_loja')
+      .update({ url_foto: urlFoto?.trim() || null })
+      .eq('id', usuarioId)
+      .eq('loja_id', lojaId);
+
+    if (error) throw new Error(traduzirErroColaborador(error));
   },
 
   /**

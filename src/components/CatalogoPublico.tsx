@@ -21,7 +21,7 @@ import {
   Menu
 } from 'lucide-react';
 import { supabase } from '../lib/supabase';
-import { Loja, Produto, VariacaoProduto, Categoria, FormaEntrega, ModoExibicaoCatalogo, Cupom, Cliente, PedidoEntrega, Pedido } from '../types';
+import { Loja, Produto, VariacaoProduto, Categoria, FormaEntrega, ModoExibicaoCatalogo, Cupom, Cliente, PedidoEntrega, Pedido, UsuarioLoja } from '../types';
 import { LojaShippingConfig, ShippingSelectionResult } from '../types/shipping';
 import { ShippingFulfillmentSelector } from './shipping/ShippingFulfillmentSelector';
 import { ShippingOrchestrator } from '../services/shippingOrchestrator';
@@ -49,6 +49,7 @@ import { ModalCadernetaClienteCatalogo } from './ModalCadernetaClienteCatalogo';
 import { ModalPagamentoFechamentoCatalogo } from './catalogo/ModalPagamentoFechamentoCatalogo';
 import { ModalMeusDadosCliente } from './catalogo/ModalMeusDadosCliente';
 import { ModalAgendarServicoCatalogo } from './catalogo/ModalAgendarServicoCatalogo';
+import { PaginaApresentacaoCatalogo } from './catalogo/PaginaApresentacaoCatalogo';
 import { agendamentoService, formatarDataPtBr } from '../services/agendamentoService';
 import { whatsappWalletService } from '../services/whatsappWalletService';
 import type { ItemAgendamentoInfo } from '../types/agendamento';
@@ -76,6 +77,7 @@ import {
   SELECT_PEDIDO_ENTREGA_PUBLICO,
   SELECT_PEDIDO_PUBLICO,
   SELECT_PRODUTO_CATALOGO_COM_VARIACOES,
+  SELECT_PROFISSIONAL_PUBLICO,
 } from '../lib/publicSelects';
 import { calcularTaxaVisitaPedido } from '../utils/taxaDomicilioUtils';
 import { ModalInputPesoFracionado } from './ui/ModalInputPesoFracionado';
@@ -114,7 +116,10 @@ export const CatalogoPublico: React.FC = () => {
   const [loja, setLoja] = useState<Loja | null>(null);
   const [produtos, setProdutos] = useState<Produto[]>([]);
   const [categorias, setCategorias] = useState<Categoria[]>([]);
+  const [profissionaisEquipe, setProfissionaisEquipe] = useState<UsuarioLoja[]>([]);
   const [formasEntrega, setFormasEntrega] = useState<FormaEntrega[]>([]);
+  const [forcarVitrineCompleta, setForcarVitrineCompleta] = useState<boolean>(false);
+  const [profissionalPreSelecionado, setProfissionalPreSelecionado] = useState<UsuarioLoja | null>(null);
   const [carregando, setCarregando] = useState<boolean>(true);
 
   const [busca, setBusca] = useState<string>('');
@@ -1093,6 +1098,21 @@ export const CatalogoPublico: React.FC = () => {
             .eq('ativo', true)
             .order('ordem_exibicao');
           if (cats) setCategorias(cats);
+
+          if (l.modo_exibicao_catalogo === 'apresentacao' && l.lp_mostrar_equipe !== false) {
+            const { data: profs } = await supabase
+              .from('usuarios_loja')
+              .select(SELECT_PROFISSIONAL_PUBLICO)
+              .eq('loja_id', l.id)
+              .eq('ativo', true)
+              .eq('presta_servicos', true)
+              .order('nome_completo', { ascending: true });
+            if (profs) {
+              setProfissionaisEquipe(profs as unknown as UsuarioLoja[]);
+            }
+          } else {
+            setProfissionaisEquipe([]);
+          }
 
           const { data: fretes } = await supabase
             .from('formas_entrega')
@@ -3317,8 +3337,36 @@ Fico no aguardo da confirmação! ✨`;
         </div>
       </header>
 
-      {/* BANNER DA LOJA SE HABILITADO */}
-      {bannerAtivo && loja?.url_banner && (
+      {/* CONTEÚDO PRINCIPAL: PÁGINA DE APRESENTAÇÃO OPCIONAL OU VITRINE PADRÃO */}
+      {loja?.modo_exibicao_catalogo === 'apresentacao' &&
+      !forcarVitrineCompleta &&
+      categoriaSelecionada === 'todas' &&
+      !busca.trim() ? (
+        <PaginaApresentacaoCatalogo
+          loja={loja}
+          categorias={categoriasOrdenadas}
+          produtos={produtos}
+          profissionais={profissionaisEquipe}
+          isDark={isDark}
+          onAbrirVitrineCompleta={() => {
+            setForcarVitrineCompleta(true);
+            window.scrollTo({ top: 0, behavior: 'smooth' });
+          }}
+          onSelecionarEspecialidade={(categoriaId) => {
+            setCategoriaSelecionada(categoriaId);
+            setForcarVitrineCompleta(true);
+            window.scrollTo({ top: 0, behavior: 'smooth' });
+          }}
+          onAgendarComProfissional={(prof) => {
+            setProfissionalPreSelecionado(prof);
+            setForcarVitrineCompleta(true);
+            window.scrollTo({ top: 0, behavior: 'smooth' });
+          }}
+        />
+      ) : (
+        <>
+          {/* BANNER DA LOJA SE HABILITADO */}
+          {bannerAtivo && loja?.url_banner && (
         <div className="w-full bg-slate-950 border-b border-slate-800/80 overflow-hidden">
           <div className="max-w-6xl mx-auto">
             <img
@@ -3439,6 +3487,40 @@ Fico no aguardo da confirmação! ✨`;
       </div>
 
       <div className="max-w-6xl mx-auto w-full p-4 space-y-4 flex-1">
+        {loja?.modo_exibicao_catalogo === 'apresentacao' && (
+          <div className="flex flex-wrap items-center justify-between gap-2.5 pb-1">
+            <button
+              type="button"
+              onClick={() => {
+                setCategoriaSelecionada('todas');
+                setBusca('');
+                setForcarVitrineCompleta(false);
+                setProfissionalPreSelecionado(null);
+                window.scrollTo({ top: 0, behavior: 'smooth' });
+              }}
+              className="px-3.5 py-2 rounded-xl text-xs font-bold bg-slate-200 hover:bg-slate-300 text-black border border-slate-300 dark:bg-slate-800 dark:hover:bg-slate-700 dark:text-white dark:border-slate-700 transition cursor-pointer inline-flex items-center gap-1.5"
+            >
+              <span>← Voltar para Apresentação</span>
+            </button>
+
+            {profissionalPreSelecionado && (
+              <div className="flex items-center gap-2 px-3 py-1.5 rounded-xl bg-emerald-300/25 border border-emerald-500/40 text-xs font-bold text-emerald-900 dark:text-emerald-300">
+                <Calendar className="w-3.5 h-3.5 text-emerald-600 dark:text-emerald-400 shrink-0" />
+                <span>
+                  Agendando com <strong>{profissionalPreSelecionado.nome_completo}</strong> — escolha o serviço desejado abaixo
+                </span>
+                <button
+                  type="button"
+                  onClick={() => setProfissionalPreSelecionado(null)}
+                  className="ml-1 p-0.5 rounded hover:bg-black/10 dark:hover:bg-white/10 cursor-pointer"
+                  title="Limpar profissional selecionado"
+                >
+                  <X className="w-3.5 h-3.5" />
+                </button>
+              </div>
+            )}
+          </div>
+        )}
 
         {/* LISTAGEM DE PRODUTOS NOS 3 MODOS (COM AGRUPAMENTO EM BLOCOS) */}
         {carregando ? (
@@ -3844,6 +3926,8 @@ Fico no aguardo da confirmação! ✨`;
           </div>
         )}
       </div>
+        </>
+      )}
 
       {produtoModalVariacao && (
         <div className="fixed inset-0 bg-black/75 backdrop-blur-sm flex items-center justify-center p-4 z-50 animate-in fade-in">
@@ -4930,6 +5014,7 @@ Fico no aguardo da confirmação! ✨`;
           onClose={() => setServicoParaAgendamento(null)}
           produto={servicoParaAgendamento}
           lojaId={loja.id}
+          profissionalInicialId={profissionalPreSelecionado?.id || null}
           onConfirmarAgendamento={(dadosAgendamento) => {
             adicionarAoCarrinho(servicoParaAgendamento, null, 1, false, dadosAgendamento);
             setServicoParaAgendamento(null);

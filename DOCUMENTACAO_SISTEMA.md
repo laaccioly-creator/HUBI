@@ -1,7 +1,7 @@
 # 📘 DOCUMENTAÇÃO TÉCNICA E ARQUITETURAL DO SISTEMA HUBI
 
-> **Versão do Documento:** 1.8.0  
-> **Data de Atualização:** 06/11/2026  
+> **Versão do Documento:** 1.9.0  
+> **Data de Atualização:** 28/11/2026  
 > **Classificação:** Documento Técnico de Arquitetura, Engenharia e Operações  
 > **Público-alvo:** Desenvolvedores, Engenheiros de Software, Arquitetos e Agentes de IA
 
@@ -40,9 +40,13 @@
    - [4.13 Módulo Caderneta de Mercadinho (Conta Corrente, Ciclo Mensal e Coexistência com Fiado)](#413-módulo-caderneta-de-mercadinho-conta-corrente-ciclo-mensal-e-coexistência-com-fiado)
    - [4.14 Importação de Clientes em Lote (WhatsApp, Google Contatos e CSV) com Guia Passo a Passo](#414-importação-de-clientes-em-lote-whatsapp-google-contatos-e-csv-com-guia-passo-a-passo)
    - [4.15 Módulo de Subcategorias e Hierarquia de Árvore no Catálogo e Estoque](#415-módulo-de-subcategorias-e-hierarquia-de-árvore-no-catálogo-e-estoque)
-   - [4.16 Painel de Governança dos 8 Gatilhos Granulares de Disparo WhatsApp](#416-painel-de-governança-dos-8-gatilhos-granulares-de-disparo-whatsapp)
+   - [4.16 Painel de Governança dos 10 Gatilhos Granulares de Disparo WhatsApp](#416-painel-de-governança-dos-10-gatilhos-granulares-de-disparo-whatsapp)
    - [4.17 Unificação de Identidade via WhatsApp e Saneamento de Duplicados](#417-unificação-de-identidade-via-whatsapp-e-saneamento-de-duplicados)
    - [4.18 Módulo de Agendamento de Serviços Omnichannel (PDV, Retaguarda e Catálogo Online PWA)](#418-módulo-de-agendamento-de-serviços-omnichannel-pdv-retaguarda-e-catálogo-online-pwa)
+   - [4.19 Integração Nativa com Shopee e Publicação em Massa Unificada (ML & Shopee)](#419-integração-nativa-com-shopee-e-publicação-em-massa-unificada-ml--shopee)
+   - [4.20 Cockpit Área HUBI (Super Admin)](#420-cockpit-área-hubi-super-admin)
+   - [4.21 Onboarding Inteligente, Checklist de Prontidão e Governança de Módulos](#421-onboarding-inteligente-checklist-de-prontidão-e-governança-de-módulos)
+   - [4.22 Regime de Caixa (`data_pagamento`), Comprovante no Catálogo e Recuperação de Senha via WhatsApp](#422-regime-de-caixa-data_pagamento-comprovante-no-catálogo-e-recuperação-de-senha-via-whatsapp)
 5. [Serviços e Utilitários Globais](#5-serviços-e-utilitários-globais)
    - [5.1 Supabase Client e Camada de Acesso a Dados](#51-supabase-client-e-camada-de-acesso-a-dados)
    - [5.2 Orquestrador e Serviços de Logística (Uber Direct, Melhor Envio e Despachos Manuais)](#52-orquestrador-e-serviços-de-logística-uber-direct-melhor-envio-e-despachos-manuais)
@@ -69,6 +73,8 @@
    - [5.23 Motor de Síntese de Voz Gemini Studio Voice TTS (`geminiTtsService.ts`)](#523-motor-de-síntese-de-voz-gemini-studio-voice-tts-geminittsservicets)
    - [5.24 Supabase Edge Function `gemini-proxy` (Blindagem Zero-Trust de Credenciais)](#524-supabase-edge-function-gemini-proxy-blindagem-zero-trust-de-credenciais)
    - [5.25 Motor de Agendamento e Gestão de Capacidade (`agendamentoService.ts`)](#525-motor-de-agendamento-e-gestão-de-capacidade-agendamentoservicets)
+   - [5.26 Serviços de Marketplaces Unificados (Shopee, Publicação em Massa e Espelhamento de Imagens)](#526-serviços-de-marketplaces-unificados-shopee-publicação-em-massa-e-espelhamento-de-imagens)
+   - [5.27 Serviços de Onboarding, Área HUBI, Comprovantes, Recuperação de Senha e Utilitários Recentes](#527-serviços-de-onboarding-área-hubi-comprovantes-recuperação-de-senha-e-utilitários-recentes)
 
 ---
 
@@ -131,10 +137,17 @@ O **HUBI** é uma solução completa de Enterprise Resource Planning (ERP), Pont
   - `hubi-criar-recarga-whatsapp-mp`: Emissão de cobrança Pix dinâmica para recargas da carteira WhatsApp.
   - `hubi-criar-assinatura-mp` & `hubi-webhook-mp`: Gestão de anuidade do software, checkout Mercado Pago e confirmação em tempo real.
   - `ml-oauth`, `ml-estoque-sync`, `ml-webhook`, `ml-etiquetas`: Conexão OAuth 2.0 com Mercado Livre, push de estoque, ingestão de pedidos e download de etiquetas.
+  - `shopee-oauth`, `shopee-estoque-sync`, `shopee-webhook`: Conexão OAuth 2.0 com a Shopee (`_shared/shopeeClient.ts`), sincronização de estoque e ingestão idempotente de pedidos.
+  - `espelhar-imagem-storage`: Espelhamento de imagens externas de produtos para o Supabase Storage (`_shared/imagemStorageHelper.ts`).
+  - `recuperar-senha-whatsapp`: Emissão e validação de código de 6 dígitos via WhatsApp para redefinição segura de senha de colaboradores.
+  - `whatsapp-lembretes-vencimento`: Disparo matinal agendado via `pg_cron` (08:00 BRT) para lembretes de vencimento de Caderneta e Fiado.
+  - `criar-colaborador-loja`: Criação segura de operadores e colaboradores na loja com criptografia bcrypt.
   - `buscar-fotos-serpapi`: Busca automatizada de imagens de produtos via SerpApi com fallback global de plataforma.
   - `uber-dispatch` & `uber-webhook`: Despacho e rastreio de entregas expressas ponto a ponto.
-  - `melhor-envio-despacho`: Cotação e emissão de etiquetas multi-transportadoras / Correios com sincronização SRO.
+  - `melhor-envio-despacho` & `melhor-envio-webhook`: Cotação, emissão de etiquetas e sincronização SRO / webhooks de rastreamento.
+  - `whatsapp-webhook`: Receptor de eventos inbound da Meta Cloud API para ativação da janela gratuita de 24h e atendimento receptivo.
   - `typesafe-eval`: Proxy blindado para avaliações e julgamentos com o modelo **Jev (TypeSafe AI / System One)**.
+  - Módulos compartilhados (`supabase/functions/_shared/`): `mpPlataformaConfig.ts` (credenciais Mercado Pago), `whatsappMetaConfig.ts` (Meta Cloud API), `shopeeClient.ts` e `imagemStorageHelper.ts`.
 - **APIs e Gateways Externos:**
   - *Uber Direct REST API v1*: Cotação de entrega expressa ponto a ponto e despacho de entregadores.
   - *Melhor Envio API v2*: Cotação de fretes multisedex (Correios, Jadlog, Loggi, Latam Cargo) e emissão de etiquetas.
@@ -292,8 +305,16 @@ erDiagram
 | `status_pronto_para_retirar` | BOOLEAN | DEFAULT FALSE | Habilita status 'pronto_para_retirar' para retiradas na loja |
 | `caderneta_ativa` | BOOLEAN | DEFAULT FALSE | Feature toggle para habilitar o módulo de Caderneta de Mercadinho |
 | `dia_vencimento_padrao_caderneta` | INTEGER | DEFAULT 10, CHECK (dia >= 1 AND dia <= 31) | Dia padrão de fechamento/acerto da caderneta na loja |
+| `ciclo_padrao_caderneta` | TEXT | DEFAULT 'mensal' | Periodicidade padrão da caderneta ('mensal', 'quinzenal', 'semanal') |
+| `dia_semana_padrao_caderneta` | INTEGER | NULL | Dia da semana padrão para acertos semanais (0 a 6) |
+| `dia_vencimento_2_padrao_caderneta` | INTEGER | NULL | Segundo dia de vencimento no mês para acertos quinzenais |
+| `trabalha_com_agenda` | BOOLEAN | DEFAULT FALSE | Habilita o módulo de agendamento de serviços e agenda na loja |
+| `atendimento_domicilio_ativo` | BOOLEAN | DEFAULT FALSE | Habilita prestação de serviços em domicílio pela loja |
+| `taxa_padrao_domicilio` | NUMERIC(10,2) | NOT NULL DEFAULT 0.00 | Taxa padrão de deslocamento para atendimentos a domicílio |
+| `abater_taxa_domicilio_ao_fechar` | BOOLEAN | NOT NULL DEFAULT FALSE | Define se a taxa de domicílio é abatida do total ao concluir o serviço |
 | `exigir_pesagem_previa_pagamento` | BOOLEAN | NOT NULL DEFAULT FALSE | Quando TRUE, pedidos no catálogo online com itens vendidos por quilo (kg) têm o pagamento bloqueado até o lojista aferir o peso real na balança |
 | `whatsapp_auto_ativo` | BOOLEAN | NOT NULL DEFAULT FALSE | Habilita ou desabilita o envio automático de notificações via WhatsApp Cloud API |
+| `whatsapp_ia_receptiva_ativa` | BOOLEAN | NOT NULL DEFAULT FALSE | Habilita atendimento receptivo automatizado pela IA no WhatsApp da loja |
 | `wpp_auto_pedido_confirmado` | BOOLEAN | NOT NULL DEFAULT TRUE | Disparo automático ao confirmar novo pedido do catálogo |
 | `wpp_auto_pesagem_concluida` | BOOLEAN | NOT NULL DEFAULT TRUE | Disparo automático ao liberar pagamento de itens pesáveis |
 | `wpp_auto_status_separacao` | BOOLEAN | NOT NULL DEFAULT FALSE | Disparo automático em mudanças de status do pedido |
@@ -302,6 +323,18 @@ erDiagram
 | `wpp_auto_pedido_entregue` | BOOLEAN | NOT NULL DEFAULT FALSE | Disparo automático quando a entrega é concluída com sucesso |
 | `wpp_auto_recibo_venda` | BOOLEAN | NOT NULL DEFAULT FALSE | Disparo automático do recibo digital de venda no PDV Balcão |
 | `wpp_auto_comprovante_fiado` | BOOLEAN | NOT NULL DEFAULT TRUE | Disparo automático do comprovante de lançamento na caderneta/fiado |
+| `wpp_auto_vencimento_caderneta` | BOOLEAN | NOT NULL DEFAULT TRUE | Disparo matinal automático (08:00 BRT) no dia do vencimento da Caderneta |
+| `wpp_auto_vencimento_fiado` | BOOLEAN | NOT NULL DEFAULT TRUE | Disparo matinal automático (08:00 BRT) no dia do vencimento de compras Fiado |
+| `desconto_padrao_atacado_percentual` | NUMERIC(5,2) | DEFAULT 0 | Percentual padrão de desconto automático para tabela Atacado |
+| `tipo_minimo_padrao_atacado` | VARCHAR(30) | DEFAULT 'valor' | Critério de ativação do Atacado padrão ('valor', 'quantidade', 'sku') |
+| `qtd_minima_padrao_atacado` | NUMERIC(12,3) | DEFAULT 0 | Quantidade mínima padrão no carrinho para Atacado |
+| `valor_minimo_padrao_atacado` | NUMERIC(12,2) | DEFAULT 0 | Valor mínimo padrão no carrinho para Atacado |
+| `qtd_minima_sku_padrao_atacado` | NUMERIC(12,3) | DEFAULT 0 | Quantidade mínima padrão por SKU para Atacado |
+| `desconto_padrao_autoatacado_percentual` | NUMERIC(5,2) | DEFAULT 0 | Percentual padrão de desconto automático para tabela Autoatacado |
+| `tipo_minimo_padrao_autoatacado` | VARCHAR(30) | DEFAULT 'valor' | Critério de ativação do Autoatacado padrão ('valor', 'quantidade', 'sku') |
+| `qtd_minima_padrao_autoatacado` | NUMERIC(12,3) | DEFAULT 0 | Quantidade mínima padrão no carrinho para Autoatacado |
+| `valor_minimo_padrao_autoatacado` | NUMERIC(12,2) | DEFAULT 0 | Valor mínimo padrão no carrinho para Autoatacado |
+| `qtd_minima_sku_padrao_autoatacado` | NUMERIC(12,3) | DEFAULT 0 | Quantidade mínima padrão por SKU para Autoatacado |
 | `whatsapp_saldo` | NUMERIC(12,2) | NOT NULL DEFAULT 2.00 | Saldo financeiro pré-pago da carteira de WhatsApp da loja (inicia com R$ 2,00 de degustação) |
 | `whatsapp_bonus_expira_em` | TIMESTAMPTZ | DEFAULT (NOW() + INTERVAL '7 days') | Validade do bônus inicial restrita aos 7 primeiros dias de trial da loja |
 | `whatsapp_alerta_saldo_baixo` | NUMERIC(10,2) | NOT NULL DEFAULT 5.00 | Limite financeiro para disparo de alerta visual de saldo acabando |
@@ -316,10 +349,11 @@ erDiagram
 | :--- | :--- | :--- | :--- |
 | `id` | UUID | PK, DEFAULT gen_random_uuid() | ID do perfil na loja |
 | `loja_id` | UUID | FK -> lojas(id) ON DELETE CASCADE | Vínculo tenant |
-| `usuario_auth_id` | UUID | FK -> auth.users(id) ON DELETE CASCADE | Vínculo com usuário autenticado Supabase |
+| `usuario_auth_id` | UUID | NULL, FK -> auth.users(id) ON DELETE CASCADE | Vínculo com usuário autenticado Supabase (opcional para colaboradores locais via `criar_usuario_operador`) |
 | `nome_completo` | VARCHAR(150) | NOT NULL | Nome do operador/vendedor |
 | `email` | VARCHAR(150) | NOT NULL | E-mail de login |
-| `perfil` | VARCHAR(20) | CHECK in ('admin', 'gerente', 'vendedor') | Nível hierárquico de acesso |
+| `senha_hash` | TEXT | NULL | Hash criptográfico bcrypt da senha do colaborador (`fn_garantir_bcrypt_senha_hash_usuario`) |
+| `perfil` | VARCHAR(20) | CHECK in ('admin', 'gerente', 'vendedor', 'profissional') | Nível hierárquico de acesso (inclui perfil dedicado 'profissional' para prestadores de serviço) |
 | `tela_inicial` | VARCHAR(50) | DEFAULT 'dashboard' | Rota/tela de pouso padrão após login do operador |
 | `pode_ver_preco_custo` | BOOLEAN | DEFAULT FALSE | Permissão para visualizar custo e margens de lucro |
 | `pode_exportar_relatorios` | BOOLEAN | DEFAULT FALSE | Permissão para exportar dados para planilhas |
@@ -350,12 +384,18 @@ erDiagram
 | `largura_cm` | NUMERIC(10,2) | DEFAULT 0.00 | Largura da embalagem para cotação de frete |
 | `altura_cm` | NUMERIC(10,2) | DEFAULT 0.00 | Altura da embalagem para cotação de frete |
 | `tipo_item` | VARCHAR(20) | CHECK in ('produto', 'servico') | Diferenciação entre produto físico e serviço |
+| `taxa_deslocamento_domicilio` | NUMERIC(10,2) | NULL | Taxa específica de deslocamento para atendimento a domicílio deste serviço |
+| `abater_taxa_domicilio_ao_fechar` | BOOLEAN | NULL | Sobrescrita por serviço para abatimento da taxa de domicílio ao fechar |
 | `preco_custo` | NUMERIC(12,2) | DEFAULT 0.00 | Preço de custo unitário |
 | `preco_venda_varejo` | NUMERIC(12,2) | NOT NULL DEFAULT 0.00 | Preço base unitário de varejo |
 | `preco_venda_atacado` | NUMERIC(12,2) | NULL | Preço unitário no atacado |
+| `tipo_minimo_atacado` | VARCHAR(30) | DEFAULT 'quantidade' | Critério mínimo do atacado ('quantidade' ou 'valor') |
 | `qtd_minima_atacado` | NUMERIC(12,3) | DEFAULT 6 | Quantidade mínima para ativar preço de atacado |
+| `valor_minimo_atacado` | NUMERIC(12,2) | NULL | Valor mínimo em reais para ativar preço de atacado |
 | `preco_venda_autoatacado` | NUMERIC(12,2) | NULL | Preço unitário no autoatacado (caixa fechada) |
+| `tipo_minimo_autoatacado` | VARCHAR(30) | DEFAULT 'quantidade' | Critério mínimo do autoatacado ('quantidade' ou 'valor') |
 | `qtd_minima_autoatacado` | NUMERIC(12,3) | DEFAULT 24 | Quantidade mínima para ativar autoatacado |
+| `valor_minimo_autoatacado` | NUMERIC(12,2) | NULL | Valor mínimo em reais para ativar autoatacado |
 | `preco_promocional` | NUMERIC(12,2) | NULL | Preço promocional temporário |
 | `promocao_ativa` | BOOLEAN | DEFAULT FALSE | Flag de ativação da promoção |
 | `quantidade_estoque` | NUMERIC(12,3) | DEFAULT 0 | Saldo físico atual em estoque |
@@ -395,7 +435,8 @@ erDiagram
 | `numero_pedido` | BIGSERIAL | NOT NULL | Número sequencial legível para operador e cliente |
 | `cliente_id` | UUID | FK -> clientes(id) ON DELETE SET NULL | Cliente associado (se identificado) |
 | `vendedor_id` | UUID | FK -> usuarios_loja(id) ON DELETE SET NULL | Operador responsável pela emissão |
-| `origem` | VARCHAR(20) | CHECK in ('pdv_mobile', 'pdv_desktop', 'catalogo_online') | Canal gerador do pedido |
+| `origem` | VARCHAR(20) | CHECK in ('pdv_mobile', 'pdv_desktop', 'catalogo_online', 'mercadolivre', 'shopee') | Canal gerador do pedido |
+| `shopee_order_sn` | VARCHAR(80) | NULL | Identificador único idempotente do pedido na Shopee (`uq_pedidos_loja_shopee_order_sn`) |
 | `tabela_preco_aplicada` | VARCHAR(20) | DEFAULT 'varejo' | Tabela de precificação adotada na venda |
 | `status` | VARCHAR(50) | CHECK in ('pendente', 'confirmado', 'em_separacao', 'em_producao', 'em_expedicao', 'saiu_para_entrega', 'pronto_para_retirar', 'entregue', 'concluido', 'cancelado', 'vencido') | Estado do fluxo operacional |
 | `status_pagamento` | VARCHAR(30) | DEFAULT 'aguardando_pagamento', CHECK in ('aguardando_pesagem', 'aguardando_pagamento', 'pago', 'parcialmente_pago', 'fiado', 'caderneta', 'cancelado') | Estado da quitação financeira (inclui retenção 'aguardando_pesagem' para pedidos com itens fracionados) |
@@ -406,6 +447,8 @@ erDiagram
 | `valor_desconto` | NUMERIC(10,2) | DEFAULT 0.00 | Desconto total concedido |
 | `desconto_percentual` | NUMERIC(5,2) | DEFAULT 0.00 | Percentual correspondente do desconto |
 | `valor_frete` | NUMERIC(10,2) | DEFAULT 0.00 | Valor cobrado pelo transporte/entrega |
+| `valor_taxa_domicilio` | NUMERIC(10,2) | NOT NULL DEFAULT 0.00 | Taxa de deslocamento em atendimentos externos/domicílio |
+| `levar_produto_no_atendimento` | BOOLEAN | NOT NULL DEFAULT FALSE | Sinaliza pedido híbrido onde produtos acompanham o prestador até o atendimento |
 | `valor_total` | NUMERIC(10,2) | NOT NULL DEFAULT 0.00 | Total final (Produtos - Desconto + Frete) |
 | `valor_pago` | NUMERIC(12,2) | DEFAULT 0.00 | Soma dos valores já quitados |
 | `saldo_devedor` | NUMERIC(12,2) | DEFAULT 0.00 | Valor pendente (em casos de fiado ou parcial) |
@@ -423,9 +466,12 @@ erDiagram
 | `cliente_telefone_avulso`| VARCHAR(20) | NULL | Telefone do cliente avulso |
 | `cliente_documento_avulso`| VARCHAR(20) | NULL | CPF/CNPJ informado na hora da compra |
 | `cliente_email_avulso` | VARCHAR(100) | NULL | E-mail do cliente avulso |
+| `comprovante_pagamento_url` | TEXT | NULL | URL pública (Storage `comprovantes-pagamento`) ou Data URL do comprovante Pix enviado pelo cliente |
+| `comprovante_enviado_em` | TIMESTAMPTZ | NULL | Carimbo de data/hora do envio do comprovante pelo cliente no Catálogo Online |
 | `atualizado_por` | UUID | FK -> usuarios_loja(id) ON DELETE SET NULL | Último operador que editou o pedido |
 | `observacoes` | TEXT | NULL | Notas internas e observações de entrega |
-| `data_venda` | TIMESTAMPTZ | DEFAULT NOW() | Data contábil/operacional da venda |
+| `data_venda` | TIMESTAMPTZ | DEFAULT NOW() | Data contábil/operacional de emissão da venda |
+| `data_pagamento` | TIMESTAMPTZ | NULL | Data/hora efetiva do recebimento/quitação (Regime de Caixa Real via triggers) |
 | `motivo_cancelamento` | TEXT | NULL | Justificativa em caso de cancelamento |
 
 #### 6. Tabela `pedido_entregas` (Módulo Dedicado de Logística e Frete)
@@ -733,6 +779,7 @@ erDiagram
 | `periodo_fim_em` | TIMESTAMPTZ | NULL | Fim da vigência anual da loja (+365 dias) |
 | `link_checkout` | TEXT | NULL | URL do Checkout Pro gerada no Mercado Pago |
 | `aprovado_em` | TIMESTAMPTZ | NULL | Data/hora de confirmação pelo webhook |
+| `observacoes_admin` | TEXT | NULL | Notas administrativas registradas pelo Super Admin na ativação manual |
 | `criado_em` / `atualizado_em` | TIMESTAMPTZ | DEFAULT NOW() | Carimbos de auditoria |
 
 #### 22. Tabela `sistema_logs` (Observabilidade, Auditoria de Erros e LGPD)
@@ -770,6 +817,16 @@ Tabela singleton de governança do ecossistema HUBI (`id = 1`), permitindo ao Su
 | `meta_access_token` | TEXT | NULL | Token permanente de usuário do sistema da Meta Cloud API |
 | `meta_verify_token` | TEXT | DEFAULT 'hubi_whatsapp_webhook_token' | Token de validação de webhooks da Meta Cloud API |
 | `serpapi_key` | TEXT | NULL | Chave SerpApi global da plataforma HUBI utilizada como fallback automático de fotos |
+| `mp_ambiente` | VARCHAR(20) | NOT NULL DEFAULT 'sandbox' | Ambiente ativo de cobranças da plataforma Mercado Pago ('sandbox' ou 'production') |
+| `mp_public_key` | TEXT | NULL | Public Key global do Mercado Pago gerenciada pelo Super Admin |
+| `mp_access_token` | TEXT | NULL | Access Token global do Mercado Pago resolvido server-side (`_shared/mpPlataformaConfig.ts`) |
+| `mp_webhook_secret` | TEXT | NULL | Chave secreta de validação de assinatura de webhooks do Mercado Pago |
+| `meta_hubi_faturamento` | NUMERIC(12,2) | NOT NULL DEFAULT 0.00 | Meta executiva global de faturamento da plataforma HUBI |
+| `meta_hubi_vendas` | INTEGER | NOT NULL DEFAULT 0 | Meta de volume de assinaturas/vendas da plataforma HUBI |
+| `meta_hubi_conversao_percentual` | NUMERIC(5,2) | NOT NULL DEFAULT 0.00 | Meta de taxa de conversão de trials em assinaturas ativas (%) |
+| `meta_hubi_max_nao_renovados` | INTEGER | NOT NULL DEFAULT 0 | Teto tolerado de lojas não renovadas no período |
+| `meta_hubi_lojas_ativas` | INTEGER | NOT NULL DEFAULT 0 | Meta de lojas ativas simultâneas na plataforma |
+| `meta_hubi_receita_whatsapp` | NUMERIC(12,2) | NOT NULL DEFAULT 0.00 | Meta global de receita com recargas da carteira WhatsApp |
 | `modo_manutencao` | BOOLEAN | NOT NULL DEFAULT FALSE | Flag de bloqueio temporário global para manutenções |
 | `mensagem_manutencao` | TEXT | NULL | Aviso informativo exibido em modo de manutenção |
 | `atualizado_em` | TIMESTAMPTZ | NOT NULL DEFAULT NOW() | Carimbo de auditoria da última alteração de parâmetros |
@@ -779,20 +836,25 @@ Tabela singleton de governança do ecossistema HUBI (`id = 1`), permitindo ao Su
 > - `SELECT`: Permitido para `public` (anon e authenticated) para carregamento inicial transparente de parâmetros comerciais e prazos de trial.
 > - `ALL` / `UPDATE`: Políticas `escrita_config_plataforma` com validação de credencial e gestão pelo Super Admin via painel dedicado (`CardParametrosHubiAdmin.tsx`).
 
-#### 24. Tabela `marketplace_contas` (Conexões OAuth e Credenciais de Marketplaces)
-Gerencia os vínculos OAuth 2.0 multi-lojas com marketplaces externos (Mercado Livre), armazenando tokens de acesso, refresh tokens e flags de automação por filial.
+#### 24. Tabela `marketplace_contas` (Conexões OAuth e Credenciais Unificadas de Marketplaces)
+Gerencia os vínculos OAuth 2.0 multi-lojas com marketplaces externos (**Mercado Livre** e **Shopee**), armazenando tokens de acesso, refresh tokens e flags de automação por filial.
 | Coluna | Tipo | Restrições | Descrição |
 | :--- | :--- | :--- | :--- |
 | `id` | UUID | PK, DEFAULT gen_random_uuid() | Identificador exclusivo do vínculo |
 | `loja_id` | UUID | NOT NULL, FK -> lojas(id) ON DELETE CASCADE | Filial proprietária da conexão |
-| `provedor` | VARCHAR(50) | NOT NULL DEFAULT 'mercadolivre' | Identificador do marketplace parceiro |
-| `ml_user_id` | VARCHAR(100) | NOT NULL, UNIQUE | ID numérico do lojista no Mercado Livre |
-| `ml_nickname` | VARCHAR(100) | NULL | Apelido / usuário oficial no Mercado Livre |
-| `ml_email` | VARCHAR(255) | NULL | E-mail da conta do Mercado Livre |
-| `ml_site_id` | VARCHAR(20) | NOT NULL DEFAULT 'MLB' | País da conta (MLB = Brasil) |
-| `access_token` | TEXT | NOT NULL | Token JWT de acesso às APIs do Mercado Livre |
+| `provedor` | VARCHAR(50) | NOT NULL DEFAULT 'mercadolivre', CHECK ('mercadolivre', 'shopee') | Identificador do marketplace parceiro |
+| `plataforma` | VARCHAR(30) | NOT NULL DEFAULT 'mercadolivre', CHECK ('mercadolivre', 'shopee') | Coluna unificada de plataforma na arquitetura multi-marketplace |
+| `seller_id` | VARCHAR(120) | NULL | Identificador unificado da loja vendedora no marketplace (Shopee `shop_id` / ML `user_id`) |
+| `ml_user_id` | VARCHAR(100) | NOT NULL | ID numérico do lojista no Mercado Livre ou `shop_id` na Shopee |
+| `ml_nickname` | VARCHAR(100) | NULL | Apelido / nome oficial da loja no marketplace |
+| `ml_email` | VARCHAR(255) | NULL | E-mail da conta vinculada |
+| `ml_site_id` | VARCHAR(20) | NOT NULL DEFAULT 'MLB' | País/região da conta (MLB / BR) |
+| `access_token` | TEXT | NOT NULL | Token JWT/OAuth de acesso às APIs do marketplace |
 | `refresh_token` | TEXT | NOT NULL | Token de renovação de credenciais |
 | `token_expira_em` | TIMESTAMPTZ | NOT NULL | Data e hora de expiração do access token atual |
+| `refresh_token_expires_at` | TIMESTAMPTZ | NULL | Expiração do refresh token (utilizado na Shopee para reautenticação preventiva) |
+| `shopee_partner_id` | VARCHAR(64) | NULL | Partner ID customizado por loja para Shopee (quando aplicável) |
+| `shopee_partner_key` | TEXT | NULL | Partner Key customizada por loja para assinatura HMAC-SHA256 da Shopee |
 | `sincronizar_estoque_auto` | BOOLEAN | NOT NULL DEFAULT TRUE | Habilita push automático de saldo ao alterar estoque local |
 | `importar_pedidos_auto` | BOOLEAN | NOT NULL DEFAULT TRUE | Habilita ingestão instantânea via webhooks de venda |
 | `status_conexao` | VARCHAR(30) | NOT NULL DEFAULT 'conectado' | Estado da sessão ('conectado', 'expirado', 'desconectado', 'erro') |
@@ -800,41 +862,43 @@ Gerencia os vínculos OAuth 2.0 multi-lojas com marketplaces externos (Mercado L
 | `criado_em` / `atualizado_em` | TIMESTAMPTZ | DEFAULT NOW() | Carimbos de auditoria |
 
 > **Restrições de Unicidade e RLS:**
-> - Constraint `UNIQUE (loja_id, provedor)` garantindo uma conta ativa por marketplace por filial.
+> - Índice único `uq_marketplace_contas_provedor_user` em `(provedor, ml_user_id)` e constraint `UNIQUE (loja_id, provedor)` garantindo uma conta ativa por marketplace por filial.
 > - RLS blindado aplicando `public.usuario_pertence_loja(loja_id)` para operações de leitura e manutenção da loja.
 
-#### 25. Tabela `marketplace_anuncios` (Mapeamento de Anúncios e Vínculos de Estoque GDM)
-Tabela relacional que vincula anúncios ativos do Mercado Livre (simples ou com variação) aos produtos e variações nativas do catálogo do HUBI.
+#### 25. Tabela `marketplace_anuncios` (Mapeamento Unificado de Anúncios e Vínculos GDM)
+Tabela relacional (habilitada no Supabase Realtime) que vincula anúncios ativos do **Mercado Livre** e **Shopee** (simples ou com variação) aos produtos e variações nativas do catálogo do HUBI.
 | Coluna | Tipo | Restrições | Descrição |
 | :--- | :--- | :--- | :--- |
 | `id` | UUID | PK, DEFAULT gen_random_uuid() | ID do mapeamento |
 | `loja_id` | UUID | NOT NULL, FK -> lojas(id) ON DELETE CASCADE | Filial operadora do anúncio |
 | `conta_id` | UUID | NOT NULL, FK -> marketplace_contas(id) ON DELETE CASCADE | Vínculo com a credencial OAuth ativa |
-| `ml_item_id` | VARCHAR(100) | NOT NULL | Código do anúncio no ML (ex: 'MLB1234567890') |
-| `ml_variation_id` | VARCHAR(100) | NOT NULL DEFAULT '' | ID da variação no ML (ou vazio para produtos simples) |
-| `ml_titulo` | TEXT | NOT NULL | Título cadastrado no anúncio do Mercado Livre |
-| `ml_permalink` | TEXT | NULL | Link público direto do produto no Mercado Livre |
-| `ml_status` | VARCHAR(50) | NOT NULL DEFAULT 'active' | Status no ML ('active', 'paused', 'closed') |
-| `ml_preco` | NUMERIC(10,2) | NOT NULL DEFAULT 0 | Preço praticado no Mercado Livre |
-| `ml_estoque_disponivel` | INTEGER | NOT NULL DEFAULT 0 | Último saldo de estoque reportado no ML |
+| `plataforma` | VARCHAR(30) | NOT NULL DEFAULT 'mercadolivre', CHECK ('mercadolivre', 'shopee') | Marketplace de origem do anúncio |
+| `ml_item_id` | VARCHAR(100) | NOT NULL | Código do anúncio no marketplace (ex: 'MLB1234567890' ou `item_id` Shopee) |
+| `ml_variation_id` | VARCHAR(100) | NOT NULL DEFAULT '' | ID da variação/modelo no marketplace (ou vazio para produtos simples) |
+| `ml_titulo` | TEXT | NOT NULL | Título cadastrado no anúncio do marketplace |
+| `ml_permalink` | TEXT | NULL | Link público direto do produto no marketplace |
+| `ml_status` | VARCHAR(50) | NOT NULL DEFAULT 'active' | Status no marketplace ('active', 'paused', 'closed') |
+| `ml_preco` | NUMERIC(10,2) | NOT NULL DEFAULT 0 | Preço praticado no marketplace |
+| `ml_estoque_disponivel` | INTEGER | NOT NULL DEFAULT 0 | Último saldo de estoque reportado no marketplace |
 | `produto_id` | UUID | NULL, FK -> produtos(id) ON DELETE SET NULL | Produto físico pai no estoque do HUBI |
 | `variacao_id` | UUID | NULL, FK -> variacoes_produto(id) ON DELETE SET NULL | Variação específica no estoque (se aplicável) |
-| `sincronizacao_ativa` | BOOLEAN | NOT NULL DEFAULT TRUE | Se deve propagar alterações de estoque local para o ML |
+| `sincronizacao_ativa` | BOOLEAN | NOT NULL DEFAULT TRUE | Se deve propagar alterações de estoque local para o marketplace |
 | `ultima_sincronizacao_em` | TIMESTAMPTZ | NULL | Carimbo da última sincronização bem-sucedida |
 | `ultimo_status_sync` | VARCHAR(50) | NULL | Status da última operação ('sucesso', 'erro') |
-| `ultimo_erro_sync` | TEXT | NULL | Detalhes em caso de inconsistência na API do ML |
+| `ultimo_erro_sync` | TEXT | NULL | Detalhes em caso de inconsistência na API do marketplace |
 | `criado_em` / `atualizado_em` | TIMESTAMPTZ | DEFAULT NOW() | Carimbos de auditoria |
 
-> **Unicidade:** `UNIQUE (conta_id, ml_item_id, ml_variation_id)` evitando duplicidade de vínculos.
+> **Unicidade:** Índice `uq_marketplace_anuncios_plat_item_var` em `(loja_id, plataforma, ml_item_id, COALESCE(ml_variation_id, 0))` evitando duplicidade de vínculos entre plataformas.
 
-#### 26. Tabela `marketplace_pedidos_webhook` (Auditoria, Webhooks e Fila de Ingestão ML)
-Armazena as notificações brutas de webhooks disparadas pelo Mercado Livre (`orders_v2`), assegurando processamento assíncrono idempotente e rastreabilidade total.
+#### 26. Tabela `marketplace_pedidos_webhook` (Auditoria, Webhooks e Fila de Ingestão Multi-Marketplace)
+Armazena as notificações brutas de webhooks disparadas pelo **Mercado Livre** (`orders_v2`) e **Shopee**, assegurando processamento assíncrono idempotente e rastreabilidade total.
 | Coluna | Tipo | Restrições | Descrição |
 | :--- | :--- | :--- | :--- |
 | `id` | UUID | PK, DEFAULT gen_random_uuid() | ID único da notificação |
 | `loja_id` | UUID | NOT NULL, FK -> lojas(id) ON DELETE CASCADE | Filial de destino |
 | `conta_id` | UUID | NOT NULL, FK -> marketplace_contas(id) ON DELETE CASCADE | Conta conectada receptora |
 | `provedor` | VARCHAR(50) | NOT NULL DEFAULT 'mercadolivre' | Identificador do canal emissor |
+| `plataforma` | VARCHAR(30) | NOT NULL DEFAULT 'mercadolivre', CHECK ('mercadolivre', 'shopee') | Marketplace emissor da notificação |
 | `topico` | VARCHAR(100) | NOT NULL | Tópico da notificação (ex: 'orders_v2') |
 | `resource` | TEXT | NOT NULL | URI do recurso no ML (ex: '/orders/2000001234567890') |
 | `ml_order_id` | VARCHAR(100) | NOT NULL | Identificador do pedido no Mercado Livre |
@@ -865,6 +929,9 @@ Centraliza o cadastro unificado de clientes do estabelecimento, limites de créd
 | `limite_caderneta` | NUMERIC(12,2) | DEFAULT 0.00 | Limite de crédito rotativo para a caderneta |
 | `saldo_devedor_caderneta`| NUMERIC(12,2) | DEFAULT 0.00 | Saldo devedor total acumulado no ciclo corrente da caderneta |
 | `dia_vencimento_caderneta`| INTEGER | DEFAULT 10, CHECK (dia >= 1 AND dia <= 31) | Dia fixo de acerto/fechamento mensal da caderneta |
+| `ciclo_caderneta` | TEXT | DEFAULT 'mensal' | Periodicidade de fechamento do cliente ('mensal', 'quinzenal', 'semanal') |
+| `dia_semana_caderneta` | INTEGER | NULL | Dia da semana de acerto para ciclos semanais (0 a 6) |
+| `dia_vencimento_2_caderneta` | INTEGER | NULL | Segundo dia fixo do mês para ciclos quinzenais |
 | `endereco_cep` | VARCHAR(10) | NULL | CEP residencial ou comercial |
 | `endereco_logradouro` | VARCHAR(200) | NULL | Logradouro / Rua |
 | `endereco_numero` | VARCHAR(20) | NULL | Número |
@@ -1001,6 +1068,71 @@ Registro relacional imutável de todas as reservas e atendimentos marcados via P
 | `observacoes` | TEXT | NULL | Notas adicionais |
 | `criado_em` / `atualizado_em` | TIMESTAMPTZ | NOT NULL DEFAULT NOW() | Carimbos temporais de auditoria |
 
+#### 34. Tabela `loja_onboarding_setup` (Questionário de Implantação e Prontidão Operacional)
+Armazena o diagnóstico inicial e preferências de ativação de módulos de cada loja (`UNIQUE loja_id`), orientando o checklist de prontidão sem expor parâmetros irrelevantes ao negócio.
+| Coluna | Tipo | Restrições | Descrição |
+| :--- | :--- | :--- | :--- |
+| `id` | UUID | PK, DEFAULT gen_random_uuid() | Identificador exclusivo do setup |
+| `loja_id` | UUID | UNIQUE, NOT NULL, FK -> lojas(id) ON DELETE CASCADE | Vínculo multi-tenant 1:1 com a loja |
+| `questionario_respondido` | BOOLEAN | NOT NULL DEFAULT FALSE | Indica se o gestor já respondeu ao diagnóstico inicial |
+| `respondido_em` | TIMESTAMPTZ | NULL | Data/hora de conclusão do questionário |
+| `opera_sozinho` | BOOLEAN | NOT NULL DEFAULT FALSE | Indica operação individual sem colaboradores/equipe adicional |
+| `interesse_catalogo_online` | BOOLEAN | NOT NULL DEFAULT TRUE | Interesse na vitrine virtual PWA |
+| `interesse_gateway_pagamento` | BOOLEAN | NOT NULL DEFAULT FALSE | Interesse em Pix automático / gateway |
+| `interesse_melhor_envio` | BOOLEAN | NOT NULL DEFAULT FALSE | Interesse em frete multi-transportadoras |
+| `interesse_uber_direct` | BOOLEAN | NOT NULL DEFAULT FALSE | Interesse em entregas expressas Uber Direct |
+| `interesse_apps_corrida` | BOOLEAN | NOT NULL DEFAULT FALSE | Interesse em despacho via apps de corrida |
+| `interesse_transportadoras_manuais` | BOOLEAN | NOT NULL DEFAULT FALSE | Interesse em transportadoras privadas manuais |
+| `interesse_ia_gemini` | BOOLEAN | NOT NULL DEFAULT TRUE | Interesse em assistente Rubi IA / geração de descrições |
+| `interesse_busca_fotos_serper` | BOOLEAN | NOT NULL DEFAULT TRUE | Interesse em busca automática de fotos |
+| `interesse_whatsapp_auto` | BOOLEAN | NOT NULL DEFAULT FALSE | Interesse em disparos automáticos via WhatsApp Wallet |
+| `interesse_whatsapp_ia_receptiva` | BOOLEAN | NOT NULL DEFAULT FALSE | Interesse em atendimento receptivo por IA no WhatsApp |
+| `interesse_mercado_livre` | BOOLEAN | NOT NULL DEFAULT FALSE | Interesse em integração com Mercado Livre |
+| `interesse_agendamento_servicos` | BOOLEAN | NOT NULL DEFAULT FALSE | Interesse no módulo de agendamento de serviços |
+| `interesse_venda_por_peso` | BOOLEAN | NOT NULL DEFAULT FALSE | Interesse em balança / itens por quilo |
+| `interesse_caderneta_fiado` | BOOLEAN | NOT NULL DEFAULT FALSE | Interesse em Caderneta de Mercadinho e Fiado |
+| `unidades_conferidas` | BOOLEAN | NOT NULL DEFAULT FALSE | Marco de conferência de unidades/filiais no checklist |
+| `metas_conferidas` | BOOLEAN | NOT NULL DEFAULT FALSE | Marco de conferência das metas da loja |
+| `perfil_ia_conferido` | BOOLEAN | NOT NULL DEFAULT FALSE | Marco de conferência do perfil/comportamento da IA |
+| `criado_em` / `atualizado_em` | TIMESTAMPTZ | NOT NULL DEFAULT NOW() | Carimbos de auditoria temporal |
+
+#### 35. Tabelas `marketplace_lotes_publicacao` e `marketplace_lotes_publicacao_itens` (Publicação em Massa Unificada)
+Registra em arquitetura relacional pura o cabeçalho de execuções em lote e o status individual de cada produto publicado no Mercado Livre ou Shopee.
+- **`marketplace_lotes_publicacao`:** `id` (UUID PK), `loja_id` (FK), `conta_id` (FK), `usuario_id` (FK), `provedor`, `plataforma` (`'mercadolivre'` | `'shopee'`), `escopo_tipo` (`'todos'` | `'categoria'`), `escopo_descricao`, `categoria_filtro_id`, `subcategoria_filtro_id`, `tipo_exposicao` (`'gold_special'` | `'gold_pro'` | `'shopee_padrao'`), `margem_sobrepreco_percentual`, `custo_fixo`, `status_lote` (`'em_andamento'` | `'concluido'` | `'cancelado'`), `total_itens`, `total_processados`, `total_sucesso`, `total_falha`, `iniciado_em`, `concluido_em`.
+- **`marketplace_lotes_publicacao_itens`:** `id` (UUID PK), `lote_id` (FK), `loja_id` (FK), `produto_id` (FK), `variacao_id` (FK), `nome_produto_snapshot`, `sku_snapshot`, `status_item` (`'sucesso'` | `'falha'`), `ml_item_id`, `ml_category_id`, `permalink`, `preco_calculado`, `gtin_utilizado`, `gtin_origem` (`'cadastro'` | `'ia_gs1'` | `'isento'`), `motivo_erro`, `processado_em`.
+
+#### 36. Tabela `recuperacao_senha_tokens` (Redefinição de Senha via WhatsApp)
+Tabela relacional protegida com bloqueio total para `anon`/`authenticated` (acesso exclusivo `service_role` via Edge Function `recuperar-senha-whatsapp`), armazenando códigos temporários de 6 dígitos em hash SHA-256.
+| Coluna | Tipo | Restrições | Descrição |
+| :--- | :--- | :--- | :--- |
+| `id` | UUID | PK, DEFAULT gen_random_uuid() | ID do token temporário |
+| `telefone_normalizado` | VARCHAR(20) | NOT NULL | Telefone no padrão canônico `55 + DDD + número` |
+| `codigo_hash` | TEXT | NOT NULL | Hash SHA-256 hexadecimal do código numérico de 6 dígitos |
+| `tentativas` | INTEGER | NOT NULL DEFAULT 0 | Contador de tentativas de validação |
+| `expira_em` | TIMESTAMPTZ | NOT NULL | Prazo de expiração do token |
+| `usado` | BOOLEAN | NOT NULL DEFAULT FALSE | Flag de invalidação pós-uso |
+| `criado_em` | TIMESTAMPTZ | NOT NULL DEFAULT NOW() | Carimbo de emissão |
+
+#### 37. Tabela `crediario_lembretes_enviados` (Idempotência de Lembretes Matinais)
+Ledger relacional que garante o disparo único diário de lembretes automáticos de vencimento para Caderneta de Mercadinho e Fiado (`pg_cron` + Edge Function `whatsapp-lembretes-vencimento`).
+| Coluna | Tipo | Restrições | Descrição |
+| :--- | :--- | :--- | :--- |
+| `id` | UUID | PK, DEFAULT gen_random_uuid() | ID do registro de envio |
+| `loja_id` | UUID | NOT NULL, FK -> lojas(id) ON DELETE CASCADE | Vínculo multi-tenant |
+| `cliente_id` | UUID | NOT NULL, FK -> clientes(id) ON DELETE CASCADE | Cliente notificado |
+| `pedido_id` | UUID | NULL, FK -> pedidos(id) ON DELETE CASCADE | Pedido fiado específico (NULL quando consolidado de caderneta) |
+| `tipo_credito` | VARCHAR(20) | NOT NULL, CHECK ('caderneta', 'fiado') | Modalidade de crediário cobrada |
+| `data_vencimento` | DATE | NOT NULL | Data de vencimento de referência |
+| `valor_cobrado` | NUMERIC(12,2) | NOT NULL | Valor informado no lembrete |
+| `modo_envio` | VARCHAR(30) | NOT NULL | Modo executado pelo motor híbrido WhatsApp |
+| `enviado_em` | TIMESTAMPTZ | NOT NULL DEFAULT NOW() | Carimbo de disparo |
+*Constraint UNIQUE diária:* `uq_crediario_lembretes_enviados_dia` em `(loja_id, tipo_credito, cliente_id, COALESCE(pedido_id, '00000000-...'), data_vencimento)`.
+
+#### 38. Tabelas Honeypot & Auditoria Anti-REA-Shield (`security_audit` e Iscas RLS)
+Estruturas dedicadas da Onda 2 do **Anti-REA-Shield** (`20261126_anti_rea_shield_honeypot_e_catalogo_seguro.sql`) para detecção ativa de varredura não autorizada via PostgREST:
+- `security_audit.blacklisted_actors`: registra atores interceptados (`usuario_id`, `ip_address`, `user_agent`, `tabela_isca`, `modo_operacao`, `bloqueio_ativo`, `expira_em` com TTL de 60 minutos para IPs anônimos evitando falsos positivos em CGNAT).
+- Iscas públicas com políticas RLS `VOLATILE SECURITY DEFINER` (`armadilha_leitura_honeypot`): `public.system_master_config`, `public.api_keys_vault` e `public.tenant_admin_bypass`, além da RPC chamariz `public.rpc_export_full_database_dump()`.
+
 ### 3.3 Triggers, Automações e Segurança no Banco (RLS)
 1. **Baixa e Reajuste Automático de Estoque (`fn_atualizar_estoque_pedido`):**
    - Disparado em `AFTER INSERT` na tabela `itens_pedido`.
@@ -1013,17 +1145,21 @@ Registro relacional imutável de todas as reservas e atendimentos marcados via P
    - Disparado em `AFTER UPDATE` na tabela `pedidos` quando `OLD.status IS DISTINCT FROM NEW.status`.
    - Previne duplicidade com janela de idempotência defensiva (3 segundos).
    - Registra automaticamente o evento na tabela `historico_pedidos` contendo `status_anterior`, `status_novo`, `motivo`, transportadora/app envolvido e descrição humana detalhada.
-4. **Cálculo RPC de Métricas do Cockpit Executivo F1 (`obter_metricas_cockpit_f1`):**
-   - Stored procedure otimizada para consolidar faturamento bruto, CMV real, taxas de cartões, volume de pedidos, ticket médio e contas a pagar em uma única chamada de alta performance.
-5. **Funções Security Definer & Utilitários de Banco:**
+4. **Sincronização de Regime de Caixa (`fn_sincronizar_data_pagamento_pedido`, `fn_preencher_data_pagamento_item` & `fn_sincronizar_pedido_apos_pagamento`):**
+   - Mantém `pedidos.data_pagamento` e `pagamentos_pedido.data_pagamento` sincronizados automaticamente nas quitações em tempo real (limpando em pedidos `aguardando_pagamento`, `aguardando_pesagem` ou `cancelado`).
+   - Alimenta as RPCs `obter_metricas_cockpit_f1` e `obter_metricas_cockpit` com apuração financeira por data efetiva de recebimento.
+5. **Segurança de Senhas e Criação de Operadores (`fn_garantir_bcrypt_senha_hash_usuario`, `validar_senha_colaborador`, `atualizar_senha_hash_colaborador` & `criar_usuario_operador`):**
+   - Garante criptografia automática com `pgcrypto` (`bcrypt`) em `usuarios_loja.senha_hash` via trigger e permite criação/autenticação de operadores sem dependência obrigatória de conta `auth.users`.
+6. **Funções Security Definer & Utilitários de Banco:**
    - `public.normalizar_telefone_com_ddi(tel TEXT)`: Função `IMMUTABLE` que sanitiza caracteres não-dígito e adiciona o DDI nacional 55 determinístico para telefones com 10 e 11 dígitos.
    - `public.usuario_pertence_loja(p_loja_id UUID)`: Valida em tempo real se `auth.uid()` possui vínculo ativo com a loja solicitada.
    - `public.eh_gerente_ou_admin(p_loja_id UUID)`: Valida se o usuário tem privilégio gerencial para visualizar relatórios ou alterar parâmetros globais.
+   - `public.rpc_listar_catalogo_protegido(...)`, `public.rpc_criar_pedido_catalogo_seguro(...)`, `public.rpc_autenticar_cliente_catalogo(...)` e `public.rpc_registrar_comprovante_pedido_catalogo(...)`: RPCs Zero-Trust para operação pública do Catálogo Online sem exposição direta de colunas internas/custos.
    - `public.obter_pedido_para_pagamento_catalogo(p_pedido_id UUID, p_slug_catalogo VARCHAR)`: RPC com `SECURITY DEFINER` liberada para `anon` e `authenticated`, retornando de forma segura e higienizada os dados do pedido pesado, itens (quantidades solicitadas e pesos aferidos na balança) e dados da caderneta com validação estrita de tenant (`loja_id`).
    - `public.debitar_saldo_whatsapp_atomico(...)`: RPC com bloqueio pessimista (`SELECT ... FOR UPDATE`) que abate a tarifa de disparo do saldo pré-pago e insere o evento no ledger auditável `loja_whatsapp_transacoes`.
    - `public.creditar_recarga_whatsapp_atomico(...)`: RPC idempotente invocada via webhook do Mercado Pago para creditar saldo e ativar automações após aprovação de recarga Pix.
-   - `public.debitar_saldo_whatsapp_atomico(...)`: RPC com bloqueio pessimista (`SELECT ... FOR UPDATE`) que abate a tarifa de disparo do saldo pré-pago e insere o evento no ledger auditável `loja_whatsapp_transacoes`.
-   - `public.creditar_recarga_whatsapp_atomico(...)`: RPC idempotente invocada via webhook do Mercado Pago para creditar saldo e ativar automações após aprovação de recarga Pix.
+   - `public.processar_pedido_shopee_atomico(...)`: RPC idempotente por `(loja_id, shopee_order_sn)` para ingestão de vendas da Shopee com baixa física de estoque.
+   - `public.obter_dados_cockpit_area_hubi(...)`, `public.admin_atualizar_dados_loja(...)` e `public.ativar_assinatura_loja_manual(...)`: RPCs exclusivas do Super Admin para operação do Cockpit Área HUBI.
 
 ---
 
@@ -1222,15 +1358,14 @@ Para facilitar migrações de sistemas legados e integrações com canais extern
 Para conferir flexibilidade operacional aos mantenedores da plataforma sem necessidade de constantes deploys de código ou migrations DDL:
 1. **Tabela Singleton de Governança (`public.configuracoes_plataforma`):**
    - Registro exclusivo com `id = 1` centralizando a parametrização de negócio do HUBI.
-   - Parâmetros administráveis: `dias_trial` (dias de degustação para novas lojas cadastradas), `valor_mensal_base` (R$ 49,90), `valor_anual_base` (R$ 598,80), `email_super_admin`, `whatsapp_suporte`, `modo_manutencao` e `mensagem_manutencao`.
+   - Parâmetros administráveis: `dias_trial` (dias de degustação para novas lojas cadastradas), `valor_mensal_base` (R$ 49,90), `valor_anual_base` (R$ 598,80), `email_super_admin`, `whatsapp_suporte`, credenciais globais do Mercado Pago (`mp_ambiente`, `mp_public_key`, `mp_access_token`, `mp_webhook_secret`), metas executivas da plataforma (`meta_hubi_*`), `modo_manutencao` e `mensagem_manutencao`.
 2. **Camada de Autorização Super Admin:**
    - E-mail mestre global definido como `5585997374372@hubi.app`.
    - Validação a nível de banco de dados via função de segurança `public.eh_super_admin_plataforma()`, que inspeciona o e-mail do usuário autenticado (`auth.jwt() ->> 'email'`).
    - Validação na camada de UI através de `usePermissions.ts` expondo a flag booleana `ehSuperAdmin`.
-3. **Painel de Gestão `CardParametrosHubiAdmin.tsx`:**
-   - Embutido na aba "Geral" da tela `ConfiguracoesLoja.tsx`.
-   - Renderização condicional restrita exclusivamente ao Super Admin autenticado.
-   - Interface com formulário reativo para edição dos parâmetros comerciais, status de manutenção e WhatsApp de suporte, persistindo as alterações com validação de tipagem via `configuracoesPlataformaService.ts`.
+3. **Painel de Gestão `CardParametrosHubiAdmin.tsx` & Cockpit Área HUBI (`AreaHubiCockpit.tsx`):**
+   - Embutido na aba "Geral" da tela `ConfiguracoesLoja.tsx` com renderização restrita exclusivamente ao Super Admin autenticado, além do painel executivo dedicado **Área HUBI** (`/area-hubi`).
+   - Interface com formulário reativo para edição dos parâmetros comerciais, credenciais Mercado Pago (`billingConfigSchema.ts`), status de manutenção e WhatsApp de suporte, persistindo as alterações via `configuracoesPlataformaService.ts`.
 4. **Propagação Dinâmica no Ecossistema:**
    - **Trial de Degustação:** O hook `useAssinaturaStatus.ts` consome `dias_trial` do banco de dados, calculando a vigência de cortesia com precisão a partir de `loja.criado_em` + dias de trial configurados.
    - **Tarja de Degustação (`BannerAssinaturaTop.tsx`):** Exibe contagem regressiva em tempo real ("Restam X dias"), layout centralizado horizontalmente com fundo vermelho sólido e tipografia 100% branca pura, exibindo os valores parametrizados e o botão de conversão rápida.
@@ -1271,9 +1406,9 @@ O HUBI introduz a modalidade **Caderneta de Mercadinho**, desenhada especificame
 1. **Coexistência com o Fiado Tradicional:**
    - O Fiado clássico (com vencimento determinado a cada venda avulsa, ex: 15 ou 30 dias após a data da compra) permanece 100% ativo e independente.
    - A Caderneta opera em paralelo: cada compra adiciona saldo devedor a uma fatura única mensal acumulada, sem que cada item tenha vencimento próprio.
-2. **Ciclo de Fechamento e Vencimento Mensal:**
-   - O cliente possui um **Dia Fixo de Acerto/Vencimento** no mês (ex: todo dia 10, dia 20 ou dia 30).
-   - O serviço contábil `cadernetaService.ts` calcula automaticamente o ciclo de competência (`YYYY-MM`) e a data exata do próximo acerto, inclusive tratando viradas de mês e meses com 28/29/30 dias.
+2. **Ciclos Flexíveis de Fechamento e Vencimento (Mensal, Quinzenal e Semanal):**
+   - O cliente (ou padrão da loja via `lojas.ciclo_padrao_caderneta`) pode operar em ciclo **Mensal** (dia fixo `dia_vencimento_caderneta`), **Quinzenal** (`dia_vencimento_caderneta` + `dia_vencimento_2_caderneta`) ou **Semanal** (`dia_semana_caderneta` de 0 a 6).
+   - Os utilitários `cadernetaCiclo.ts` e o serviço contábil `cadernetaService.ts` calculam automaticamente o ciclo de competência (`YYYY-MM`) e a data exata do próximo acerto, inclusive tratando viradas de mês e meses com 28/29/30 dias.
 3. **Controle Hierárquico e Limite de Crédito:**
    - **Toggle Global da Loja:** Controlado em `lojas.caderneta_ativa` e configurável na tela de Parâmetros Gerais da Loja.
    - **Habilitação por Cliente:** O lojista define individualmente no cadastro do cliente se ele está apto (`permite_caderneta`), estipulando seu `limite_caderneta` (R$) e o `dia_vencimento_caderneta`.
@@ -1332,17 +1467,20 @@ Para suportar catálogos extensos e departamentos complexos (ex: Moda > Camisas,
    - *Desktop:* Dropdown com navegação em acordeão expansível ou menu cascata flutuante ao passar o cursor (`hover`).
    - *Mobile:* Bottom sheet / Drawer tátil com acordeão de subcategorias, contadores em tempo real de produtos ativos e suporte total a histórico de navegação via `useRegisterOverlay`.
 
-### 4.16 Painel de Governança dos 8 Gatilhos Granulares de Disparo WhatsApp
+### 4.16 Painel de Governança dos 10 Gatilhos Granulares de Disparo WhatsApp
 O HUBI introduz controle cirúrgico de notificações automáticas via WhatsApp Cloud API através do painel `PainelGatilhosWhatsapp.tsx` (integrado na aba de Configurações de WhatsApp e IA):
-1. **Oito Gatilhos Parametrizáveis por Filial (`public.lojas`):**
+1. **Dez Gatilhos Parametrizáveis por Filial (`public.lojas`):**
    - `wpp_auto_pedido_confirmado` *(Essencial)*: Disparo ao registrar novo pedido no catálogo online.
    - `wpp_auto_pesagem_concluida` *(Essencial)*: Disparo com valor total recalculado e link de pagamento pós-aferição na balança.
    - `wpp_auto_despacho_rastreio` *(Essencial)*: Disparo de código de rastreamento SRO/link dos Correios, Melhor Envio ou app de corrida.
    - `wpp_auto_pronto_retirada` *(Recomendado)*: Notificação ao cliente de que a encomenda está pronta para retirada no balcão da loja.
    - `wpp_auto_comprovante_fiado` *(Recomendado)*: Envio de comprovante de compras e amortizações na Caderneta de Mercadinho ou Fiado.
+   - `wpp_auto_vencimento_caderneta` *(Recomendado)*: Disparo matinal automático às 08:00 BRT (`pg_cron` + `whatsapp-lembretes-vencimento`) no dia do vencimento da Caderneta de Mercadinho, com idempotência diária em `crediario_lembretes_enviados`.
+   - `wpp_auto_vencimento_fiado` *(Recomendado)*: Disparo matinal automático às 08:00 BRT no dia do vencimento de compras Fiado em aberto.
    - `wpp_auto_status_separacao` *(Opcional)*: Notificação em transições operacionais intermediárias (`em_separacao`, `em_expedicao`).
    - `wpp_auto_pedido_entregue` *(Opcional)*: Mensagem de confirmação de entrega concluída com link de avaliação.
    - `wpp_auto_recibo_venda` *(Opcional)*: Disparo automático de recibo digital de vendas físicas efetuadas no PDV Balcão.
+   - *Atendimento Receptivo (`lojas.whatsapp_ia_receptiva_ativa`):* Flag independente para habilitar respostas autônomas de atendimento receptivo com IA no WhatsApp da loja.
 2. **Otimização Financeira da Carteira Pré-Paga:**
    - O lojista pode ativar ou desativar cada gatilho individualmente com switches visuais reativos, preservando créditos da carteira para eventos de maior impacto comercial.
 
@@ -1358,13 +1496,15 @@ Para assegurar integridade no relacionamento com clientes e evitar furos contáb
    - Implantação de constraints e índices únicos `uq_clientes_loja_celular_normalizado` e `uq_clientes_loja_telefone`, bloqueando tentativas de inserção redundante no Supabase.
 
 ### 4.18 Módulo de Agendamento de Serviços Omnichannel (PDV, Retaguarda e Catálogo Online PWA)
-Implementação de ponta a ponta para negócios com prestação de serviços (barbearias, salões, clínicas, oficinas, estúdios, consultorias e técnicos):
-1. **Configuração Granular de Produtos do Tipo Serviço:**
+Implementação de ponta a ponta para negócios com prestação de serviços (barbearias, salões, clínicas, oficinas, estúdios, consultorias e técnicos), controlada pelos toggles globais `lojas.trabalha_com_agenda` e `lojas.atendimento_domicilio_ativo`:
+1. **Configuração Granular de Produtos do Tipo Serviço e Taxa de Domicílio:**
    - Switch `requer_agendamento` na criação/edição de produtos com `tipo_item === 'servico'`.
    - Duração estimada parametrizável em minutos (ex: 30, 45, 60 min).
    - Local de execução estrito: `loja` (atendimento presencial), `externo` (domicílio do cliente) ou `ambos` (cliente escolhe no momento da reserva).
-2. **Habilitação e Expediente de Profissionais:**
-   - Na gestão de funcionários (`UsuariosGestao.tsx`), switch para habilitar colaboradores que prestam serviços (`presta_servicos`) e cargo/especialidade.
+   - **Taxa de Deslocamento a Domicílio (`taxaDomicilioUtils.ts`):** Configuração padrão na loja (`taxa_padrao_domicilio`, `abater_taxa_domicilio_ao_fechar`) ou específica por serviço (`taxa_deslocamento_domicilio`), com opção de abater o valor da taxa no fechamento do atendimento e persistência em `pedidos.valor_taxa_domicilio`.
+   - **Pedidos Híbridos (Produto + Serviço):** Suporte a carrinhos mistos no catálogo/PDV com flag `pedidos.levar_produto_no_atendimento` e emissão segmentada via `reciboServicoHelper.ts`.
+2. **Habilitação, Perfil Profissional e Expediente:**
+   - Na gestão de funcionários (`UsuariosGestao.tsx`), suporte ao perfil dedicado `'profissional'`, switch para habilitar colaboradores (`presta_servicos`) e vínculo granular de serviços atendidos (`ModalServicosProfissional.tsx`).
    - Grade semanal de 7 dias (`ModalExpedienteProfissional.tsx`) para cada colaborador, configurando dias de trabalho, turnos de atendimento e horários de intervalo/almoço gravados em `public.profissional_horarios`.
 3. **Agendamento no PDV Físico:**
    - Ao adicionar um serviço agendável no caixa físico (`PosCheckout.tsx` / `PosCheckoutMobile.tsx`), o operador é direcionado ao `ModalSelecionarAgendamentoPdv.tsx`.
@@ -1392,6 +1532,48 @@ Implementação de ponta a ponta para negócios com prestação de serviços (ba
 7. **Régua e Fila de Lembretes do Dia Anterior (`ModalLembretesPendentesAgenda.tsx`):**
    - Na retaguarda (`AgendaServicosLoja.tsx`), botão e alerta de topo indicam clientes com atendimento nas próximas horas que ainda não receberam lembrete.
    - Opção de disparo automático em 1 clique via WhatsApp Wallet ou envio manual gratuito um a um via WhatsApp Web (`wa.me`).
+
+### 4.19 Integração Nativa com Shopee e Publicação em Massa Unificada (ML & Shopee)
+O HUBI expandiu sua arquitetura multi-marketplace (`20261126_shopee_marketplace_unificado.sql`) para unificar **Mercado Livre** e **Shopee** sob o mesmo modelo relacional de contas, anúncios, lotes de publicação e ingestão de pedidos:
+1. **Conexão OAuth 2.0 Shopee (`CardConexaoShopee.tsx`, `ModalConectarShopee.tsx` & `shopee-oauth`):**
+   - Assinatura HMAC-SHA256 via `_shared/shopeeClient.ts`, renovação preventiva de tokens (`refresh_token_expires_at`) e suporte opcional a credenciais `shopee_partner_id` / `shopee_partner_key` por filial.
+2. **Sincronização de Estoque e Webhooks Shopee (`shopee-estoque-sync` & `shopee-webhook`):**
+   - Push automático de saldo ao alterar estoque local e ingestão idempotente de pedidos com chave única `(loja_id, shopee_order_sn)` via RPC `processar_pedido_shopee_atomico`.
+3. **Publicação em Massa com IA e Acompanhamento em Tempo Real:**
+   - Modais dedicados `ModalPublicarMassaMl.tsx` e `ModalPublicarMassaShopee.tsx` com barras de progresso persistentes (`BarraProgressoPublicacaoMassaMl.tsx` e `BarraProgressoPublicacaoMassaShopee.tsx`), gravando cada execução em `marketplace_lotes_publicacao` e `marketplace_lotes_publicacao_itens`.
+   - **Classificação & GTIN Assistidos (`mercadoLivreJevService.ts` & `descricaoComercialService.ts`):** Predição de categoria, sugestão de código GTIN/EAN (origem `cadastro`, `ia_gs1` ou `isento`) e enriquecimento automático de descrições comerciais via `gemini-proxy`.
+   - **Espelhamento de Imagens no Storage (`imagemStorageService.ts` & `espelhar-imagem-storage`):** Garante hospedagem estável das fotos dos produtos no Supabase Storage para compatibilidade com as APIs dos marketplaces.
+   - **Atualizações em Tempo Real:** Tabela `marketplace_anuncios` habilitada no Supabase Realtime para refletir imediatamente mudanças de status, estoque e vínculos (`ModalVincularAnuncioShopee.tsx`).
+
+### 4.20 Cockpit Área HUBI (Super Admin)
+Painel executivo global exclusivo para a administração central do ecossistema HUBI (`/area-hubi` — `AreaHubiCockpit.tsx`):
+1. **Telemetria Consolidada da Plataforma (`areaHubiService.ts` & `obter_dados_cockpit_area_hubi`):**
+   - Monitoramento em tempo real de faturamento de assinaturas, vendas totais, taxa de conversão de trials em planos ativos, inadimplência/não renovados, lojas ativas e receita com recargas da carteira WhatsApp comparados contra as metas `meta_hubi_*` configuradas em `ModalConfigurarMetasHubi.tsx`.
+2. **Gestão Ativa de Lojas e Assinaturas:**
+   - Edição administrativa de dados e status de filiais (`ModalEditarLojaSuperAdmin.tsx` via `admin_atualizar_dados_loja`).
+   - Ativação manual de assinaturas anuais com registro auditável de observações em `hubi_assinaturas_pagamentos.observacoes_admin` (`ModalAtivarAssinaturaManual.tsx` via `ativar_assinatura_loja_manual`).
+   - Acompanhamento de oportunidades comerciais e funil de conversão (`DrawerComercialAreaHubi.tsx`).
+
+### 4.21 Onboarding Inteligente, Checklist de Prontidão e Governança de Módulos
+Para acelerar a implantação de novos lojistas sem sobrecarregar a interface com funcionalidades irrelevantes ao seu nicho:
+1. **Questionário Inicial de Implantação (`ModalQuestionarioOnboarding.tsx` & `onboardingSetupService.ts`):**
+   - Captura o perfil operacional da loja (`opera_sozinho` para autônomos sem equipe adicional) e os módulos de interesse (`interesse_catalogo_online`, `interesse_agendamento_servicos`, `interesse_venda_por_peso`, `interesse_caderneta_fiado`, `interesse_whatsapp_auto`, `interesse_whatsapp_ia_receptiva`, `interesse_mercado_livre`, etc.), persistindo na tabela `loja_onboarding_setup`.
+2. **Checklist de Prontidão (`useLojaProntidao.ts` & `ModalChecklistConfiguracao.tsx`):**
+   - Calcula dinamicamente os passos pendentes essenciais da loja (dados cadastrais, formas de pagamento, categorias/produtos, metas `metas_conferidas`, perfil IA `perfil_ia_conferido`, unidades `unidades_conferidas`) com atalhos diretos para conclusão.
+3. **Educação Contextual (`ModalPorQueUsarModulo.tsx`):**
+   - Explica objetivamente os ganhos operacionais e financeiros de cada módulo antes da ativação pelo lojista.
+
+### 4.22 Regime de Caixa (`data_pagamento`), Comprovante no Catálogo e Recuperação de Senha via WhatsApp
+Conjunto de evoluções financeiras, de autoatendimento e segurança operacional:
+1. **Regime de Caixa Real (`src/utils/regimeCaixa.ts` & `20261127_regime_caixa_data_pagamento.sql`):**
+   - Migração da apuração do Cockpit F1, fluxo financeiro e relatórios de vendas para o **Regime de Caixa Real** baseado em `pedidos.data_pagamento` e `pagamentos_pedido.data_pagamento`, sincronizados via triggers automáticas no PostgreSQL (`obter_metricas_cockpit`).
+2. **Comprovante de Pagamento Pix no Catálogo Online (`comprovantePedidoService.ts` & `ModalVisualizarComprovantePedido.tsx`):**
+   - Permite ao consumidor anexar imagem ou PDF do comprovante diretamente no checkout/rastreamento do Catálogo Online (bucket público `comprovantes-pagamento`), gravando `comprovante_pagamento_url` e `comprovante_enviado_em` com segurança via `rpc_registrar_comprovante_pedido_catalogo`.
+   - Na retaguarda (`PedidosLista.tsx` / `PedidosListaMobile.tsx`), o lojista visualiza o comprovante em modal dedicado para conferência e quitação rápida.
+3. **Recuperação de Senha via WhatsApp (`ModalRecuperacaoSenha.tsx`, `recuperacaoSenhaService.ts` & `recuperar-senha-whatsapp`):**
+   - Fluxo seguro de redefinição de senha para colaboradores e operadores utilizando código numérico de 6 dígitos enviado via WhatsApp, com hash SHA-256 armazenado em `recuperacao_senha_tokens`, controle de tentativas, expiração e atualização final em `bcrypt` via `atualizar_senha_hash_colaborador`.
+4. **Prevenção de Duplicidade de Produtos (`produtoDuplicado.ts` & `ModalProdutoDuplicado.tsx`):**
+   - Detecção proativa de produtos com mesmo código de barras (EAN) ou nome similar durante o cadastro, oferecendo abertura rápida do item existente ou confirmação consciente.
 
 ---
 
@@ -1813,14 +1995,15 @@ Para garantir independência de intermediários bancários na cobrança direta:
    - `calcularCrc16(payload)`: Calcula e anexa os 4 dígitos hexadecimais de integridade.
    - `formatarCampoEmv(id, valor)`: Formata estruturas Tag-Length-Value (TLV).
 
-### 5.22 Suíte de Segurança Client-Side Anti-REA-Shield v2 e Bootstrap em Simulação (`packages/anti-rea-shield`)
+### 5.22 Suíte de Segurança Client-Side Anti-REA-Shield v2 e Blindagem Zero-Trust (`packages/anti-rea-shield`)
 Para proteção ativa dos ativos do software contra clonagem, scraping e ataques de injeção:
 1. **Estrutura Modular no Monorepo (`packages/anti-rea-shield/`):**
    - `01-polymorphic-obfuscator`: Scrambler de classes CSS que muta seletores para nomes pseudo-aleatórios em tempo de compilação.
    - `02-runtime-sentinel`: Sentinela de integridade em tempo de execução (`sentinel-core.ts`, `dom-watermark.ts`, `domain-lock.ts`).
-   - `03-supabase-honeypot`: Tabelas e colunas chamariz no PostgreSQL (`02_honeypot_rls_traps.sql`) para capturar tentativas de enumeração via PostgREST.
-   - `04-zero-trust-migrator`: Verificador de conformidade estática de consultas diretas.
-   - `05-anti-scraping-harvest`: Proteção contra varreduras em lote e injeção de canários nos feeds de dados.
+   - `03-supabase-honeypot`: Tabelas e colunas chamariz no PostgreSQL (`02_honeypot_rls_traps.sql` e `20261126_anti_rea_shield_honeypot_e_catalogo_seguro.sql`) com schema `security_audit`, blacklist com TTL e políticas `armadilha_leitura_honeypot`.
+   - `04-zero-trust-migrator`: Verificador de conformidade estática de consultas diretas e projeções públicas restritas (`src/lib/publicSelects.ts`).
+   - `05-anti-scraping-harvest`: Proteção contra varreduras em lote via RPCs seguras (`rpc_listar_catalogo_protegido`, `rpc_criar_pedido_catalogo_seguro`, `rpc_autenticar_cliente_catalogo`) e injeção de canários nos feeds de dados.
+   - `bin/test-clone.mjs`: Utilitário CLI de validação contra clonagem de interface e domínio.
 2. **Bootstrap Passivo em Modo Simulação (`shieldBootstrap.ts`):**
    - Inicializado de forma não-bloqueante no entrypoint (`src/main.tsx`) via `inicializarAntiReaShield()`.
    - Opera por padrão em modo `'simulation'`, emitindo diagnósticos passivos no console sem interrupção de fluxo para lojistas ou clientes legítimos em redes lentas ou dispositivos móveis.
@@ -1861,6 +2044,20 @@ O `agendamentoService.ts` opera como motor unificado e centralizado de inteligê
 6. **Régua de Lembretes Pendentes (`obterLembretesPendentesLoja`, `marcarLembreteComoEnviado` e `processarLembretesPendentesLoja`):**
    - Localiza clientes com agendamentos ativos na janela configurada de antecedência da loja (`lojas.antecedencia_lembrete_horas`) que ainda não foram notificados.
    - Executa disparo híbrido automático com a Meta Cloud API (se ativo e com saldo) ou devolve links manuais formatados (`wa.me`) para envio gratuito sem custos.
+
+### 5.26 Serviços de Marketplaces Unificados (Shopee, Publicação em Massa e Espelhamento de Imagens)
+- **`shopeeService.ts`:** Orquestra conexão OAuth 2.0 com a Shopee (`shopee-oauth`), status da conta, listagem e vínculo de anúncios em `marketplace_anuncios` (`plataforma = 'shopee'`), além de disparo manual/automático de sincronização de estoque (`shopee-estoque-sync`).
+- **`mercadoLivrePublicacaoMassaService.ts` & `shopeePublicacaoMassaService.ts`:** Motores de publicação em lote com controle de escopo (loja inteira ou categoria/subcategoria), aplicação de margem e custo fixo, persistência relacional em `marketplace_lotes_publicacao` / `marketplace_lotes_publicacao_itens` e acompanhamento em tempo real.
+- **`mercadoLivreJevService.ts` & `descricaoComercialService.ts`:** Inteligência aplicada à publicação em marketplaces para classificação de categorias, inferência/validação de GTIN (`ia_gs1` / `isento`) e geração de descrições comerciais otimizadas para conversão.
+- **`imagemStorageService.ts`:** Cliente da Edge Function `espelhar-imagem-storage` para espelhamento resiliente de fotos externas para o Supabase Storage.
+
+### 5.27 Serviços de Onboarding, Área HUBI, Comprovantes, Recuperação de Senha e Utilitários Recentes
+- **`areaHubiService.ts`:** Camada de dados do Cockpit Área HUBI consumindo as RPCs administrativas `obter_dados_cockpit_area_hubi`, `admin_atualizar_dados_loja` e `ativar_assinatura_loja_manual`.
+- **`onboardingSetupService.ts` & `useLojaProntidao.ts`:** Persistência do questionário inicial (`loja_onboarding_setup`) e cálculo reativo do checklist de prontidão da filial.
+- **`comprovantePedidoService.ts`:** Upload de comprovante Pix para o bucket `comprovantes-pagamento` e registro auditável via `rpc_registrar_comprovante_pedido_catalogo`.
+- **`recuperacaoSenhaService.ts`:** Integração com a Edge Function `recuperar-senha-whatsapp` para solicitação e validação do token de 6 dígitos via WhatsApp.
+- **`useSystemBillingConfig.ts` & `billingConfigSchema.ts`:** Hook e validação Zod para parametrização das credenciais do Mercado Pago e valores de assinatura pelo Super Admin.
+- **Novos Utilitários (`src/utils/`):** `regimeCaixa.ts` (datas efetivas de pagamento), `cadernetaCiclo.ts` (cálculo de ciclos mensal/quinzenal/semanal), `taxaDomicilioUtils.ts` (regras de deslocamento e abatimento), `reciboServicoHelper.ts` (impressão e resumo de pedidos híbridos), `produtoDuplicado.ts` (detecção de duplicidade no cadastro) e `dateTime.ts` (formatação e normalização de fusos horários).
 
 ---
 

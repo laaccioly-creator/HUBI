@@ -2526,3 +2526,117 @@ Responda EXCLUSIVAMENTE em JSON válido no formato:
     return [];
   }
 };
+
+export interface TextosApresentacaoCatalogoIA {
+  lp_titulo_hero: string;
+  lp_subtitulo_hero: string;
+  lp_sobre_titulo: string;
+  lp_sobre_texto: string;
+  categorias_descricoes: Record<string, string>;
+}
+
+/**
+ * Gera textos institucionais e descrições de especialidades para a Página de Apresentação
+ * utilizando exclusivamente a Edge Function `gemini-proxy` (Zero-Trust).
+ */
+export const gerarTextosApresentacaoCatalogoIA = async (params: {
+  lojaId: string;
+  nomeLoja: string;
+  cidade?: string | null;
+  categorias: Array<{ id: string; nome: string }>;
+  sobreAtual?: string | null;
+}): Promise<TextosApresentacaoCatalogoIA> => {
+  const categoriasTexto = params.categorias.length > 0
+    ? params.categorias.map((c) => `- ID "${c.id}": ${c.nome}`).join('\n')
+    : '- Nenhuma categoria cadastrada ainda';
+
+  const cidadeInfo = params.cidade?.trim() ? ` localizada em ${params.cidade.trim()}` : '';
+  const sobreInfo = params.sobreAtual?.trim() ? `Descrição atual informada pelo negócio: "${params.sobreAtual.trim()}".` : '';
+
+  const prompt = `Você é um especialista em copywriting e posicionamento digital para negócios de serviços, salões de beleza, barbearias, clínicas de estética e saúde no Brasil.
+Crie textos institucionais elegantes, acolhedores, confiáveis e orientados à conversão de agendamentos para a empresa "${params.nomeLoja}"${cidadeInfo}.
+${sobreInfo}
+
+Especialidades/Categorias ativas da empresa:
+${categoriasTexto}
+
+REGRAS ESTRITAS:
+1. Escreva em Português do Brasil (pt-BR), com tom profissional e caloroso.
+2. NÃO invente endereços, prêmios falsos ou números de telefone.
+3. "lp_titulo_hero": título principal forte e convidativo (máximo 90 caracteres).
+4. "lp_subtitulo_hero": subtítulo claro convidando o cliente a conhecer as especialidades e agendar horário (1 a 2 frases curtas).
+5. "lp_sobre_titulo": título curto para a seção Sobre / Metodologia (ex: "Nossa Metodologia de Atendimento").
+6. "lp_sobre_texto": texto institucional coeso com 2 a 3 frases apresentando cuidado personalizado, diagnóstico e excelência nos resultados.
+7. "categorias_descricoes": objeto mapeando EXATAMENTE cada ID de categoria informado acima para uma descrição comercial curta e atrativa (1 frase de até 140 caracteres).
+
+Responda EXCLUSIVAMENTE em JSON válido no formato:
+{
+  "lp_titulo_hero": "...",
+  "lp_subtitulo_hero": "...",
+  "lp_sobre_titulo": "...",
+  "lp_sobre_texto": "...",
+  "categorias_descricoes": {
+    "id_da_categoria": "Descrição curta..."
+  }
+}`;
+
+  const data = await invocarGeminiProxyDireto<any>(
+    {
+      loja_id: params.lojaId,
+      model: 'gemini-3.8-flash',
+      contents: [{ parts: [{ text: prompt }] }],
+      generationConfig: {
+        temperature: 0.55,
+        maxOutputTokens: 1200,
+        responseMimeType: 'application/json',
+        thinkingConfig: { thinkingBudget: 0 }
+      },
+      safetySettings: SAFETY_SETTINGS_VAREJO
+    },
+    18000
+  );
+
+  const parts = data?.candidates?.[0]?.content?.parts || [];
+  const rawText = parts.map((p: any) => p?.text || '').join('\n').trim();
+  if (!rawText) {
+    throw new Error('A Rubi IA não retornou sugestões de texto. Tente novamente em instantes.');
+  }
+
+  let parsed: any = null;
+  try {
+    parsed = JSON.parse(rawText);
+  } catch {
+    const match = rawText.match(/\{[\s\S]*\}/);
+    if (match) {
+      parsed = JSON.parse(match[0]);
+    }
+  }
+
+  if (!parsed || typeof parsed !== 'object') {
+    throw new Error('Não foi possível interpretar os textos gerados pela Rubi IA.');
+  }
+
+  const descricoesMap: Record<string, string> = {};
+  const rawCats = parsed.categorias_descricoes;
+  if (rawCats && typeof rawCats === 'object') {
+    for (const cat of params.categorias) {
+      const val = rawCats[cat.id] ?? rawCats[cat.nome];
+      if (typeof val === 'string' && val.trim()) {
+        descricoesMap[cat.id] = val.trim();
+      }
+    }
+  }
+
+  return {
+    lp_titulo_hero: String(parsed.lp_titulo_hero || `${params.nomeLoja} — Cuidado e Excelência em Cada Atendimento`).trim(),
+    lp_subtitulo_hero: String(
+      parsed.lp_subtitulo_hero || 'Conheça nossas especialidades, escolha seu profissional e agende seu horário online em poucos cliques.'
+    ).trim(),
+    lp_sobre_titulo: String(parsed.lp_sobre_titulo || 'Nossa Metodologia de Atendimento').trim(),
+    lp_sobre_texto: String(
+      parsed.lp_sobre_texto ||
+        `Na ${params.nomeLoja}, cada atendimento começa com uma escuta atenta e avaliação personalizada para valorizar o seu estilo, bem-estar e resultados duradouros.`
+    ).trim(),
+    categorias_descricoes: descricoesMap
+  };
+};
