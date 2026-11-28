@@ -237,8 +237,8 @@ export const ModalDesdobramentoMetricaLojas: React.FC<ModalDesdobramentoMetricaL
         };
       case 'inadimplencia':
         return {
-          tituloGauge: 'Inadimplência Fiado',
-          tituloModal: 'Desdobramento de Inadimplência Fiado por Loja',
+          tituloGauge: 'Inadimplência',
+          tituloModal: 'Desdobramento de Inadimplência por Loja',
           tipoFormato: 'percentual',
           escalaInvertida: true,
           icone: AlertTriangle

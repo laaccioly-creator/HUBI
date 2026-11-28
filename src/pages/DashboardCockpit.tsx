@@ -137,20 +137,26 @@ export const DashboardCockpit: React.FC = () => {
   const [modalDesdobramentoAberto, setModalDesdobramentoAberto] = useState<boolean>(false);
   const [metricaDesdobramento, setMetricaDesdobramento] = useState<TipoMetricaCockpitDrawer | null>(null);
   const metricaAtivaRef = useRef<TipoMetricaCockpitDrawer | null>(null);
+  const drawerRequestIdRef = useRef<number>(0);
   const [payloadDrawerEspecifico, setPayloadDrawerEspecifico] = useState<PayloadDashboardExecutivo | null>(null);
   const [lojaDrawerEspecifica, setLojaDrawerEspecifica] = useState<{ id: string; nome: string } | null>(null);
   const [lojaIdAlvoDrawer, setLojaIdAlvoDrawer] = useState<string | null>(null);
   const [carregandoLojaId, setCarregandoLojaId] = useState<string | null>(null);
 
-  // Registro na pilha de navegação para tecla ESC e botão Voltar Mobile
-  useRegisterOverlay(modalDesdobramentoAberto, () => setModalDesdobramentoAberto(false), 'cockpit-modal-desdobramento');
-  useRegisterOverlay(drawerMetrica !== null, () => {
+  // Fecha e limpa completamente o estado da gaveta lateral e invalida requisições pendentes de filiais
+  const fecharDrawerAuditoria = () => {
+    drawerRequestIdRef.current += 1;
     setDrawerMetrica(null);
     setPayloadDrawerEspecifico(null);
     setLojaDrawerEspecifica(null);
     setLojaIdAlvoDrawer(null);
+    setCarregandoLojaId(null);
     metricaAtivaRef.current = null;
-  }, 'cockpit-metric-drawer');
+  };
+
+  // Registro na pilha de navegação para tecla ESC e botão Voltar Mobile
+  useRegisterOverlay(modalDesdobramentoAberto, () => setModalDesdobramentoAberto(false), 'cockpit-modal-desdobramento');
+  useRegisterOverlay(drawerMetrica !== null, fecharDrawerAuditoria, 'cockpit-metric-drawer');
   useRegisterOverlay(modalEntradaAberto, () => {
     setModalEntradaAberto(false);
     setProdutoSelecionadoEntrada(null);
@@ -266,6 +272,8 @@ export const DashboardCockpit: React.FC = () => {
       setMetricaDesdobramento(metrica);
       setModalDesdobramentoAberto(true);
     } else {
+      drawerRequestIdRef.current += 1;
+      setCarregandoLojaId(null);
       setLojaDrawerEspecifica(null);
       setPayloadDrawerEspecifico(null);
       setLojaIdAlvoDrawer(null);
@@ -280,8 +288,13 @@ export const DashboardCockpit: React.FC = () => {
     metricaOp?: TipoMetricaCockpitDrawer | null
   ) => {
     const metricaAlvo = metricaOp || metricaDesdobramento || metricaAtivaRef.current || drawerMetrica;
+    const requestId = ++drawerRequestIdRef.current;
+
+    // Reseta imediatamente qualquer payload anterior antes de abrir o drawer isolado
+    setPayloadDrawerEspecifico(null);
     setLojaDrawerEspecifica({ id: lojaId, nome: lojaNome });
     setLojaIdAlvoDrawer(lojaId);
+    setCarregandoLojaId(lojaId);
     setModalDesdobramentoAberto(false);
     if (metricaAlvo) {
       metricaAtivaRef.current = metricaAlvo;
@@ -289,7 +302,6 @@ export const DashboardCockpit: React.FC = () => {
     }
 
     // Carrega em background a auditoria analítica aprofundada isolada daquela filial
-    setCarregandoLojaId(lojaId);
     dashboardJevService.obterDashboardExecutivo({
       lojaId,
       tipoPeriodo,
@@ -297,17 +309,23 @@ export const DashboardCockpit: React.FC = () => {
       dataInicioCustom,
       dataFimCustom
     }).then((res) => {
+      if (drawerRequestIdRef.current !== requestId) return;
       setPayloadDrawerEspecifico(res.payload);
-    }).catch((err) => {
-      console.warn('[DashboardCockpit] Erro ao carregar auditoria da filial em background:', err);
+    }).catch(() => {
+      if (drawerRequestIdRef.current !== requestId) return;
+      console.warn('[DashboardCockpit] Falha ao carregar auditoria isolada da filial.');
     }).finally(() => {
-      setCarregandoLojaId(null);
+      if (drawerRequestIdRef.current === requestId) {
+        setCarregandoLojaId(null);
+      }
     });
   };
 
   // Handler de ação "Ver Auditoria Geral Consolidada" a partir do modal de desdobramento
   const handleVerConsolidado = (metricaOp?: TipoMetricaCockpitDrawer | null) => {
     const metricaAlvo = metricaOp || metricaDesdobramento || metricaAtivaRef.current || drawerMetrica;
+    drawerRequestIdRef.current += 1;
+    setCarregandoLojaId(null);
     setLojaDrawerEspecifica(null);
     setPayloadDrawerEspecifico(null);
     setLojaIdAlvoDrawer(null);
@@ -1177,9 +1195,9 @@ export const DashboardCockpit: React.FC = () => {
             onClickDrillDown={() => handleCliqueGauge('despesas')}
           />
 
-          {/* 5. INADIMPLÊNCIA FIADO (ESCALA INVERTIDA) */}
+          {/* 5. INADIMPLÊNCIA (ESCALA INVERTIDA) */}
           <CockpitGaugeF1
-            titulo="Inadimplência Fiado"
+            titulo="Inadimplência"
             valorRealizado={metricas.inadimplencia}
             valorMeta={metasProporcionais.meta_inadimplencia_maxima}
             tipoFormato="percentual"
@@ -1260,16 +1278,17 @@ export const DashboardCockpit: React.FC = () => {
       {/* ========================================================================= */}
       <CockpitMetricDrawer
         isOpen={drawerMetrica !== null}
-        onClose={() => {
-          setDrawerMetrica(null);
-          setPayloadDrawerEspecifico(null);
-          setLojaDrawerEspecifica(null);
-          setLojaIdAlvoDrawer(null);
-          metricaAtivaRef.current = null;
-        }}
+        onClose={fecharDrawerAuditoria}
         tipoMetrica={drawerMetrica}
-        payload={payloadDrawerEspecifico || payloadExecutivo}
+        payload={lojaIdAlvoDrawer ? payloadDrawerEspecifico : payloadExecutivo}
         lojaIdAlvo={lojaIdAlvoDrawer}
+        carregando={
+          Boolean(lojaIdAlvoDrawer) &&
+          (carregandoLojaId === lojaIdAlvoDrawer ||
+            !payloadDrawerEspecifico ||
+            payloadDrawerEspecifico.lojaId !== lojaIdAlvoDrawer)
+        }
+        periodoLabelFallback={labelExibicaoPeriodo}
         nomeLojaContexto={
           lojaDrawerEspecifica?.nome ||
           (escopoLojaId === 'todas'

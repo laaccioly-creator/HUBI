@@ -23,6 +23,7 @@ export type { DesdobramentoLojaItem };
 
 export interface VendaSumarizada {
   id: string;
+  lojaId?: string;
   numero_pedido: number;
   data: string;
   dataPedido?: string;
@@ -91,6 +92,7 @@ export interface DecomposicaoTicketMedio {
 
 export interface ItemDespesaResumo {
   id: string;
+  lojaId?: string;
   data: string;
   descricao: string;
   categoria: string;
@@ -109,6 +111,7 @@ export interface DecomposicaoDespesas {
 
 export interface ItemInadimplente {
   pedidoId: string;
+  lojaId?: string;
   numeroPedido: number;
   clienteNome: string;
   clienteContatoSeguro: string;
@@ -127,6 +130,7 @@ export interface DecomposicaoInadimplencia {
 
 export interface ProdutoEstoqueRisco {
   id: string;
+  lojaId?: string;
   nome: string;
   codigoInterno?: string | null;
   codigoBarras?: string | null;
@@ -240,7 +244,7 @@ function gerarChaveCache(params: ParametrosConsultaDashboard): string {
   const offset = params.periodoOffset || 0;
   const custom = `${params.dataInicioCustom || ''}_${params.dataFimCustom || ''}`;
   const sufixoMulti = params.lojaId === 'todas' && params.lojasIdsConglomerado ? `_${params.lojasIdsConglomerado.sort().join('-')}` : '';
-  return `hubi_cockpit_v7_${params.lojaId}${sufixoMulti}_${params.tipoPeriodo}_${offset}_${custom}`;
+  return `hubi_cockpit_v8_${params.lojaId}${sufixoMulti}_${params.tipoPeriodo}_${offset}_${custom}`;
 }
 
 function recuperarCache(chave: string): PayloadDashboardExecutivo | null {
@@ -821,6 +825,7 @@ export const dashboardJevService = {
       const nomeCliente = p.cliente?.nome || p.cliente?.nome_completo || p.cliente_nome_avulso || 'Cliente Avulso';
       vendasSumarizadas.push({
         id: p.id,
+        lojaId: p.loja_id,
         numero_pedido: p.numero_pedido || 0,
         data: obterDataRecebimentoPedidoISO(p),
         dataPedido: p.data_venda || p.criado_em,
@@ -944,6 +949,7 @@ export const dashboardJevService = {
 
           itensDespesasDoPeriodo.push({
             id: t.id,
+            lojaId: t.loja_id,
             data: t.data_pagamento || t.data_vencimento || t.criado_em,
             descricao: desc,
             categoria: nomeCat,
@@ -970,6 +976,7 @@ export const dashboardJevService = {
 
         itensDespesasDoPeriodo.push({
           id: m.id,
+          lojaId: m.loja_id,
           data: m.criado_em,
           descricao: m.descricao || (m.tipo === 'sangria' ? 'Retirada / Sangria de Caixa' : 'Despesa Frente de Caixa'),
           categoria: nomeCat,
@@ -1108,6 +1115,7 @@ export const dashboardJevService = {
 
           itensAtrasados.push({
             pedidoId: p.id,
+            lojaId: p.loja_id,
             numeroPedido: p.numero_pedido || 0,
             clienteNome: nomeClienteFiado,
             clienteContatoSeguro: mascararTelefone(telBruto),
@@ -1225,6 +1233,7 @@ export const dashboardJevService = {
         if (estoque <= 0 || estoque <= minimo) {
           produtosEmRisco.push({
             id: p.id,
+            lojaId: p.loja_id,
             nome: p.nome,
             codigoInterno: p.codigo_interno,
             codigoBarras: p.codigo_barras,
@@ -1254,6 +1263,7 @@ export const dashboardJevService = {
         if (estoque <= 0 || (minimo > 0 && estoque <= minimo)) {
           produtosEmRisco.push({
             id: p.id,
+            lojaId: p.loja_id,
             nome: p.nome,
             codigoInterno: p.codigo_interno,
             codigoBarras: p.codigo_barras,

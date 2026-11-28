@@ -18,7 +18,8 @@ import {
   Boxes,
   HelpCircle,
   ShieldCheck,
-  ChevronRight
+  ChevronRight,
+  Loader2
 } from 'lucide-react';
 import {
   PayloadDashboardExecutivo,
@@ -102,6 +103,8 @@ export interface CockpitMetricDrawerProps {
   onAbrirEntradaEstoque?: (produto?: ProdutoEstoqueRisco) => void;
   nomeLojaContexto?: string;
   lojaIdAlvo?: string | null;
+  carregando?: boolean;
+  periodoLabelFallback?: string;
 }
 
 export const CockpitMetricDrawer: React.FC<CockpitMetricDrawerProps> = ({
@@ -111,7 +114,9 @@ export const CockpitMetricDrawer: React.FC<CockpitMetricDrawerProps> = ({
   payload,
   onAbrirEntradaEstoque,
   nomeLojaContexto,
-  lojaIdAlvo
+  lojaIdAlvo,
+  carregando = false,
+  periodoLabelFallback
 }) => {
   const { tema } = useTheme();
   const isDark = tema === 'dark';
@@ -163,20 +168,41 @@ export const CockpitMetricDrawer: React.FC<CockpitMetricDrawerProps> = ({
     };
   }, [isOpen]);
 
-  // Quando lojaIdAlvo for informado e houver desdobramento disponível no payload,
-  // utiliza as métricas e metas específicas da filial selecionada enquanto os detalhes aprofundados são carregados
-  const itemLojaDesdobramento = useMemo(() => {
-    if (!lojaIdAlvo || !payload?.desdobramentoLojas) return null;
-    return payload.desdobramentoLojas.find(d => d.lojaId === lojaIdAlvo) || null;
-  }, [lojaIdAlvo, payload?.desdobramentoLojas]);
+  const payloadCorrespondeAlvo = !lojaIdAlvo || (Boolean(payload) && payload?.lojaId === lojaIdAlvo);
+  const exibindoCarregamento = Boolean(carregando) || !payload || !payloadCorrespondeAlvo;
 
-  if (!isOpen || !tipoMetrica || !payload) {
+  // Filtragem defensiva por loja_id (camada extra de blindagem contra vazamento entre filiais)
+  const vendasSumarizadasFiltradas = useMemo(() => {
+    if (exibindoCarregamento || !payload) return [];
+    return (payload.decomposicoes.faturamento.vendasSumarizadas || []).filter(
+      (v) => !lojaIdAlvo || !v.lojaId || v.lojaId === lojaIdAlvo
+    );
+  }, [exibindoCarregamento, payload, lojaIdAlvo]);
+
+  const despesasRecentesFiltradas = useMemo(() => {
+    if (exibindoCarregamento || !payload) return [];
+    return (payload.decomposicoes.despesas.itensRecentes || []).filter(
+      (item) => !lojaIdAlvo || !item.lojaId || item.lojaId === lojaIdAlvo
+    );
+  }, [exibindoCarregamento, payload, lojaIdAlvo]);
+
+  const itensAtrasadosFiltrados = useMemo(() => {
+    if (exibindoCarregamento || !payload) return [];
+    return (payload.decomposicoes.inadimplencia.itensAtrasados || []).filter(
+      (it) => !lojaIdAlvo || !it.lojaId || it.lojaId === lojaIdAlvo
+    );
+  }, [exibindoCarregamento, payload, lojaIdAlvo]);
+
+  const produtosEmRiscoFiltrados = useMemo(() => {
+    if (exibindoCarregamento || !payload) return [];
+    return (payload.decomposicoes.saudeEstoque.produtosEmRisco || []).filter(
+      (prod) => !lojaIdAlvo || !prod.lojaId || prod.lojaId === lojaIdAlvo
+    );
+  }, [exibindoCarregamento, payload, lojaIdAlvo]);
+
+  if (!isOpen || !tipoMetrica) {
     return null;
   }
-
-  const { decomposicoes, metricas, metasProporcionais, parecerJev, intervalo } = payload;
-  const metricasEfetivas = itemLojaDesdobramento?.metricas || metricas;
-  const metasEfetivas = itemLojaDesdobramento?.metasProporcionais || metasProporcionais;
 
   // Formatação de Moeda
   const formMoeda = (val: number) => formatarMoeda(val);
@@ -217,14 +243,14 @@ export const CockpitMetricDrawer: React.FC<CockpitMetricDrawerProps> = ({
       cor: 'emerald'
     },
     inadimplencia: {
-      titulo: payload.usaCaderneta ? 'Auditoria de Inadimplência' : 'Auditoria de Inadimplência Fiado',
+      titulo: 'Auditoria de Inadimplência',
       subtitulo: 'Títulos em atraso, vencimentos e cobrança preventiva',
       icone: AlertTriangle,
       cor: 'amber'
     },
     saude_estoque: {
       titulo: 'Saúde do Estoque & Ruptura',
-      subtitulo: decomposicoes?.saudeEstoque?.subtituloTag || 'Auditoria de rupturas e excessos',
+      subtitulo: (!exibindoCarregamento && payload?.decomposicoes?.saudeEstoque?.subtituloTag) || 'Auditoria de rupturas e excessos',
       icone: Boxes,
       cor: 'emerald'
     }
@@ -232,6 +258,11 @@ export const CockpitMetricDrawer: React.FC<CockpitMetricDrawerProps> = ({
 
   const configAtual = configsCabecalho[tipoMetrica];
   const IconeCabecalho = configAtual.icone;
+  const intervaloLabelExibicao = (!exibindoCarregamento && payload?.intervalo?.label) || periodoLabelFallback || '';
+  const decomposicoes = !exibindoCarregamento && payload ? payload.decomposicoes : undefined!;
+  const metricasEfetivas = !exibindoCarregamento && payload ? payload.metricas : undefined!;
+  const metasEfetivas = !exibindoCarregamento && payload ? payload.metasProporcionais : undefined!;
+  const parecerJev = !exibindoCarregamento && payload ? payload.parecerJev : null;
 
   // Disparo de mensagem no WhatsApp sanitizada
   const abrirWhatsAppCobranca = (item: ItemInadimplente) => {
@@ -265,14 +296,7 @@ export const CockpitMetricDrawer: React.FC<CockpitMetricDrawerProps> = ({
                 </div>
                 <div>
                   <h2 className="text-base sm:text-lg font-bold flex items-center flex-wrap gap-2 text-black dark:text-white">
-                    {tipoMetrica === 'inadimplencia' ? (
-                      <>
-                        <span className="md:hidden">Auditoria de Inadimplência</span>
-                        <span className="hidden md:inline">{configAtual.titulo}</span>
-                      </>
-                    ) : (
-                      <span>{configAtual.titulo}</span>
-                    )}
+                    <span>{configAtual.titulo}</span>
                     {nomeLojaContexto && (
                       <span className="text-[11px] font-bold px-2 py-0.5 rounded-full bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border border-emerald-500/30">
                         {nomeLojaContexto}
@@ -280,7 +304,12 @@ export const CockpitMetricDrawer: React.FC<CockpitMetricDrawerProps> = ({
                     )}
                   </h2>
                   <p className="text-xs mt-0.5 text-black dark:text-slate-400 font-medium">
-                    {configAtual.subtitulo} • <span className="font-bold text-black dark:text-slate-200">{intervalo.label}</span>
+                    {configAtual.subtitulo}
+                    {intervaloLabelExibicao && (
+                      <>
+                        {' '}• <span className="font-bold text-black dark:text-slate-200">{intervaloLabelExibicao}</span>
+                      </>
+                    )}
                   </p>
                 </div>
               </div>
@@ -307,9 +336,16 @@ export const CockpitMetricDrawer: React.FC<CockpitMetricDrawerProps> = ({
                     System 1
                   </span>
                 </div>
-                <p className="leading-relaxed text-black dark:text-slate-400 mt-0.5">
-                  {parecerJev.diagnosticoRapido} <strong className="text-black dark:text-slate-200">{parecerJev.prioridadeImediata}</strong>
-                </p>
+                {exibindoCarregamento || !parecerJev ? (
+                  <div className="space-y-1.5 mt-1.5 animate-pulse">
+                    <div className="h-3 w-4/5 rounded bg-slate-200 dark:bg-slate-800" />
+                    <div className="h-3 w-2/3 rounded bg-slate-200 dark:bg-slate-800" />
+                  </div>
+                ) : (
+                  <p className="leading-relaxed text-black dark:text-slate-400 mt-0.5">
+                    {parecerJev.diagnosticoRapido} <strong className="text-black dark:text-slate-200">{parecerJev.prioridadeImediata}</strong>
+                  </p>
+                )}
               </div>
             </div>
           </div>
@@ -318,6 +354,51 @@ export const CockpitMetricDrawer: React.FC<CockpitMetricDrawerProps> = ({
           {/* CONTEÚDO ESPECÍFICO DE CADA UMA DAS 6 MÉTRICAS */}
           {/* ================================================================= */}
           <div className="flex-1 overflow-y-auto p-5 sm:p-6 space-y-6">
+            {exibindoCarregamento || !payload ? (
+              <div className="space-y-5 animate-in fade-in duration-150">
+                <div className={`p-5 rounded-2xl bg-white dark:bg-[#000000] ${cardBorderClass} flex flex-col items-center justify-center text-center gap-2.5 shadow-xs`}>
+                  <Loader2 className="w-6 h-6 animate-spin text-emerald-600 dark:text-emerald-400" />
+                  <div>
+                    <p className="text-sm font-bold text-slate-900 dark:text-white">
+                      Carregando auditoria isolada da filial...
+                    </p>
+                    <p className="text-xs text-slate-600 dark:text-slate-400 mt-0.5">
+                      Buscando exclusivamente os registros de {nomeLojaContexto || 'filial selecionada'} no período.
+                    </p>
+                  </div>
+                </div>
+
+                {/* Skeleton dos cards de KPI */}
+                <div className="grid grid-cols-3 gap-2.5 animate-pulse">
+                  {[0, 1, 2].map((idx) => (
+                    <div
+                      key={idx}
+                      className={`p-3.5 rounded-xl bg-white dark:bg-[#000000] ${cardBorderClass} shadow-xs flex flex-col items-center gap-2`}
+                    >
+                      <div className="h-2.5 w-16 rounded bg-slate-200 dark:bg-slate-800" />
+                      <div className="h-5 w-20 rounded bg-slate-200 dark:bg-slate-800" />
+                    </div>
+                  ))}
+                </div>
+
+                {/* Skeleton da listagem analítica */}
+                <div className="space-y-2.5 animate-pulse">
+                  {[0, 1, 2].map((idx) => (
+                    <div
+                      key={idx}
+                      className={`p-3.5 rounded-xl bg-white dark:bg-[#000000] ${cardBorderClass} shadow-xs space-y-2`}
+                    >
+                      <div className="flex items-center justify-between gap-3">
+                        <div className="h-3.5 w-40 rounded bg-slate-200 dark:bg-slate-800" />
+                        <div className="h-3.5 w-20 rounded bg-slate-200 dark:bg-slate-800" />
+                      </div>
+                      <div className="h-3 w-56 rounded bg-slate-200 dark:bg-slate-800" />
+                    </div>
+                  ))}
+                </div>
+              </div>
+            ) : (
+              <>
 
             {/* ------------------------------------------------------------- */}
             {/* 1. GAVETA: FATURAMENTO BRUTO */}
@@ -403,14 +484,14 @@ export const CockpitMetricDrawer: React.FC<CockpitMetricDrawerProps> = ({
                 <div className="space-y-3">
                   <div className="flex items-center justify-between">
                     <h3 className="text-xs font-bold text-black dark:text-slate-300 uppercase tracking-wider">
-                      Vendas do Período ({decomposicoes.faturamento.vendasSumarizadas.length})
+                      Vendas do Período ({vendasSumarizadasFiltradas.length})
                     </h3>
                     <span className="text-[11px] text-black dark:text-slate-400 font-medium">
-                      Exibindo {Math.min(limiteVendasExibidas, decomposicoes.faturamento.vendasSumarizadas.length)} de {decomposicoes.faturamento.vendasSumarizadas.length}
+                      Exibindo {Math.min(limiteVendasExibidas, vendasSumarizadasFiltradas.length)} de {vendasSumarizadasFiltradas.length}
                     </span>
                   </div>
                   <div className="space-y-2 max-h-80 overflow-y-auto pr-1">
-                    {decomposicoes.faturamento.vendasSumarizadas.slice(0, limiteVendasExibidas).map((v) => (
+                    {vendasSumarizadasFiltradas.slice(0, limiteVendasExibidas).map((v) => (
                       <div
                         key={v.id}
                         className={`p-3 rounded-xl bg-white dark:bg-[#000000] ${cardBorderClass} flex items-center justify-between text-xs hover:border-slate-400 dark:hover:border-slate-300 transition shadow-xs`}
@@ -439,14 +520,14 @@ export const CockpitMetricDrawer: React.FC<CockpitMetricDrawerProps> = ({
                   </div>
 
                   {/* Botão para carregar mais 50 vendas */}
-                  {decomposicoes.faturamento.vendasSumarizadas.length > limiteVendasExibidas && (
+                  {vendasSumarizadasFiltradas.length > limiteVendasExibidas && (
                     <div className="pt-1">
                       <button
                         type="button"
                         onClick={() => setLimiteVendasExibidas(prev => prev + 50)}
                         className={`w-full py-2.5 rounded-xl ${secondaryButtonClass} text-xs transition cursor-pointer shadow-xs`}
                       >
-                        Carregar mais 50 vendas... (Restam {decomposicoes.faturamento.vendasSumarizadas.length - limiteVendasExibidas})
+                        Carregar mais 50 vendas... (Restam {vendasSumarizadasFiltradas.length - limiteVendasExibidas})
                       </button>
                     </div>
                   )}
@@ -833,13 +914,13 @@ export const CockpitMetricDrawer: React.FC<CockpitMetricDrawerProps> = ({
                 <div className="space-y-3">
                   <h3 className="text-xs font-bold text-black dark:text-slate-300 uppercase tracking-wider flex items-center gap-1.5">
                     <Banknote className="w-3.5 h-3.5 text-emerald-600 dark:text-emerald-400" />
-                    <span>Saídas e Despesas do Período ({decomposicoes.despesas.itensRecentes.length})</span>
+                    <span>Saídas e Despesas do Período ({despesasRecentesFiltradas.length})</span>
                   </h3>
                   <div className="space-y-2 max-h-72 overflow-y-auto pr-1">
-                    {decomposicoes.despesas.itensRecentes.length === 0 ? (
+                    {despesasRecentesFiltradas.length === 0 ? (
                       <p className="text-xs text-black dark:text-slate-400 py-4 text-center">Nenhum lançamento no período.</p>
                     ) : (
-                      decomposicoes.despesas.itensRecentes.map((item) => {
+                      despesasRecentesFiltradas.map((item) => {
                         const { titulo, detalheSecundario } = separarTituloEDetalheDespesa(item.descricao, item.categoria);
                         const dataDespesaFmt = formatarDataLocal(item.data);
                         return (
@@ -922,7 +1003,7 @@ export const CockpitMetricDrawer: React.FC<CockpitMetricDrawerProps> = ({
                 </div>
 
                 {/* Caso 0.0%: Status de Conformidade Total */}
-                {decomposicoes.inadimplencia.itensAtrasados.length === 0 || decomposicoes.inadimplencia.taxaInadimplencia === 0 ? (
+                {itensAtrasadosFiltrados.length === 0 || decomposicoes.inadimplencia.taxaInadimplencia === 0 ? (
                   <div className="p-5 rounded-2xl bg-white dark:bg-[#000000] border border-emerald-300 dark:border-emerald-500/50 text-center space-y-2 shadow-xs">
                     <div className="w-10 h-10 rounded-full bg-emerald-500/20 text-emerald-600 dark:text-emerald-400 mx-auto flex items-center justify-center">
                       <ShieldCheck className="w-6 h-6" />
@@ -935,11 +1016,11 @@ export const CockpitMetricDrawer: React.FC<CockpitMetricDrawerProps> = ({
                 ) : (
                   <div className="space-y-3">
                     <h3 className="text-xs font-bold text-black dark:text-slate-300 uppercase tracking-wider">
-                      Títulos & Parcelas em Atraso ({decomposicoes.inadimplencia.itensAtrasados.length})
+                      Títulos & Parcelas em Atraso ({itensAtrasadosFiltrados.length})
                     </h3>
 
                     <div className="space-y-2.5 max-h-96 overflow-y-auto pr-1">
-                      {decomposicoes.inadimplencia.itensAtrasados.map((it) => (
+                      {itensAtrasadosFiltrados.map((it) => (
                         <div
                           key={it.pedidoId}
                           className={`p-3.5 rounded-xl bg-white dark:bg-[#000000] ${cardBorderClass} hover:border-slate-400 dark:hover:border-slate-300 transition shadow-xs`}
@@ -1122,11 +1203,11 @@ export const CockpitMetricDrawer: React.FC<CockpitMetricDrawerProps> = ({
                     <h3 className="text-xs font-bold text-black dark:text-slate-300 uppercase tracking-wider">
                       {decomposicoes.saudeEstoque.fase === 'fase2'
                         ? 'Produtos Classe A em Risco de Ruptura'
-                        : 'Produtos Abaixo do Estoque Mínimo ou Zerados'} ({decomposicoes.saudeEstoque.produtosEmRisco.length})
+                        : 'Produtos Abaixo do Estoque Mínimo ou Zerados'} ({produtosEmRiscoFiltrados.length})
                     </h3>
                   </div>
 
-                  {decomposicoes.saudeEstoque.produtosEmRisco.length === 0 ? (
+                  {produtosEmRiscoFiltrados.length === 0 ? (
                     <div className="p-5 rounded-2xl bg-white dark:bg-[#000000] border border-emerald-300 dark:border-emerald-500/50 text-center space-y-1 shadow-xs">
                       <CheckCircle2 className="w-8 h-8 text-emerald-600 dark:text-emerald-400 mx-auto" />
                       <h4 className="text-sm font-bold text-black dark:text-white">Nenhum produto em risco de desabastecimento!</h4>
@@ -1140,7 +1221,7 @@ export const CockpitMetricDrawer: React.FC<CockpitMetricDrawerProps> = ({
                     </div>
                   ) : (
                     <div className="space-y-2 max-h-96 overflow-y-auto pr-1">
-                      {decomposicoes.saudeEstoque.produtosEmRisco.map((prod) => (
+                      {produtosEmRiscoFiltrados.map((prod) => (
                         <div
                           key={prod.id}
                           className={`p-3.5 rounded-xl bg-white dark:bg-[#000000] ${cardBorderClass} hover:border-slate-400 dark:hover:border-slate-300 transition shadow-xs`}
@@ -1255,6 +1336,8 @@ export const CockpitMetricDrawer: React.FC<CockpitMetricDrawerProps> = ({
                   )}
                 </div>
               </div>
+            )}
+              </>
             )}
 
           </div>
