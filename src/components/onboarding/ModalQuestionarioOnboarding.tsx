@@ -142,7 +142,7 @@ const MODULOS_OPCIONAIS_DEFINICAO: ModuloOpcionalCardDef[] = [
     titulo: 'Gateway de Pagamentos Online (Mercado Pago, Asaas e outros)',
     descricaoComercial:
       'Receba via Pix dinâmico (com baixa automática instantânea) e Cartão de Crédito/Débito direto no catálogo.',
-    rotaDestino: '/config?tab=pagamentos',
+    rotaDestino: '/config?tab=pagamentos&campo=topo',
     icone: CreditCard,
   },
   {
@@ -184,7 +184,7 @@ const MODULOS_OPCIONAIS_DEFINICAO: ModuloOpcionalCardDef[] = [
     titulo: 'Notificações Ativas no WhatsApp (Meta Cloud API)',
     descricaoComercial:
       'Avise o cliente automaticamente por disparo ativo quando o pedido sair para entrega, ficar pronto para retirada ou lembrar do agendamento.',
-    rotaDestino: '/config?tab=whatsapp-ia',
+    rotaDestino: '/config?tab=whatsapp-ia&campo=topo',
     icone: MessageCircle,
   },
   {
@@ -192,7 +192,7 @@ const MODULOS_OPCIONAIS_DEFINICAO: ModuloOpcionalCardDef[] = [
     titulo: 'Robô Atendente / Vendedora IA no WhatsApp (Meta Cloud API)',
     descricaoComercial:
       'Atendimento receptivo 24h com IA respondendo dúvidas, consultando estoque e fechando pedidos direto pelo WhatsApp oficial da loja.',
-    rotaDestino: '/config?tab=whatsapp-ia',
+    rotaDestino: '/config?tab=whatsapp-ia&campo=topo',
     icone: Bot,
   },
   {
@@ -200,7 +200,7 @@ const MODULOS_OPCIONAIS_DEFINICAO: ModuloOpcionalCardDef[] = [
     titulo: 'Integração com Mercado Livre',
     descricaoComercial:
       'Sincronize o estoque físico com seus anúncios em tempo real e imprima etiquetas direto pela Rubi.',
-    rotaDestino: '/config?tab=parceiros',
+    rotaDestino: '/config?tab=parceiros&campo=topo',
     icone: ShoppingBag,
   },
   {
@@ -224,7 +224,7 @@ const MODULOS_OPCIONAIS_DEFINICAO: ModuloOpcionalCardDef[] = [
     titulo: 'Caderneta de Mercadinho / Fiado',
     descricaoComercial:
       'Conta corrente mensal com dia fixo de vencimento, histórico de lançamentos e limite de crédito por cliente.',
-    rotaDestino: '/config?tab=pagamentos',
+    rotaDestino: '/config?tab=pagamentos&campo=topo',
     icone: BookOpen,
   },
 ];
@@ -385,9 +385,22 @@ export const ModalQuestionarioOnboarding: React.FC<ModalQuestionarioOnboardingPr
     etapaTitulo: string,
     rotaDestino: string
   ) => {
+    const queryIndex = rotaDestino.indexOf('?');
+    const searchParamsDestino = new URLSearchParams(
+      queryIndex >= 0 ? rotaDestino.slice(queryIndex + 1) : ''
+    );
+    const abaAlvo = searchParamsDestino.get('tab') || searchParamsDestino.get('aba') || undefined;
+    const campoAlvo = searchParamsDestino.get('campo') || undefined;
+
     registrarRetornoOnboarding(etapaId, etapaTitulo);
     onClose();
-    navigate(rotaDestino);
+    navigate(rotaDestino, {
+      state: {
+        abaAlvo,
+        campoAlvo,
+        focoTimestamp: Date.now(),
+      },
+    });
   };
 
   const handleToggleTipoVenda = async (campo: keyof TiposVendaLoja) => {
@@ -697,6 +710,13 @@ export const ModalQuestionarioOnboarding: React.FC<ModalQuestionarioOnboardingPr
   const etapaGemini = obterEtapaPorId('ia_gemini');
   const etapaSerper = obterEtapaPorId('busca_fotos_serper');
   const etapaPerfilIa = obterEtapaPorId('perfil_negocio_ia');
+  const segmentoSalvoOnboarding = statusCompleto?.lojaSnapshot.segmento_negocio || 'geral';
+  const especialidadeSalvaOnboarding = statusCompleto?.lojaSnapshot.especialidade_negocio || '';
+  const identidadeInlineAlterada =
+    segmentoInline !== segmentoSalvoOnboarding ||
+    especialidadeInline.trim() !== especialidadeSalvaOnboarding.trim();
+  const exibirSalvarIdentidade =
+    !Boolean(etapaPerfilIa?.concluido) || identidadeInlineAlterada;
   const etapaDados = obterEtapaPorId('dados_loja_cep');
   const etapaTiposVenda = obterEtapaPorId('tipos_venda');
   const etapaPagamentos = obterEtapaPorId('formas_pagamento');
@@ -761,7 +781,7 @@ export const ModalQuestionarioOnboarding: React.FC<ModalQuestionarioOnboardingPr
                 navegarParaConfigurarEtapa(
                   'ia_gemini',
                   'Inteligência Artificial Base (Google Gemini)',
-                  '/config?tab=dados-loja'
+                  '/config?tab=dados-loja&campo=gemini_api_key'
                 );
               },
             },
@@ -792,7 +812,7 @@ export const ModalQuestionarioOnboarding: React.FC<ModalQuestionarioOnboardingPr
                 navegarParaConfigurarEtapa(
                   'busca_fotos_serper',
                   'Busca Automática de Fotos (Serper.dev)',
-                  '/config?tab=dados-loja'
+                  '/config?tab=dados-loja&campo=serper_api_key'
                 );
               },
             },
@@ -805,7 +825,7 @@ export const ModalQuestionarioOnboarding: React.FC<ModalQuestionarioOnboardingPr
           acoes: [
             {
               id: 'abrir-dados-loja-ia',
-              rotulo: 'Abrir Dados da Loja',
+              rotulo: 'Configurar Identidade',
               variante: 'primaria_neutra',
               icone: 'arrow',
               onClick: () => {
@@ -813,7 +833,7 @@ export const ModalQuestionarioOnboarding: React.FC<ModalQuestionarioOnboardingPr
                 navegarParaConfigurarEtapa(
                   'perfil_negocio_ia',
                   'Identidade do Negócio (Segmento & Especialidade para IAs)',
-                  '/config?tab=dados-loja'
+                  '/config?tab=dados-loja&campo=identidade_negocio'
                 );
               },
             },
@@ -834,7 +854,7 @@ export const ModalQuestionarioOnboarding: React.FC<ModalQuestionarioOnboardingPr
                 navegarParaConfigurarEtapa(
                   'dados_loja_cep',
                   'Dados da Loja e Endereço/CEP de Origem',
-                  '/config?tab=dados-loja'
+                  '/config?tab=dados-loja&campo=topo'
                 );
               },
             },
@@ -855,7 +875,7 @@ export const ModalQuestionarioOnboarding: React.FC<ModalQuestionarioOnboardingPr
                 navegarParaConfigurarEtapa(
                   'tipos_venda',
                   'Tabelas de Preço e Tipos de Venda',
-                  '/config?tab=tipos-venda'
+                  '/config?tab=tipos-venda&campo=topo'
                 );
               },
             },
@@ -876,7 +896,7 @@ export const ModalQuestionarioOnboarding: React.FC<ModalQuestionarioOnboardingPr
                 navegarParaConfigurarEtapa(
                   'formas_pagamento',
                   'Formas de Pagamento e Taxas de Maquininha',
-                  '/config?tab=pagamentos'
+                  '/config?tab=pagamentos&campo=topo'
                 );
               },
             },
@@ -963,7 +983,7 @@ export const ModalQuestionarioOnboarding: React.FC<ModalQuestionarioOnboardingPr
                 navegarParaConfigurarEtapa(
                   'metas_loja',
                   'Metas da Loja (Cockpit Executivo F1)',
-                  '/config?tab=metas'
+                  '/config?tab=metas&campo=topo'
                 );
               },
             },
@@ -1235,7 +1255,7 @@ export const ModalQuestionarioOnboarding: React.FC<ModalQuestionarioOnboardingPr
                           navegarParaConfigurarEtapa(
                             'ia_gemini',
                             'Inteligência Artificial Base (Google Gemini)',
-                            '/config?tab=dados-loja'
+                            '/config?tab=dados-loja&campo=gemini_api_key'
                           )
                         }
                         className={`px-3.5 py-2 rounded-xl font-bold text-xs flex items-center gap-1.5 transition cursor-pointer ${classeBotaoAcaoNeutra}`}
@@ -1293,7 +1313,7 @@ export const ModalQuestionarioOnboarding: React.FC<ModalQuestionarioOnboardingPr
                           navegarParaConfigurarEtapa(
                             'busca_fotos_serper',
                             'Busca Automática de Fotos (Serper.dev)',
-                            '/config?tab=dados-loja'
+                            '/config?tab=dados-loja&campo=serper_api_key'
                           )
                         }
                         className={`px-3.5 py-2 rounded-xl font-bold text-xs flex items-center gap-1.5 transition cursor-pointer ${classeBotaoAcaoNeutra}`}
@@ -1393,19 +1413,21 @@ export const ModalQuestionarioOnboarding: React.FC<ModalQuestionarioOnboardingPr
                     </div>
 
                     <div className="mt-4 flex flex-wrap items-center gap-2.5">
-                      <button
-                        type="button"
-                        disabled={salvandoChaveInline === 'perfil_negocio_ia'}
-                        onClick={() => void handleSalvarPerfilIAInline()}
-                        className={`px-3.5 py-2 rounded-xl text-xs inline-flex items-center gap-1.5 transition cursor-pointer disabled:opacity-60 ${classeBotaoPrincipalAcao}`}
-                      >
-                        {salvandoChaveInline === 'perfil_negocio_ia' ? (
-                          <Loader2 className="w-3.5 h-3.5 animate-spin" />
-                        ) : (
-                          <CheckCircle2 className="w-3.5 h-3.5" />
-                        )}
-                        <span>Salvar Identidade para IAs</span>
-                      </button>
+                      {exibirSalvarIdentidade && (
+                        <button
+                          type="button"
+                          disabled={salvandoChaveInline === 'perfil_negocio_ia'}
+                          onClick={() => void handleSalvarPerfilIAInline()}
+                          className={`px-3.5 py-2 rounded-xl text-xs inline-flex items-center gap-1.5 transition cursor-pointer disabled:opacity-60 ${classeBotaoPrincipalAcao}`}
+                        >
+                          {salvandoChaveInline === 'perfil_negocio_ia' ? (
+                            <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                          ) : (
+                            <CheckCircle2 className="w-3.5 h-3.5" />
+                          )}
+                          <span>Salvar Identidade</span>
+                        </button>
+                      )}
 
                       <button
                         type="button"
@@ -1413,12 +1435,12 @@ export const ModalQuestionarioOnboarding: React.FC<ModalQuestionarioOnboardingPr
                           navegarParaConfigurarEtapa(
                             'perfil_negocio_ia',
                             'Identidade do Negócio (Segmento & Especialidade para IAs)',
-                            '/config?tab=dados-loja'
+                            '/config?tab=dados-loja&campo=identidade_negocio'
                           )
                         }
                         className={`px-3.5 py-2 rounded-xl font-bold text-xs inline-flex items-center gap-1.5 transition cursor-pointer ${classeBotaoAcaoNeutra}`}
                       >
-                        <span>Abrir Dados da Loja</span>
+                        <span>Configurar Identidade</span>
                         <ArrowRight className="w-3.5 h-3.5" />
                       </button>
 
@@ -1464,7 +1486,7 @@ export const ModalQuestionarioOnboarding: React.FC<ModalQuestionarioOnboardingPr
                           navegarParaConfigurarEtapa(
                             'dados_loja_cep',
                             'Dados da Loja e Endereço/CEP de Origem',
-                            '/config?tab=dados-loja'
+                            '/config?tab=dados-loja&campo=topo'
                           )
                         }
                         className={`px-3.5 py-2 rounded-xl font-bold text-xs inline-flex items-center gap-1.5 transition cursor-pointer ${classeBotaoAcaoNeutra}`}
@@ -1556,7 +1578,7 @@ export const ModalQuestionarioOnboarding: React.FC<ModalQuestionarioOnboardingPr
                             navegarParaConfigurarEtapa(
                               'tipos_venda',
                               'Tabelas de Preço e Tipos de Venda',
-                              '/config?tab=tipos-venda'
+                              '/config?tab=tipos-venda&campo=topo'
                             )
                           }
                           className={`px-3 py-1.5 rounded-xl text-xs font-bold inline-flex items-center gap-1.5 transition cursor-pointer ${classeBotaoSecundarioNeutro}`}
@@ -1607,7 +1629,7 @@ export const ModalQuestionarioOnboarding: React.FC<ModalQuestionarioOnboardingPr
                           navegarParaConfigurarEtapa(
                             'formas_pagamento',
                             'Formas de Pagamento e Taxas de Maquininha',
-                            '/config?tab=pagamentos'
+                            '/config?tab=pagamentos&campo=topo'
                           )
                         }
                         className={`px-3.5 py-2 rounded-xl font-bold text-xs inline-flex items-center gap-1.5 transition cursor-pointer ${classeBotaoAcaoNeutra}`}
@@ -1953,7 +1975,7 @@ export const ModalQuestionarioOnboarding: React.FC<ModalQuestionarioOnboardingPr
                           navegarParaConfigurarEtapa(
                             'metas_loja',
                             'Metas da Loja (Cockpit Executivo F1)',
-                            '/config?tab=metas'
+                            '/config?tab=metas&campo=topo'
                           )
                         }
                         className={`px-3.5 py-2 rounded-xl font-bold text-xs inline-flex items-center gap-1.5 transition cursor-pointer ${classeBotaoAcaoNeutra}`}

@@ -355,6 +355,7 @@ export const ConfiguracoesLoja: React.FC<ConfiguracoesLojaProps> = ({ subTelaIni
 
   const location = useLocation();
   const [subTela, setSubTela] = useState<SubTelaConfig>('menu');
+  const [campoDestaqueOnboarding, setCampoDestaqueOnboarding] = useState<string | null>(null);
   const [salvando, setSalvando] = useState<boolean>(false);
   const {
     totalConcluidas,
@@ -438,7 +439,17 @@ export const ConfiguracoesLoja: React.FC<ConfiguracoesLojaProps> = ({ subTelaIni
   }, [permissions.ehSuperAdmin, carregarParametrosGlobais]);
 
   useEffect(() => {
-    const tabParam = searchParams.get('tab');
+    const stateNav = location.state as { abaAlvo?: string; campoAlvo?: string } | null;
+    const rawTab = searchParams.get('tab') || searchParams.get('aba') || stateNav?.abaAlvo || '';
+    const normalizarSubTela = (valor: string): string => {
+      const limpo = valor.trim();
+      if (limpo === 'dados_loja') return 'dados-loja';
+      if (limpo === 'tipos_venda') return 'tipos-venda';
+      if (limpo === 'whatsapp_ia') return 'whatsapp-ia';
+      return limpo;
+    };
+    const tabParam = normalizarSubTela(rawTab);
+
     if (location.pathname.includes('tipos-venda') || subTelaInicial === 'tipos-venda' || tabParam === 'tipos-venda') {
       setSubTela('tipos-venda');
     } else if (tabParam) {
@@ -448,7 +459,57 @@ export const ConfiguracoesLoja: React.FC<ConfiguracoesLojaProps> = ({ subTelaIni
     } else {
       setSubTela('menu');
     }
-  }, [searchParams, location.pathname, subTelaInicial]);
+  }, [searchParams, location.pathname, location.state, subTelaInicial]);
+
+  useEffect(() => {
+    const stateNav = location.state as { campoAlvo?: string } | null;
+    const campoAlvo =
+      searchParams.get('campo') ||
+      (searchParams.get('secao') === 'identidade' ? 'identidade_negocio' : '') ||
+      stateNav?.campoAlvo ||
+      '';
+
+    if (!campoAlvo || subTela === 'menu') {
+      return;
+    }
+
+    let limparDestaqueTimer: number | undefined;
+    const focoTimer = window.setTimeout(() => {
+      if (campoAlvo === 'topo') {
+        const scrollers = document.querySelectorAll<HTMLElement>('.overflow-y-auto');
+        const scrollerVisivel = Array.from(scrollers).find((el) => el.offsetParent !== null);
+        if (scrollerVisivel) {
+          scrollerVisivel.scrollTo({ top: 0, behavior: 'smooth' });
+        }
+        window.scrollTo({ top: 0, behavior: 'smooth' });
+        return;
+      }
+
+      const alvos = document.querySelectorAll<HTMLElement>(`[data-campo-onboarding="${campoAlvo}"]`);
+      const alvoVisivel = Array.from(alvos).find((el) => el.offsetParent !== null) || alvos[0];
+      if (!alvoVisivel) return;
+
+      alvoVisivel.scrollIntoView({ behavior: 'smooth', block: 'center' });
+
+      const inputAlvo =
+        alvoVisivel instanceof HTMLInputElement || alvoVisivel instanceof HTMLSelectElement
+          ? alvoVisivel
+          : alvoVisivel.querySelector<HTMLElement>('[data-campo-foco="identidade_negocio"], input, select');
+      inputAlvo?.focus({ preventScroll: true });
+
+      setCampoDestaqueOnboarding(campoAlvo);
+      limparDestaqueTimer = window.setTimeout(() => {
+        setCampoDestaqueOnboarding((atual) => (atual === campoAlvo ? null : atual));
+      }, 2500);
+    }, 150);
+
+    return () => {
+      window.clearTimeout(focoTimer);
+      if (limparDestaqueTimer !== undefined) {
+        window.clearTimeout(limparDestaqueTimer);
+      }
+    };
+  }, [subTela, searchParams, location.key, location.state]);
 
   useEffect(() => {
     const handleResetSubTela = (e: any) => {
@@ -2972,10 +3033,14 @@ export const ConfiguracoesLoja: React.FC<ConfiguracoesLojaProps> = ({ subTelaIni
 
               {/* Bloco 2: Segmento de Atuação & Especialização da Rubi IA */}
               <div
-                className={`rounded-2xl p-4 shadow-xs space-y-4 border ${
-                  isDark
-                    ? 'bg-[#000000] border-slate-700 text-white'
-                    : 'bg-white border-slate-200 text-black'
+                data-secao-identidade="true"
+                data-campo-onboarding="identidade_negocio"
+                className={`rounded-2xl p-4 shadow-xs space-y-4 border transition-all duration-300 ${
+                  campoDestaqueOnboarding === 'identidade_negocio'
+                    ? 'ring-2 ring-emerald-400 bg-emerald-50/40 dark:bg-emerald-950/30 border-emerald-400'
+                    : isDark
+                      ? 'bg-[#000000] border-slate-700 text-white'
+                      : 'bg-white border-slate-200 text-black'
                 }`}
               >
                 <div className="flex items-start justify-between gap-2">
@@ -3075,6 +3140,7 @@ export const ConfiguracoesLoja: React.FC<ConfiguracoesLojaProps> = ({ subTelaIni
                   <input
                     type="text"
                     name="loja_especialidade_nicho"
+                    data-campo-foco="identidade_negocio"
                     autoComplete="off"
                     value={especialidadeNegocio}
                     onChange={(e) => setEspecialidadeNegocio(e.target.value)}
@@ -3155,6 +3221,7 @@ export const ConfiguracoesLoja: React.FC<ConfiguracoesLojaProps> = ({ subTelaIni
                     <input
                       type={mostrarGeminiKey ? 'text' : 'password'}
                       name="loja_gemini_api_key"
+                      data-campo-onboarding="gemini_api_key"
                       autoComplete="new-password"
                       value={geminiApiKey}
                       onChange={(e) => {
@@ -3163,10 +3230,12 @@ export const ConfiguracoesLoja: React.FC<ConfiguracoesLojaProps> = ({ subTelaIni
                       }}
                       placeholder="AIzaSy..."
                       required
-                      className={`w-full rounded-xl px-3.5 ${copiadoGeminiKey ? 'pr-36' : 'pr-20'} py-2.5 text-sm font-mono border focus:border-emerald-500 outline-hidden ${
-                        isDark
-                          ? 'bg-slate-950 border-slate-700 text-white placeholder:text-slate-500'
-                          : 'bg-white border-slate-300 text-black placeholder:text-slate-400'
+                      className={`w-full rounded-xl px-3.5 ${copiadoGeminiKey ? 'pr-36' : 'pr-20'} py-2.5 text-sm font-mono border focus:border-emerald-500 outline-hidden transition-all duration-300 ${
+                        campoDestaqueOnboarding === 'gemini_api_key'
+                          ? 'ring-2 ring-emerald-400 bg-emerald-50/40 dark:bg-emerald-950/30 border-emerald-400 text-black dark:text-white placeholder:text-slate-500'
+                          : isDark
+                            ? 'bg-slate-950 border-slate-700 text-white placeholder:text-slate-500'
+                            : 'bg-white border-slate-300 text-black placeholder:text-slate-400'
                       }`}
                     />
                     <div className="absolute right-2.5 top-1/2 -translate-y-1/2 flex items-center gap-1">
@@ -3264,6 +3333,7 @@ export const ConfiguracoesLoja: React.FC<ConfiguracoesLojaProps> = ({ subTelaIni
                     <input
                       type={mostrarSerperKey ? 'text' : 'password'}
                       name="loja_serper_api_key"
+                      data-campo-onboarding="serper_api_key"
                       autoComplete="new-password"
                       value={serpApiKey}
                       onChange={(e) => {
@@ -3271,10 +3341,12 @@ export const ConfiguracoesLoja: React.FC<ConfiguracoesLojaProps> = ({ subTelaIni
                         if (resultadoTesteSerpApi) setResultadoTesteSerpApi(null);
                       }}
                       placeholder="Cole a sua chave API do Serper.dev..."
-                      className={`w-full rounded-xl px-3.5 pr-11 py-2.5 text-sm font-mono border focus:border-emerald-500 outline-hidden ${
-                        isDark
-                          ? 'bg-slate-950 border-slate-700 text-white placeholder:text-slate-500'
-                          : 'bg-white border-slate-300 text-black placeholder:text-slate-400'
+                      className={`w-full rounded-xl px-3.5 pr-11 py-2.5 text-sm font-mono border focus:border-emerald-500 outline-hidden transition-all duration-300 ${
+                        campoDestaqueOnboarding === 'serper_api_key'
+                          ? 'ring-2 ring-emerald-400 bg-emerald-50/40 dark:bg-emerald-950/30 border-emerald-400 text-black dark:text-white placeholder:text-slate-500'
+                          : isDark
+                            ? 'bg-slate-950 border-slate-700 text-white placeholder:text-slate-500'
+                            : 'bg-white border-slate-300 text-black placeholder:text-slate-400'
                       }`}
                     />
                     <button
@@ -5517,7 +5589,15 @@ export const ConfiguracoesLoja: React.FC<ConfiguracoesLojaProps> = ({ subTelaIni
               </div>
 
               {/* SEÇÃO: SEGMENTO DO NEGÓCIO & ESPECIALIZAÇÃO DA RUBI IA */}
-              <div className="pt-6 border-t border-slate-200 dark:border-slate-800 space-y-4">
+              <div
+                data-secao-identidade="true"
+                data-campo-onboarding="identidade_negocio"
+                className={`pt-6 border-t border-slate-200 dark:border-slate-800 space-y-4 transition-all duration-300 ${
+                  campoDestaqueOnboarding === 'identidade_negocio'
+                    ? 'rounded-2xl p-4 ring-2 ring-emerald-400 bg-emerald-50/40 dark:bg-emerald-950/30'
+                    : ''
+                }`}
+              >
                 <div className="flex items-start justify-between gap-3">
                   <div>
                     <div className="flex items-center gap-2">
@@ -5593,6 +5673,7 @@ export const ConfiguracoesLoja: React.FC<ConfiguracoesLojaProps> = ({ subTelaIni
                   <input
                     type="text"
                     name="loja_especialidade_nicho"
+                    data-campo-foco="identidade_negocio"
                     autoComplete="off"
                     value={especialidadeNegocio}
                     onChange={(e) => setEspecialidadeNegocio(e.target.value)}
@@ -5655,6 +5736,7 @@ export const ConfiguracoesLoja: React.FC<ConfiguracoesLojaProps> = ({ subTelaIni
                       <input
                         type={mostrarGeminiKey ? 'text' : 'password'}
                         name="loja_gemini_api_key"
+                        data-campo-onboarding="gemini_api_key"
                         autoComplete="new-password"
                         value={geminiApiKey}
                         onChange={(e) => {
@@ -5663,7 +5745,11 @@ export const ConfiguracoesLoja: React.FC<ConfiguracoesLojaProps> = ({ subTelaIni
                         }}
                         placeholder="AIzaSy..."
                         required
-                        className={`w-full bg-white dark:bg-slate-950 border border-slate-300 dark:border-slate-800 rounded-xl p-3 ${copiadoGeminiKey ? 'pr-36' : 'pr-20'} text-sm text-black dark:text-slate-100 placeholder:text-slate-500 dark:placeholder:text-slate-600 focus:border-emerald-500 outline-hidden transition font-mono`}
+                        className={`w-full rounded-xl p-3 ${copiadoGeminiKey ? 'pr-36' : 'pr-20'} text-sm text-black dark:text-slate-100 placeholder:text-slate-500 dark:placeholder:text-slate-600 focus:border-emerald-500 outline-hidden transition font-mono border ${
+                          campoDestaqueOnboarding === 'gemini_api_key'
+                            ? 'ring-2 ring-emerald-400 bg-emerald-50/40 dark:bg-emerald-950/30 border-emerald-400'
+                            : 'bg-white dark:bg-slate-950 border-slate-300 dark:border-slate-800'
+                        }`}
                       />
                       <div className="absolute right-2.5 top-1/2 -translate-y-1/2 flex items-center gap-1">
                         <button
@@ -5757,6 +5843,7 @@ export const ConfiguracoesLoja: React.FC<ConfiguracoesLojaProps> = ({ subTelaIni
                       <input
                         type={mostrarSerperKey ? 'text' : 'password'}
                         name="loja_serper_api_key"
+                        data-campo-onboarding="serper_api_key"
                         autoComplete="new-password"
                         value={serpApiKey}
                         onChange={(e) => {
@@ -5764,7 +5851,11 @@ export const ConfiguracoesLoja: React.FC<ConfiguracoesLojaProps> = ({ subTelaIni
                           if (resultadoTesteSerpApi) setResultadoTesteSerpApi(null);
                         }}
                         placeholder="Cole a sua chave API do Serper.dev..."
-                        className="w-full bg-white dark:bg-slate-950 border border-slate-300 dark:border-slate-800 rounded-xl p-3 pr-10 text-sm text-black dark:text-slate-100 placeholder:text-slate-500 dark:placeholder:text-slate-600 focus:border-emerald-500 outline-hidden transition font-mono"
+                        className={`w-full rounded-xl p-3 pr-10 text-sm text-black dark:text-slate-100 placeholder:text-slate-500 dark:placeholder:text-slate-600 focus:border-emerald-500 outline-hidden transition font-mono border ${
+                          campoDestaqueOnboarding === 'serper_api_key'
+                            ? 'ring-2 ring-emerald-400 bg-emerald-50/40 dark:bg-emerald-950/30 border-emerald-400'
+                            : 'bg-white dark:bg-slate-950 border-slate-300 dark:border-slate-800'
+                        }`}
                       />
                       <button
                         type="button"
