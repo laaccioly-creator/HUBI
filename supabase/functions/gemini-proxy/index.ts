@@ -17,6 +17,10 @@ const MODELOS_RAPIDOS_HOMOLOGADOS = [
   "gemini-2.5-flash",
 ] as const;
 
+const CONTENTS_TESTE_MINIMO = [
+  { role: "user", parts: [{ text: "Responda apenas OK" }] },
+];
+
 const TIMEOUT_CHAMADA_GOOGLE_MS = 4000;
 const TIMEOUT_HANDLER_GLOBAL_MS = 13500;
 
@@ -289,99 +293,96 @@ serve(async (req: Request) => {
         }
 
         etapaAtual = "testando_chave_google";
-        try {
-          const urlModelos = `https://generativelanguage.googleapis.com/v1beta/models?key=${encodeURIComponent(apiKeyPayload)}`;
-          const resposta = await fetchComTimeout(
-            urlModelos,
-            {
-              method: "GET",
-              headers: { "Content-Type": "application/json" },
-            },
-            TIMEOUT_CHAMADA_GOOGLE_MS
+        const payloadTeste: Record<string, unknown> = {
+          contents: Array.isArray(contents) && contents.length > 0 ? contents : CONTENTS_TESTE_MINIMO,
+          generationConfig: { maxOutputTokens: 8, temperature: 0 },
+        };
+
+        let ultimoResTeste: ResultadoChamadaGoogle | null = null;
+        for (let idx = 0; idx < MODELOS_RAPIDOS_HOMOLOGADOS.length; idx++) {
+          const modeloAtual = MODELOS_RAPIDOS_HOMOLOGADOS[idx];
+          const res = await chamarGoogleGemini(
+            modeloAtual,
+            "generateContent",
+            apiKeyPayload,
+            payloadTeste
           );
-          const data = (await resposta.json().catch(() => ({}))) as Record<string, unknown>;
 
-          if (resposta.ok) {
-            const listaModelos = Array.isArray(data.models)
-              ? (data.models as Array<{ name?: string; supportedGenerationMethods?: string[] }>)
-              : [];
-            const nomesCompativeis = listaModelos
-              .filter(
-                (m) =>
-                  typeof m?.name === "string" &&
-                  (!Array.isArray(m.supportedGenerationMethods) ||
-                    m.supportedGenerationMethods.includes("generateContent"))
-              )
-              .map((m) => String(m.name).replace(/^models\//i, "").trim())
-              .filter(Boolean);
-
-            const modeloHomologado = MODELOS_RAPIDOS_HOMOLOGADOS.find((m) =>
-              nomesCompativeis.includes(m)
-            );
-            const modeloGemini = nomesCompativeis.find((m) =>
-              m.toLowerCase().startsWith("gemini-")
-            );
-            const modeloAtivo = modeloHomologado || modeloGemini || nomesCompativeis[0];
-
+          if (res.ok) {
             return jsonResponse(
               {
                 ok: true,
                 valido: true,
-                modelo: modeloAtivo,
-                mensagem: modeloAtivo
-                  ? `Chave do Google AI Studio válida e ativa! Modelo disponível: ${modeloAtivo}.`
-                  : "Chave do Google AI Studio válida e ativa!",
+                modelo: modeloAtual,
+                modeloUsado: modeloAtual,
+                mensagem: `Chave do Google AI Studio válida e ativa! Modelo disponível: ${modeloAtual}.`,
               },
               200
             );
           }
 
-          const detalheErro = extrairDetalheErroGoogle(data, resposta.status);
-          const detalheLower = detalheErro.toLowerCase();
-          let mensagemErro =
-            "Não foi possível validar a chave no Google AI Studio no momento. Tente novamente em instantes.";
+          ultimoResTeste = res;
+          const podeTentarProximoModelo =
+            res.status === 404 ||
+            res.status === 503 ||
+            res.status === 500 ||
+            res.timeout;
 
-          if (detalheLower.includes("expired")) {
-            mensagemErro = "Chave de API expirada. Gere uma nova chave no Google AI Studio.";
-          } else if (
-            resposta.status === 400 ||
-            resposta.status === 401 ||
-            detalheLower.includes("api key not valid") ||
-            detalheLower.includes("api_key_invalid")
-          ) {
-            mensagemErro =
-              "Chave de API inválida. Verifique se copiou a chave completa no Google AI Studio.";
-          } else if (resposta.status === 403) {
-            mensagemErro =
-              "Chave de API sem permissão para acessar o Google Gemini. Verifique as restrições da chave no Google AI Studio.";
-          } else if (resposta.status === 429) {
-            mensagemErro =
-              "Cota da API do Google Gemini excedida para esta chave. Aguarde alguns instantes ou verifique os limites no Google AI Studio.";
+          if (podeTentarProximoModelo) {
+            continue;
           }
 
+          break;
+        }
+
+        if (ultimoResTeste?.timeout) {
           return jsonResponse(
             {
               ok: false,
               valido: false,
-              error: mensagemErro,
-              statusGoogle: resposta.status,
-            },
-            200
-          );
-        } catch (err: unknown) {
-          const isTimeout = err instanceof Error && err.name === "AbortError";
-          return jsonResponse(
-            {
-              ok: false,
-              valido: false,
-              timeout: isTimeout,
-              error: isTimeout
-                ? "Tempo limite excedido ao validar a chave no Google AI Studio. Tente novamente em instantes."
-                : "Não foi possível conectar aos servidores do Google AI Studio. Verifique sua conexão e tente novamente.",
+              timeout: true,
+              error: "Tempo limite excedido ao validar a chave no Google AI Studio. Tente novamente em instantes.",
+              statusGoogle: 504,
             },
             200
           );
         }
+
+        const statusGoogleTeste = ultimoResTeste?.status || 502;
+        const detalheErro = ultimoResTeste
+          ? extrairDetalheErroGoogle(ultimoResTeste.data, statusGoogleTeste)
+          : "falha_validacao";
+        const detalheLower = detalheErro.toLowerCase();
+        let mensagemErro =
+          "Não foi possível validar a chave no Google AI Studio no momento. Tente novamente em instantes.";
+
+        if (detalheLower.includes("expired")) {
+          mensagemErro = "Chave de API expirada. Gere uma nova chave no Google AI Studio.";
+        } else if (
+          statusGoogleTeste === 400 ||
+          statusGoogleTeste === 401 ||
+          detalheLower.includes("api key not valid") ||
+          detalheLower.includes("api_key_invalid")
+        ) {
+          mensagemErro =
+            "Chave de API inválida. Verifique se copiou a chave completa no Google AI Studio.";
+        } else if (statusGoogleTeste === 403) {
+          mensagemErro =
+            "Chave de API sem permissão para acessar o Google Gemini. Verifique as restrições da chave no Google AI Studio.";
+        } else if (statusGoogleTeste === 429) {
+          mensagemErro =
+            "Cota da API do Google Gemini excedida para esta chave. Aguarde alguns instantes ou verifique os limites no Google AI Studio.";
+        }
+
+        return jsonResponse(
+          {
+            ok: false,
+            valido: false,
+            error: mensagemErro,
+            statusGoogle: statusGoogleTeste,
+          },
+          200
+        );
       }
 
       let resolvedApiKey = apiKeyPayload;
@@ -485,6 +486,12 @@ serve(async (req: Request) => {
         : [...MODELOS_RAPIDOS_HOMOLOGADOS];
 
       const actionLimpa = String(action || "generateContent").trim() || "generateContent";
+      if (
+        actionLimpa === "generateContent" &&
+        (!Array.isArray(googlePayload.contents) || googlePayload.contents.length === 0)
+      ) {
+        googlePayload.contents = CONTENTS_TESTE_MINIMO;
+      }
       let ultimoResultado: ResultadoChamadaGoogle | null = null;
 
       for (let idx = 0; idx < filaModelos.length; idx++) {

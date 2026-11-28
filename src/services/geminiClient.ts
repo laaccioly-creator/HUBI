@@ -256,7 +256,9 @@ export const testarChaveGemini = async (
       },
       body: JSON.stringify({
         acao: 'testar_chave',
-        apiKey: chaveLimpa
+        apiKey: chaveLimpa,
+        contents: [{ role: 'user', parts: [{ text: 'Responda apenas OK' }] }],
+        generationConfig: { maxOutputTokens: 8, temperature: 0 }
       })
     });
 
@@ -266,17 +268,20 @@ export const testarChaveGemini = async (
       mensagem?: string;
       error?: string;
       modelo?: string;
+      modeloUsado?: string;
     };
+
+    const modeloAtivo = dados.modelo || dados.modeloUsado;
 
     if (resposta.ok && (dados?.ok === true || dados?.valido === true)) {
       return {
         sucesso: true,
         mensagem:
           dados.mensagem ||
-          (dados.modelo
-            ? `Chave do Google AI Studio válida e ativa! Modelo disponível: ${dados.modelo}.`
+          (modeloAtivo
+            ? `Chave do Google AI Studio válida e ativa! Modelo disponível: ${modeloAtivo}.`
             : 'Chave do Google AI Studio válida e ativa!'),
-        modelo: dados.modelo
+        modelo: modeloAtivo
       };
     }
 
