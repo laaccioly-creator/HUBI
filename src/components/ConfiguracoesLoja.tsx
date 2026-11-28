@@ -87,7 +87,7 @@ import { ConfiguracoesWhatsAppIA } from './configuracoes/ConfiguracoesWhatsAppIA
 import { MobileHeader } from './layout/MobileHeader';
 import { useFeedbackModal } from '../contexts/FeedbackContext';
 import { useRegisterOverlay } from '../hooks/useRegisterOverlay';
-import { setGoogleSearchConfig } from '../services/geminiService';
+import { setGoogleSearchConfig, testarChaveGemini } from '../services/geminiService';
 import { testarConexaoSerpApi, salvarSerpApiKey } from '../services/serpApiService';
 import { useTheme } from '../contexts/ThemeContext';
 import { CardConexaoMercadoLivre } from './mercadolivre/CardConexaoMercadoLivre';
@@ -836,9 +836,53 @@ export const ConfiguracoesLoja: React.FC<ConfiguracoesLojaProps> = ({ subTelaIni
   const [tomVozRubi, setTomVozRubi] = useState<'consultivo' | 'tecnico' | 'amigavel' | 'formal'>('consultivo');
   const [geminiApiKey, setGeminiApiKey] = useState<string>('');
   const [mostrarGeminiKey, setMostrarGeminiKey] = useState<boolean>(false);
+  const [copiadoGeminiKey, setCopiadoGeminiKey] = useState<boolean>(false);
+  const [testandoGeminiKey, setTestandoGeminiKey] = useState<boolean>(false);
+  const [resultadoTesteGemini, setResultadoTesteGemini] = useState<{
+    sucesso: boolean;
+    mensagem: string;
+    modelo?: string;
+  } | null>(null);
   const [modalComoObterGeminiApiKeyAberto, setModalComoObterGeminiApiKeyAberto] = useState<boolean>(false);
   const [googleSearchApiKey, setGoogleSearchApiKey] = useState<string>('');
   const [googleSearchCx, setGoogleSearchCx] = useState<string>('');
+
+  const handleCopiarGeminiKey = async () => {
+    const chaveLimpa = geminiApiKey.trim();
+    if (!chaveLimpa) return;
+    try {
+      await navigator.clipboard.writeText(chaveLimpa);
+      setCopiadoGeminiKey(true);
+      setTimeout(() => setCopiadoGeminiKey(false), 2000);
+    } catch {
+      // Fallback silencioso sem expor a chave em logs
+    }
+  };
+
+  const handleTestarGeminiKey = async () => {
+    const chaveLimpa = geminiApiKey.trim();
+    if (!chaveLimpa) {
+      setResultadoTesteGemini({
+        sucesso: false,
+        mensagem: 'Informe a Chave de API do Google Gemini antes de testar.'
+      });
+      return;
+    }
+
+    try {
+      setTestandoGeminiKey(true);
+      setResultadoTesteGemini(null);
+      const res = await testarChaveGemini(chaveLimpa);
+      setResultadoTesteGemini(res);
+    } catch {
+      setResultadoTesteGemini({
+        sucesso: false,
+        mensagem: 'Erro ao testar a chave do Google Gemini.'
+      });
+    } finally {
+      setTestandoGeminiKey(false);
+    }
+  };
 
   // 2.2 BUSCA DE FOTOS E RADAR DE PREÇOS SERPER.DEV (BYOK)
   const [serpApiKey, setSerpApiKey] = useState<string>('');
@@ -3094,24 +3138,85 @@ export const ConfiguracoesLoja: React.FC<ConfiguracoesLojaProps> = ({ subTelaIni
                     <input
                       type={mostrarGeminiKey ? 'text' : 'password'}
                       value={geminiApiKey}
-                      onChange={(e) => setGeminiApiKey(e.target.value)}
+                      onChange={(e) => {
+                        setGeminiApiKey(e.target.value);
+                        if (resultadoTesteGemini) setResultadoTesteGemini(null);
+                      }}
                       placeholder="AIzaSy..."
                       required
-                      className={`w-full rounded-xl px-3.5 pr-11 py-2.5 text-sm font-mono border focus:border-emerald-500 outline-hidden ${
+                      className={`w-full rounded-xl px-3.5 ${copiadoGeminiKey ? 'pr-36' : 'pr-20'} py-2.5 text-sm font-mono border focus:border-emerald-500 outline-hidden ${
                         isDark
                           ? 'bg-slate-950 border-slate-700 text-white placeholder:text-slate-500'
                           : 'bg-white border-slate-300 text-black placeholder:text-slate-400'
                       }`}
                     />
-                    <button
-                      type="button"
-                      onClick={() => setMostrarGeminiKey((prev) => !prev)}
-                      className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-600 dark:text-slate-400 hover:text-black dark:hover:text-slate-200 p-1 cursor-pointer"
-                      title={mostrarGeminiKey ? 'Ocultar chave Gemini' : 'Exibir chave Gemini'}
-                    >
-                      {mostrarGeminiKey ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
-                    </button>
+                    <div className="absolute right-2.5 top-1/2 -translate-y-1/2 flex items-center gap-1">
+                      <button
+                        type="button"
+                        onClick={handleCopiarGeminiKey}
+                        disabled={!geminiApiKey.trim()}
+                        className="inline-flex items-center gap-1 text-slate-600 dark:text-slate-400 hover:text-black dark:hover:text-slate-200 p-1 cursor-pointer disabled:opacity-40 disabled:cursor-not-allowed"
+                        title="Copiar chave Gemini"
+                      >
+                        {copiadoGeminiKey ? (
+                          <>
+                            <Check className="w-4 h-4 text-emerald-500" />
+                            <span className="text-[11px] font-bold text-emerald-600 dark:text-emerald-400">Copiado!</span>
+                          </>
+                        ) : (
+                          <Copy className="w-4 h-4" />
+                        )}
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => setMostrarGeminiKey((prev) => !prev)}
+                        className="text-slate-600 dark:text-slate-400 hover:text-black dark:hover:text-slate-200 p-1 cursor-pointer"
+                        title={mostrarGeminiKey ? 'Ocultar chave Gemini' : 'Exibir chave Gemini'}
+                      >
+                        {mostrarGeminiKey ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                      </button>
+                    </div>
                   </div>
+
+                  <button
+                    type="button"
+                    onClick={handleTestarGeminiKey}
+                    disabled={testandoGeminiKey || !geminiApiKey.trim()}
+                    className={`w-full min-h-[42px] px-3.5 py-2.5 rounded-xl border font-bold text-sm flex items-center justify-center gap-1.5 transition cursor-pointer disabled:opacity-50 ${
+                      isDark
+                        ? 'bg-slate-900 hover:bg-slate-800 border-slate-700 text-slate-100'
+                        : 'bg-slate-100 hover:bg-slate-200 border-slate-300 text-black'
+                    }`}
+                  >
+                    {testandoGeminiKey ? (
+                      <>
+                        <Loader2 className="w-4 h-4 animate-spin text-emerald-500" />
+                        <span>Testando...</span>
+                      </>
+                    ) : (
+                      <>
+                        <RefreshCw className="w-4 h-4 text-emerald-500" />
+                        <span>Testar Chave</span>
+                      </>
+                    )}
+                  </button>
+
+                  {resultadoTesteGemini && (
+                    <div
+                      className={`p-2.5 rounded-xl border text-xs font-semibold flex items-center gap-2 ${
+                        resultadoTesteGemini.sucesso
+                          ? 'bg-emerald-500/10 border-emerald-500/30 text-emerald-800 dark:text-emerald-300'
+                          : 'bg-rose-500/10 border-rose-500/30 text-rose-800 dark:text-rose-300'
+                      }`}
+                    >
+                      {resultadoTesteGemini.sucesso ? (
+                        <CheckCircle2 className="w-4 h-4 text-emerald-500 shrink-0" />
+                      ) : (
+                        <AlertCircle className="w-4 h-4 text-rose-500 shrink-0" />
+                      )}
+                      <span>{resultadoTesteGemini.mensagem}</span>
+                    </div>
+                  )}
 
                   <p className={`text-xs leading-relaxed font-medium ${isDark ? 'text-slate-300' : 'text-slate-700'}`}>
                     Credencial oficial do <strong>Google AI Studio</strong> usada pela Rubi IA, autopreenchimento por foto e leitura de rótulos. Se uma filial não tiver chave própria, pode herdar automaticamente da matriz da mesma organização.
@@ -5518,14 +5623,83 @@ export const ConfiguracoesLoja: React.FC<ConfiguracoesLojaProps> = ({ subTelaIni
                       <span>[ Como obter a chave ]</span>
                     </button>
                   </div>
-                  <input
-                    type="password"
-                    value={geminiApiKey}
-                    onChange={(e) => setGeminiApiKey(e.target.value)}
-                    placeholder="AIzaSy..."
-                    required
-                    className="w-full bg-white dark:bg-slate-950 border border-slate-300 dark:border-slate-800 rounded-xl p-3 text-sm text-black dark:text-slate-100 placeholder:text-slate-500 dark:placeholder:text-slate-600 focus:border-emerald-500 outline-hidden transition font-mono"
-                  />
+                  <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2">
+                    <div className="relative flex-1">
+                      <input
+                        type={mostrarGeminiKey ? 'text' : 'password'}
+                        value={geminiApiKey}
+                        onChange={(e) => {
+                          setGeminiApiKey(e.target.value);
+                          if (resultadoTesteGemini) setResultadoTesteGemini(null);
+                        }}
+                        placeholder="AIzaSy..."
+                        required
+                        className={`w-full bg-white dark:bg-slate-950 border border-slate-300 dark:border-slate-800 rounded-xl p-3 ${copiadoGeminiKey ? 'pr-36' : 'pr-20'} text-sm text-black dark:text-slate-100 placeholder:text-slate-500 dark:placeholder:text-slate-600 focus:border-emerald-500 outline-hidden transition font-mono`}
+                      />
+                      <div className="absolute right-2.5 top-1/2 -translate-y-1/2 flex items-center gap-1">
+                        <button
+                          type="button"
+                          onClick={handleCopiarGeminiKey}
+                          disabled={!geminiApiKey.trim()}
+                          className="inline-flex items-center gap-1 text-slate-600 dark:text-slate-400 hover:text-black dark:hover:text-slate-200 p-1 cursor-pointer disabled:opacity-40 disabled:cursor-not-allowed"
+                          title="Copiar chave Gemini"
+                        >
+                          {copiadoGeminiKey ? (
+                            <>
+                              <Check className="w-4 h-4 text-emerald-500" />
+                              <span className="text-xs font-bold text-emerald-600 dark:text-emerald-400">Copiado!</span>
+                            </>
+                          ) : (
+                            <Copy className="w-4 h-4" />
+                          )}
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => setMostrarGeminiKey((prev) => !prev)}
+                          className="text-slate-600 dark:text-slate-400 hover:text-black dark:hover:text-slate-200 p-1 cursor-pointer"
+                          title={mostrarGeminiKey ? 'Ocultar chave' : 'Exibir chave'}
+                        >
+                          {mostrarGeminiKey ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                        </button>
+                      </div>
+                    </div>
+
+                    <button
+                      type="button"
+                      onClick={handleTestarGeminiKey}
+                      disabled={testandoGeminiKey || !geminiApiKey.trim()}
+                      className="px-3.5 py-3 rounded-xl border border-slate-300 dark:border-slate-700 bg-slate-100 hover:bg-slate-200 dark:bg-slate-900 dark:hover:bg-slate-800 text-black dark:text-slate-100 font-bold text-sm flex items-center justify-center gap-1.5 transition cursor-pointer disabled:opacity-50 shrink-0"
+                    >
+                      {testandoGeminiKey ? (
+                        <>
+                          <Loader2 className="w-3.5 h-3.5 animate-spin text-emerald-500" />
+                          <span>Testando...</span>
+                        </>
+                      ) : (
+                        <>
+                          <RefreshCw className="w-3.5 h-3.5 text-emerald-500" />
+                          <span>Testar Chave</span>
+                        </>
+                      )}
+                    </button>
+                  </div>
+
+                  {resultadoTesteGemini && (
+                    <div
+                      className={`mt-2 p-2.5 rounded-xl border text-sm font-semibold flex items-center gap-2 ${
+                        resultadoTesteGemini.sucesso
+                          ? 'bg-emerald-500/10 border-emerald-500/30 text-emerald-800 dark:text-emerald-300'
+                          : 'bg-rose-500/10 border-rose-500/30 text-rose-800 dark:text-rose-300'
+                      }`}
+                    >
+                      {resultadoTesteGemini.sucesso ? (
+                        <CheckCircle2 className="w-4 h-4 text-emerald-500 shrink-0" />
+                      ) : (
+                        <AlertCircle className="w-4 h-4 text-rose-500 shrink-0" />
+                      )}
+                      <span>{resultadoTesteGemini.mensagem}</span>
+                    </div>
+                  )}
                   <p className="text-sm text-black dark:text-slate-300 mt-1.5 leading-relaxed font-medium">
                     Credencial oficial e obrigatória do <strong>Google AI Studio</strong>. Ponto único e exclusivo de configuração utilizado de forma transparente por todas as inteligências da Rubi (Rubi IA, Vendedora IA no Catálogo Online, Reconhecimento Multimodal de Produtos e Atendimento no WhatsApp).
                   </p>

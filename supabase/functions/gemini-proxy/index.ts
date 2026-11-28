@@ -262,6 +262,7 @@ serve(async (req: Request) => {
         systemInstruction,
         tools,
         model,
+        acao,
         action = "generateContent",
         api_key,
         apiKey,
@@ -272,6 +273,117 @@ serve(async (req: Request) => {
 
       const lojaIdResolvido = String(lojaId || loja_id || "").trim();
       const apiKeyPayload = String(apiKey || api_key || "").trim();
+      const ehTesteChave = String(acao || action || "").trim().toLowerCase() === "testar_chave";
+
+      if (ehTesteChave) {
+        if (!apiKeyPayload) {
+          return jsonResponse(
+            {
+              ok: false,
+              valido: false,
+              error: "Informe uma chave de API do Google Gemini para testar.",
+              detalhe: "chave_ausente",
+            },
+            200
+          );
+        }
+
+        etapaAtual = "testando_chave_google";
+        try {
+          const urlModelos = `https://generativelanguage.googleapis.com/v1beta/models?key=${encodeURIComponent(apiKeyPayload)}`;
+          const resposta = await fetchComTimeout(
+            urlModelos,
+            {
+              method: "GET",
+              headers: { "Content-Type": "application/json" },
+            },
+            TIMEOUT_CHAMADA_GOOGLE_MS
+          );
+          const data = (await resposta.json().catch(() => ({}))) as Record<string, unknown>;
+
+          if (resposta.ok) {
+            const listaModelos = Array.isArray(data.models)
+              ? (data.models as Array<{ name?: string; supportedGenerationMethods?: string[] }>)
+              : [];
+            const nomesCompativeis = listaModelos
+              .filter(
+                (m) =>
+                  typeof m?.name === "string" &&
+                  (!Array.isArray(m.supportedGenerationMethods) ||
+                    m.supportedGenerationMethods.includes("generateContent"))
+              )
+              .map((m) => String(m.name).replace(/^models\//i, "").trim())
+              .filter(Boolean);
+
+            const modeloHomologado = MODELOS_RAPIDOS_HOMOLOGADOS.find((m) =>
+              nomesCompativeis.includes(m)
+            );
+            const modeloGemini = nomesCompativeis.find((m) =>
+              m.toLowerCase().startsWith("gemini-")
+            );
+            const modeloAtivo = modeloHomologado || modeloGemini || nomesCompativeis[0];
+
+            return jsonResponse(
+              {
+                ok: true,
+                valido: true,
+                modelo: modeloAtivo,
+                mensagem: modeloAtivo
+                  ? `Chave do Google AI Studio válida e ativa! Modelo disponível: ${modeloAtivo}.`
+                  : "Chave do Google AI Studio válida e ativa!",
+              },
+              200
+            );
+          }
+
+          const detalheErro = extrairDetalheErroGoogle(data, resposta.status);
+          const detalheLower = detalheErro.toLowerCase();
+          let mensagemErro =
+            "Não foi possível validar a chave no Google AI Studio no momento. Tente novamente em instantes.";
+
+          if (detalheLower.includes("expired")) {
+            mensagemErro = "Chave de API expirada. Gere uma nova chave no Google AI Studio.";
+          } else if (
+            resposta.status === 400 ||
+            resposta.status === 401 ||
+            detalheLower.includes("api key not valid") ||
+            detalheLower.includes("api_key_invalid")
+          ) {
+            mensagemErro =
+              "Chave de API inválida. Verifique se copiou a chave completa no Google AI Studio.";
+          } else if (resposta.status === 403) {
+            mensagemErro =
+              "Chave de API sem permissão para acessar o Google Gemini. Verifique as restrições da chave no Google AI Studio.";
+          } else if (resposta.status === 429) {
+            mensagemErro =
+              "Cota da API do Google Gemini excedida para esta chave. Aguarde alguns instantes ou verifique os limites no Google AI Studio.";
+          }
+
+          return jsonResponse(
+            {
+              ok: false,
+              valido: false,
+              error: mensagemErro,
+              statusGoogle: resposta.status,
+            },
+            200
+          );
+        } catch (err: unknown) {
+          const isTimeout = err instanceof Error && err.name === "AbortError";
+          return jsonResponse(
+            {
+              ok: false,
+              valido: false,
+              timeout: isTimeout,
+              error: isTimeout
+                ? "Tempo limite excedido ao validar a chave no Google AI Studio. Tente novamente em instantes."
+                : "Não foi possível conectar aos servidores do Google AI Studio. Verifique sua conexão e tente novamente.",
+            },
+            200
+          );
+        }
+      }
+
       let resolvedApiKey = apiKeyPayload;
 
       // 1. Consulta rápida da chave BYOK (própria ou herdada da mesma organizacao_id)

@@ -3,6 +3,7 @@
  * Suporte a cache em memória, ordenação inteligente por versão e família Flash,
  * e auto-recuperação (Self-Healing) com invalidação de cache em caso de 404.
  */
+import { supabase, supabaseFunctionsBaseUrl, supabaseAnonKey } from '../lib/supabase';
 
 // Cache em memória do modelo principal ativo por chave de API
 const cacheModeloAtivo = new Map<string, string>();
@@ -226,8 +227,8 @@ export const getAvailableGeminiModel = async (
 };
 
 /**
- * Testa a validade da chave de API do Gemini através da rota de listagem de modelos.
- * Sem custo de tokens, instantânea e dinâmica.
+ * Testa a validade da chave de API do Gemini de forma segura (Zero-Trust)
+ * através da Edge Function `gemini-proxy` (`acao: 'testar_chave'`).
  */
 export const testarChaveGemini = async (
   apiKey: string
@@ -238,45 +239,58 @@ export const testarChaveGemini = async (
   }
 
   try {
-    const url = `https://generativelanguage.googleapis.com/v1beta/models?key=${chaveLimpa}`;
-    const resposta = await fetch(url, {
-      method: 'GET',
-      headers: { 'Content-Type': 'application/json' }
+    let accessToken = '';
+    try {
+      const { data } = await supabase.auth.getSession();
+      accessToken = data?.session?.access_token || '';
+    } catch {
+      accessToken = '';
+    }
+
+    const resposta = await fetch(`${supabaseFunctionsBaseUrl}/gemini-proxy`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        apikey: supabaseAnonKey,
+        Authorization: `Bearer ${accessToken || supabaseAnonKey}`
+      },
+      body: JSON.stringify({
+        acao: 'testar_chave',
+        apiKey: chaveLimpa
+      })
     });
 
-    if (resposta.ok) {
-      const modelos = await getAvailableGeminiModels(chaveLimpa, true);
-      const modeloEscolhido = modelos[0] || MODELOS_FALLBACK_CONTINGENCIA[0];
+    const dados = (await resposta.json().catch(() => ({}))) as {
+      ok?: boolean;
+      valido?: boolean;
+      mensagem?: string;
+      error?: string;
+      modelo?: string;
+    };
 
+    if (resposta.ok && (dados?.ok === true || dados?.valido === true)) {
       return {
         sucesso: true,
-        mensagem: `Chave validada com sucesso! Modelo ativo identificado: ${modeloEscolhido}`,
-        modelo: modeloEscolhido
-      };
-    }
-
-    if (resposta.status === 400 || resposta.status === 403) {
-      return {
-        sucesso: false,
-        mensagem: 'Chave de API inválida ou sem permissão. Verifique sua chave no Google AI Studio.'
-      };
-    }
-
-    if (resposta.status === 429) {
-      return {
-        sucesso: false,
-        mensagem: 'Cota de requisições excedida na API do Gemini. Tente novamente em instantes.'
+        mensagem:
+          dados.mensagem ||
+          (dados.modelo
+            ? `Chave do Google AI Studio válida e ativa! Modelo disponível: ${dados.modelo}.`
+            : 'Chave do Google AI Studio válida e ativa!'),
+        modelo: dados.modelo
       };
     }
 
     return {
       sucesso: false,
-      mensagem: `Falha na verificação da chave (Status HTTP ${resposta.status}).`
+      mensagem:
+        dados?.error ||
+        dados?.mensagem ||
+        'Não foi possível validar a chave do Google Gemini. Verifique sua chave no Google AI Studio.'
     };
-  } catch (error: any) {
+  } catch {
     return {
       sucesso: false,
-      mensagem: 'Não foi possível conectar aos servidores do Google Gemini. Verifique sua conexão.'
+      mensagem: 'Não foi possível conectar ao servidor de validação da Rubi IA. Tente novamente em instantes.'
     };
   }
 };
