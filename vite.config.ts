@@ -349,11 +349,12 @@ export default defineConfig(({ mode }) => {
       ? 'development'
       : 'production';
   const shieldSeed = env.VITE_SHIELD_SECRET_SEED || process.env.VITE_SHIELD_SECRET_SEED;
+  const enableHttps = (env.VITE_ENABLE_HTTPS || process.env.VITE_ENABLE_HTTPS || '').toLowerCase().trim() === 'true';
 
   return {
     plugins: [
       react(),
-      basicSsl(),
+      ...(enableHttps ? [basicSsl()] : []),
       vitePluginReaPoison({ mode: shieldMode, secretSeed: shieldSeed }),
       VitePWA({
       registerType: 'prompt',
@@ -386,7 +387,7 @@ export default defineConfig(({ mode }) => {
         ]
       },
       workbox: {
-        maximumFileSizeToCacheInBytes: 10 * 1024 * 1024,
+        maximumFileSizeToCacheInBytes: 15 * 1024 * 1024,
         cleanupOutdatedCaches: true,
         clientsClaim: true,
         ignoreURLParametersMatching: [/^v$/]
@@ -415,7 +416,7 @@ export default defineConfig(({ mode }) => {
     strictPort: true,
     allowedHosts: true,
     cors: true,
-    https: true as any,
+    ...(enableHttps ? { https: true as any } : {}),
     proxy: {
       '/local-functions': {
         target: 'http://127.0.0.1:54321',
@@ -428,7 +429,7 @@ export default defineConfig(({ mode }) => {
     port: 3000,
     host: '0.0.0.0',
     strictPort: true,
-    https: true as any
+    ...(enableHttps ? { https: true as any } : {})
   }
   };
 });
