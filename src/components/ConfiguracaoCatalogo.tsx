@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useState, useEffect, useMemo, useRef } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import {
   Globe,
@@ -64,6 +64,9 @@ export const ConfiguracaoCatalogo: React.FC = () => {
   const [copiado, setCopiado] = useState<boolean>(false);
   const [mensagemSucesso, setMensagemSucesso] = useState<string>('');
   const [snapshotInicial, setSnapshotInicial] = useState<string>('');
+  const lojaIdCarregadaRef = useRef<string | null>(null);
+  const forcarHidratacaoAposSalvarRef = useRef<boolean>(false);
+  const hasUnsavedChangesRef = useRef<boolean>(false);
 
   // Configurações
   const [publicarCatalogo, setPublicarCatalogo] = useState<boolean>(true);
@@ -102,6 +105,13 @@ export const ConfiguracaoCatalogo: React.FC = () => {
   useEffect(() => {
     if (loja) {
       const extras = loja.configuracoes_extras || {};
+      const mesmaLojaJaCarregada = lojaIdCarregadaRef.current === loja.id;
+      if (mesmaLojaJaCarregada && !forcarHidratacaoAposSalvarRef.current) {
+        return;
+      }
+      forcarHidratacaoAposSalvarRef.current = false;
+      lojaIdCarregadaRef.current = loja.id;
+
       const catConfig = extras.catalogo || {};
 
       const pub = catConfig.publicar_catalogo ?? true;
@@ -267,6 +277,8 @@ export const ConfiguracaoCatalogo: React.FC = () => {
       if (error) throw error;
 
       setSnapshotInicial(snapshotAtual);
+      forcarHidratacaoAposSalvarRef.current = true;
+      hasUnsavedChangesRef.current = false;
       await recarregarDadosLoja?.();
       mostrarFeedback('Configurações do Catálogo salvas com sucesso!');
       notificarConfiguracaoSalvaParaOnboarding('catalogo_online');
@@ -366,6 +378,7 @@ export const ConfiguracaoCatalogo: React.FC = () => {
   ]);
 
   const isDirty = Boolean(snapshotInicial && snapshotAtual !== snapshotInicial);
+  hasUnsavedChangesRef.current = isDirty;
 
   // Tecla ESC para voltar
   useEffect(() => {

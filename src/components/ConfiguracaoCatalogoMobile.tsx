@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useState, useEffect, useMemo, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import {
   Menu,
@@ -106,6 +106,8 @@ export const ConfiguracaoCatalogoMobile: React.FC = () => {
   const [subTela, setSubTela] = useState<SubTelaCatalogoMobile>('hub');
   const [salvando, setSalvando] = useState<boolean>(false);
   const [mensagemToast, setMensagemToast] = useState<{ texto: string; tipo: 'sucesso' | 'erro' } | null>(null);
+  const lojaIdCarregadaRef = useRef<string | null>(null);
+  const forcarHidratacaoAposSalvarRef = useRef<boolean>(false);
 
   // Modais de Apoio
   const [modalEditarSlug, setModalEditarSlug] = useState<boolean>(false);
@@ -207,6 +209,13 @@ export const ConfiguracaoCatalogoMobile: React.FC = () => {
   // -------------------------------------------------------------------------
   useEffect(() => {
     if (loja) {
+      const mesmaLojaJaCarregada = lojaIdCarregadaRef.current === loja.id;
+      if (mesmaLojaJaCarregada && !forcarHidratacaoAposSalvarRef.current) {
+        return;
+      }
+      forcarHidratacaoAposSalvarRef.current = false;
+      lojaIdCarregadaRef.current = loja.id;
+
       const extras = loja.configuracoes_extras || {};
       const catConfig = extras.catalogo || {};
       const entRet = extras.entrega_retirada || {};
@@ -411,6 +420,7 @@ export const ConfiguracaoCatalogoMobile: React.FC = () => {
 
       if (error) throw error;
 
+      forcarHidratacaoAposSalvarRef.current = true;
       await recarregarDadosLoja();
       mostrarToast(mensagemSucesso, 'sucesso');
       notificarConfiguracaoSalvaParaOnboarding('catalogo_online');
@@ -452,6 +462,7 @@ export const ConfiguracaoCatalogoMobile: React.FC = () => {
       setSlugCatalogo(formatado);
       setModalEditarSlug(false);
       mostrarToast('Link do catálogo atualizado!', 'sucesso');
+      forcarHidratacaoAposSalvarRef.current = true;
       await recarregarDadosLoja();
     } catch (err: any) {
       setErroSlug('Link já em uso ou inválido.');

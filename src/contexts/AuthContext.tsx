@@ -130,6 +130,17 @@ const extrairLojaIdRetornoUrl = (): string | null => {
   return null;
 };
 
+const saoLojasIguais = (a: Loja | null, b: Loja | null): boolean => {
+  if (a === b) return true;
+  if (!a || !b) return false;
+  if (a.id !== b.id) return false;
+  try {
+    return JSON.stringify(a) === JSON.stringify(b);
+  } catch {
+    return false;
+  }
+};
+
 const AuthContext = createContext<AuthContextType>({} as AuthContextType);
 
 export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
@@ -144,6 +155,11 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   lojasDisponiveisRef.current = lojasDisponiveis;
   const [carregando, setCarregando] = useState<boolean>(true);
   const sincronizandoLojaRef = useRef<boolean>(false);
+  const sessionUserIdRef = useRef<string | null>(null);
+
+  const atualizarLojaSeMudou = useCallback((novaLoja: Loja | null) => {
+    setLoja((atual) => (saoLojasIguais(atual, novaLoja) ? atual : novaLoja));
+  }, []);
 
   const usuarioLogado = usuario
     ? ({ ...usuario, nome: usuario.nome || usuario.nome_completo } as UsuarioLoja & { nome: string })
@@ -236,6 +252,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       const { data: { session: sessaoAtual } } = await supabase.auth.getSession();
       setSession(sessaoAtual);
       const authUser = sessaoAtual?.user || null;
+      sessionUserIdRef.current = authUser?.id || null;
       const activeUsuarioId = localStorage.getItem(STORAGE_KEY_USUARIO_ID);
 
       if (!authUser && !activeUsuarioId) {
@@ -331,7 +348,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         }
 
         if (lojaParaAtivar) {
-          setLoja(lojaParaAtivar);
+          atualizarLojaSeMudou(lojaParaAtivar);
           localStorage.setItem(STORAGE_KEY_LOJA_ID, lojaParaAtivar.id);
 
           if (lojaParaAtivar.organizacao_id) {
@@ -1301,18 +1318,10 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
     // Escutar eventos de login com OAuth (Google, etc.) e restauração de sessão
     const { data: authListener } = supabase.auth.onAuthStateChange(async (event, session) => {
-      // 1. Autocura imediata para qualquer evento de autenticação
-      if (session?.user) {
-        try {
-          await supabase.rpc('sincronizar_meu_usuario_auth');
-        } catch (rpcErr) {
-          console.warn('Aviso ao executar sincronizar_meu_usuario_auth no onAuthStateChange:', rpcErr);
-        }
-      }
-
       if (event === 'SIGNED_OUT') {
         const activeUserLocal = localStorage.getItem(STORAGE_KEY_USUARIO_ID);
         if (!activeUserLocal) {
+          sessionUserIdRef.current = null;
           setSession(null);
           setLojasDisponiveis([]);
           setLoja(null);
@@ -1320,6 +1329,34 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
           setOrganizacao(null);
         }
         return;
+      }
+
+      // Ignora re-fetch completo quando apenas o token foi renovado (ex: troca de janela/aba)
+      // ou quando SIGNED_IN/INITIAL_SESSION re-emitem sessão para o mesmo user.id já carregado
+      if (
+        session?.user?.id &&
+        session.user.id === sessionUserIdRef.current &&
+        lojaRef.current &&
+        (event === 'TOKEN_REFRESHED' || event === 'SIGNED_IN' || event === 'INITIAL_SESSION')
+      ) {
+        setSession((prev: any) => (prev?.access_token === session.access_token ? prev : session));
+        return;
+      }
+
+      if (event === 'TOKEN_REFRESHED') {
+        if (session) {
+          setSession((prev: any) => (prev?.access_token === session.access_token ? prev : session));
+        }
+        return;
+      }
+
+      // 1. Autocura imediata para eventos efetivos de entrada/inicialização de sessão
+      if (session?.user) {
+        try {
+          await supabase.rpc('sincronizar_meu_usuario_auth');
+        } catch (rpcErr) {
+          console.warn('Aviso ao executar sincronizar_meu_usuario_auth no onAuthStateChange:', rpcErr);
+        }
       }
 
       // Prevenção de reversão involuntária para o administrador ao renovar token ou iniciar sessão:
@@ -1330,6 +1367,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
       if (event === 'SIGNED_IN' || event === 'INITIAL_SESSION') {
         if (session?.user?.email) {
+          sessionUserIdRef.current = session.user.id;
           setSession(session);
           const emailAuth = session.user.email.toLowerCase();
           const nomeAuth =
@@ -1423,7 +1461,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
           }
 
           if (lojaEscolhida) {
-            setLoja(lojaEscolhida);
+            atualizarLojaSeMudou(lojaEscolhida);
             localStorage.setItem(STORAGE_KEY_LOJA_ID, lojaEscolhida.id);
 
             // Carregar o operador correspondente à loja escolhida

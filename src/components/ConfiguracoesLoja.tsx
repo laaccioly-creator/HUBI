@@ -386,6 +386,9 @@ export const ConfiguracoesLoja: React.FC<ConfiguracoesLojaProps> = ({ subTelaIni
   }, [subTela, limparInteracaoFisica]);
 
   const salvouRecenteRef = useRef<boolean>(false);
+  const lojaIdCarregadaRef = useRef<string | null>(null);
+  const forcarHidratacaoAposSalvarRef = useRef<boolean>(false);
+  const hasUnsavedChangesRef = useRef<boolean>(false);
   const whatsappIaRef = useRef<{ salvar: () => Promise<void> } | null>(null);
   const [salvandoWhatsAppIA, setSalvandoWhatsAppIA] = useState<boolean>(false);
 
@@ -760,6 +763,8 @@ export const ConfiguracoesLoja: React.FC<ConfiguracoesLojaProps> = ({ subTelaIni
       }
 
       salvouRecenteRef.current = true;
+      forcarHidratacaoAposSalvarRef.current = true;
+      hasUnsavedChangesRef.current = false;
       if (loja) {
         setLoja({
           ...loja,
@@ -1062,10 +1067,13 @@ export const ConfiguracoesLoja: React.FC<ConfiguracoesLojaProps> = ({ subTelaIni
   // Inicialização com dados da Loja
   useEffect(() => {
     if (loja) {
-      if (salvouRecenteRef.current) {
-        salvouRecenteRef.current = false;
+      const mesmaLojaJaCarregada = lojaIdCarregadaRef.current === loja.id;
+      if (mesmaLojaJaCarregada && !forcarHidratacaoAposSalvarRef.current) {
         return;
       }
+      forcarHidratacaoAposSalvarRef.current = false;
+      salvouRecenteRef.current = false;
+      lojaIdCarregadaRef.current = loja.id;
       const extras = loja.configuracoes_extras || {};
       const geral = extras.geral || {};
       const recibo = extras.recibo || {};
@@ -1891,6 +1899,8 @@ export const ConfiguracoesLoja: React.FC<ConfiguracoesLojaProps> = ({ subTelaIni
         configuracoes_extras: novasExtras
       });
       salvouRecenteRef.current = true;
+      forcarHidratacaoAposSalvarRef.current = true;
+      hasUnsavedChangesRef.current = false;
       limparInteracaoFisica();
       setSnapshotInicial(
         gerarSnapshotConfig({
@@ -2256,6 +2266,7 @@ export const ConfiguracoesLoja: React.FC<ConfiguracoesLojaProps> = ({ subTelaIni
       isTaxaDomicilioAlterada
     )
   );
+  hasUnsavedChangesRef.current = isDirty;
 
   useEffect(() => {
     const handleDescartar = () => {
@@ -2669,7 +2680,11 @@ export const ConfiguracoesLoja: React.FC<ConfiguracoesLojaProps> = ({ subTelaIni
 
           {/* SUBTELA DADOS DA LOJA MOBILE */}
           {subTela === 'dados-loja' && (
-            <div className="space-y-4 pb-6">
+            <form
+              autoComplete="off"
+              onSubmit={(e) => e.preventDefault()}
+              className="space-y-4 pb-6"
+            >
               {/* Bloco 1: Logo + Identificação + Endereço */}
               <div
                 className={`rounded-2xl p-4 shadow-xs space-y-4 border ${
@@ -3059,6 +3074,8 @@ export const ConfiguracoesLoja: React.FC<ConfiguracoesLojaProps> = ({ subTelaIni
                   </label>
                   <input
                     type="text"
+                    name="loja_especialidade_nicho"
+                    autoComplete="off"
                     value={especialidadeNegocio}
                     onChange={(e) => setEspecialidadeNegocio(e.target.value)}
                     placeholder="Ex: Roupas femininas, peças Honda e Yamaha, mercadinho de bairro..."
@@ -3137,6 +3154,8 @@ export const ConfiguracoesLoja: React.FC<ConfiguracoesLojaProps> = ({ subTelaIni
                   <div className="relative">
                     <input
                       type={mostrarGeminiKey ? 'text' : 'password'}
+                      name="loja_gemini_api_key"
+                      autoComplete="new-password"
                       value={geminiApiKey}
                       onChange={(e) => {
                         setGeminiApiKey(e.target.value);
@@ -3244,6 +3263,8 @@ export const ConfiguracoesLoja: React.FC<ConfiguracoesLojaProps> = ({ subTelaIni
                   <div className="relative">
                     <input
                       type={mostrarSerperKey ? 'text' : 'password'}
+                      name="loja_serper_api_key"
+                      autoComplete="new-password"
                       value={serpApiKey}
                       onChange={(e) => {
                         setSerpApiKey(e.target.value);
@@ -3307,7 +3328,7 @@ export const ConfiguracoesLoja: React.FC<ConfiguracoesLojaProps> = ({ subTelaIni
                   )}
                 </div>
               </div>
-            </div>
+            </form>
           )}
 
           {/* SUBTELA MEU RECIBO MOBILE */}
@@ -5301,11 +5322,15 @@ export const ConfiguracoesLoja: React.FC<ConfiguracoesLojaProps> = ({ subTelaIni
         {/* SUB-TELA: DADOS DA LOJA */}
         {/* ========================================================================= */}
         {subTela === 'dados-loja' && (
-          <div className={`rounded-3xl p-6 shadow-sm space-y-5 animate-in fade-in ${
-            isDark
-              ? 'bg-[#000000] border border-slate-700 text-white'
-              : 'bg-white border-2 border-slate-300 text-black'
-          }`}>
+          <form
+            autoComplete="off"
+            onSubmit={(e) => e.preventDefault()}
+            className={`rounded-3xl p-6 shadow-sm space-y-5 animate-in fade-in ${
+              isDark
+                ? 'bg-[#000000] border border-slate-700 text-white'
+                : 'bg-white border-2 border-slate-300 text-black'
+            }`}
+          >
             <div>
               <h2 className={`font-black text-base ${isDark ? 'text-white' : 'text-black'}`}>Dados da Loja</h2>
               <p className={`text-sm mt-1 font-medium leading-relaxed ${isDark ? 'text-slate-300' : 'text-black'}`}>Nome, logo, telefone, WhatsApp e endereço</p>
@@ -5567,6 +5592,8 @@ export const ConfiguracoesLoja: React.FC<ConfiguracoesLojaProps> = ({ subTelaIni
                   </label>
                   <input
                     type="text"
+                    name="loja_especialidade_nicho"
+                    autoComplete="off"
                     value={especialidadeNegocio}
                     onChange={(e) => setEspecialidadeNegocio(e.target.value)}
                     className="w-full bg-white dark:bg-slate-950 border border-slate-300 dark:border-slate-800 rounded-xl p-3 text-sm text-black dark:text-slate-100 placeholder:text-slate-500 dark:placeholder:text-slate-600 focus:border-emerald-500 outline-hidden transition"
@@ -5627,6 +5654,8 @@ export const ConfiguracoesLoja: React.FC<ConfiguracoesLojaProps> = ({ subTelaIni
                     <div className="relative flex-1">
                       <input
                         type={mostrarGeminiKey ? 'text' : 'password'}
+                        name="loja_gemini_api_key"
+                        autoComplete="new-password"
                         value={geminiApiKey}
                         onChange={(e) => {
                           setGeminiApiKey(e.target.value);
@@ -5727,6 +5756,8 @@ export const ConfiguracoesLoja: React.FC<ConfiguracoesLojaProps> = ({ subTelaIni
                     <div className="relative flex-1">
                       <input
                         type={mostrarSerperKey ? 'text' : 'password'}
+                        name="loja_serper_api_key"
+                        autoComplete="new-password"
                         value={serpApiKey}
                         onChange={(e) => {
                           setSerpApiKey(e.target.value);
@@ -5797,7 +5828,7 @@ export const ConfiguracoesLoja: React.FC<ConfiguracoesLojaProps> = ({ subTelaIni
                 </div>
               </div>
             </div>
-          </div>
+          </form>
         )}
 
 
